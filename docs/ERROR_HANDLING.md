@@ -4,31 +4,54 @@
 
 Jeder produktive Buchungsvorgang muss eindeutig, nachvollziehbar und gegen Doppelbuchungen geschuetzt sein.
 
-Automatischer Retry ist nur zulaessig, wenn technisch zweifelsfrei feststeht, dass Oxaion den urspruenglichen Buchungsauftrag **nicht** verarbeitet hat. In allen anderen unklaren Faellen gilt `UNCERTAIN` beziehungsweise `MANUAL_REVIEW_REQUIRED`.
+Automatischer Retry einer Oxaion-Buchung ist nur zulaessig, wenn technisch zweifelsfrei feststeht, dass Oxaion den urspruenglichen Buchungsauftrag **nicht** verarbeitet hat. In allen anderen unklaren Faellen gilt `UNCERTAIN` beziehungsweise `MANUAL_REVIEW_REQUIRED`.
 
-## Transaktions-ID
+Ein Transport-Retry zwischen PWA und Backend ist davon getrennt zu betrachten: dieselbe lokal erfasste Operation darf mit derselben `clientOperationId` erneut uebertragen werden, solange das Backend sie idempotent verarbeitet und dadurch keine neue Oxaion-Buchung entsteht.
 
-- Das Backend erzeugt vor jeder produktiven Buchung eine global eindeutige, unveraenderliche Transaktions-/Vorgangs-ID.
-- Die ID korreliert Bedienvorgang, Backend-Protokoll, einzelne Buchungsschritte und Oxaion-Referenzen.
-- Die ID wird dem Bediener bei Fehlern und unklaren Ergebnissen angezeigt.
+## Client-Operation-ID und Transaktions-ID
+
+Da ein Vorgang bereits offline entstehen kann, erzeugt das Frontend beim lokalen Anlegen eine global eindeutige, unveraenderliche `clientOperationId`.
+
+Das Backend erzeugt beim ersten serverseitig angenommenen produktiven Vorgang weiterhin eine eigene global eindeutige, unveraenderliche Transaktions-/Vorgangs-ID und ordnet beide IDs eindeutig einander zu.
+
+- `clientOperationId` korreliert lokale Erfassung, Outbox und wiederholte Uebertragung.
+- Die Backend-Transaktions-ID korreliert serverseitige Validierung, Backend-Protokoll, einzelne Buchungsschritte und Oxaion-Referenzen.
+- Beide IDs werden fuer Diagnose und Audit nachvollziehbar gespeichert.
+- Die serverseitige Eindeutigkeitsregel muss verhindern, dass dieselbe `clientOperationId` mehrere wirksame Oxaion-Buchungen erzeugt.
 - Ein Pulverwechsel mit mehreren Schritten benoetigt eine nachvollziehbare Korrelation zwischen Gesamtvorgang und Teilschritten.
-- `TODO`: Klaeren, ob und wie die Vorgangs-ID in den bestaetigten Oxaion-Aufrufen als externe Referenz uebergeben und spaeter abgefragt werden kann.
+- `TODO`: Klaeren, ob und wie die Backend-Transaktions-ID oder eine geeignete externe Referenz in den bestaetigten Oxaion-Aufrufen uebergeben und spaeter abgefragt werden kann.
 
 ## Idempotency und Duplicate Prevention
 
 - Derselbe fachliche Auftrag darf nicht mehrfach wirksam gebucht werden.
-- Das Backend prueft vor dem Versand, ob fuer die Vorgangs-ID bereits ein laufender, erfolgreicher oder unklarer Versand existiert.
+- Das Backend prueft vor dem Versand, ob fuer die `clientOperationId` beziehungsweise Transaktions-ID bereits ein laufender, erfolgreicher oder unklarer Versand existiert.
 - Parallel eintreffende identische Anforderungen muessen serialisiert oder durch eine eindeutige Persistenzregel abgefangen werden.
-- Eine bereits erfolgreiche Vorgangs-ID liefert das gespeicherte Ergebnis und loest keine neue Buchung aus.
-- Eine Vorgangs-ID im Status `SENDING_TO_OXAION`, `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` darf keine weitere Buchung ausloesen.
+- Eine bereits erfolgreiche `clientOperationId` beziehungsweise Transaktions-ID liefert das gespeicherte Ergebnis und loest keine neue Buchung aus.
+- Eine Transaktions-ID im Status `SENDING_TO_OXAION`, `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` darf keine weitere Buchung ausloesen.
 - Clientseitige Button-Sperren verbessern die Bedienung, ersetzen aber niemals die serverseitige Duplicate Prevention.
 - `TODO`: Persistenztechnik, Eindeutigkeitsbedingungen und Aufbewahrungszeit festlegen.
 
-## Fachliche Status
+## Lokale Sync-Zustaende
+
+Die PWA fuehrt lokale Sync-Zustaende getrennt von den Backend-/Oxaion-Transaktionsstatus.
+
+Mindestens fachlich unterscheidbar sind:
+
+- `LOCAL_DRAFT`: lokal begonnen, noch nicht fuer Synchronisation freigegeben
+- `PENDING_SYNC`: lokal vollstaendig genug fuer die vorgesehene Synchronisation, aber noch nicht serverseitig bestaetigt
+- `SYNCING`: Uebertragung zum Backend laeuft
+- `SYNCED`: lokaler Eintrag wurde eindeutig einem serverseitigen Vorgang/Status zugeordnet
+- `CONFLICT`: serverseitige Revalidierung widerspricht dem lokal angenommenen Zustand
+- `FAILED`: technischer Sync-Fehler ohne Aussage, dass eine Oxaion-Buchung fehlgeschlagen ist
+- `MANUAL_REVIEW_REQUIRED`: automatische Klaerung nicht moeglich oder nicht zulaessig
+
+`SYNCED` bedeutet nicht automatisch `SUCCESS`. Der lokale Sync-Status und der serverseitige Buchungsstatus muessen separat angezeigt und gespeichert werden.
+
+## Fachliche Backend-/Oxaion-Status
 
 Mindestens folgende Zustaende muessen unterscheidbar sein; die technischen Namen duerfen spaeter angepasst werden:
 
-- `CREATED`: Vorgang angelegt, noch nichts an Oxaion gesendet
+- `CREATED`: serverseitiger Vorgang angelegt, noch nichts an Oxaion gesendet
 - `VALIDATING`: Eingaben und Oxaion-Ausgangsdaten werden geprueft
 - `SENDING_TO_OXAION`: Versand wurde begonnen; Ergebnis ist noch nicht bestaetigt
 - `SUCCESS`: Oxaion hat die erfolgreiche Buchung eindeutig bestaetigt
@@ -38,6 +61,37 @@ Mindestens folgende Zustaende muessen unterscheidbar sein; die technischen Namen
 - `MANUAL_REVIEW_REQUIRED`: Automatische Klaerung ist nicht moeglich oder nicht zulaessig
 
 Jeder Statuswechsel wird mit Zeitstempel, Ursache und technischer beziehungsweise fachlicher Referenz protokolliert.
+
+## Smartphone <-> Backend: Offline und Reconnect
+
+Ein Verbindungsabbruch zwischen Smartphone und Backend beweist nichts ueber einen spaeteren Oxaion-Zustand. Es muss unterschieden werden, ob das Backend den Vorgang bereits eindeutig angenommen hat.
+
+### Noch nicht serverseitig angenommen
+
+- Vorgang bleibt mit unveraenderter `clientOperationId` in der lokalen Outbox.
+- Anzeige: `Offline erfasst - noch nicht serverseitig bestaetigt.`
+- Bei Reconnect darf dieselbe Outbox-Nachricht erneut uebertragen werden.
+- Das Backend muss die `clientOperationId` idempotent behandeln.
+- Vor einer produktiven Oxaion-Buchung werden aktuelle fachliche Daten serverseitig erneut validiert.
+
+### Backend moeglicherweise erreicht
+
+Wenn die PWA wegen Timeout oder Verbindungsabbruch nicht weiss, ob das Backend die Operation bereits angenommen hat, darf sie nicht einfach eine neue fachliche Operation mit neuer ID erzeugen.
+
+Sie sendet beziehungsweise fragt mit derselben `clientOperationId` erneut an. Das Backend liefert den bereits vorhandenen serverseitigen Zustand oder legt genau eine neue Transaktion an, wenn die ID noch unbekannt ist.
+
+### Konflikt nach Offline-Erfassung
+
+Wenn sich der relevante serverseitige Zustand geaendert hat, wird nicht automatisch gebucht oder ueberschrieben.
+
+Beispiele:
+
+- anderes Pulver auf der Maschine
+- nicht mehr kompatible Mix-Charge
+- nicht eindeutiger Maschinenbestand
+- bereits anderweitig verarbeiteter Vorgang
+
+Der lokale Vorgang wird auf `CONFLICT` beziehungsweise `MANUAL_REVIEW_REQUIRED` gesetzt und erhaelt eine konkrete Bedienermassnahme.
 
 ## Oxaion-Sperren
 
@@ -49,7 +103,7 @@ Jeder Statuswechsel wird mit Zeitstempel, Ursache und technischer beziehungsweis
 - Es gibt keine automatische Endlosschleife; ein erneuter Versuch wird bewusst durch den Bediener gestartet.
 - `TODO`: Oxaion-Sperrabfrage, Fehlerkennung und Benutzerermittlung technisch bestaetigen.
 
-## HTTP Timeout und Connection Reset
+## Backend <-> Oxaion: HTTP Timeout und Connection Reset
 
 Timeout oder Connection Reset beweisen allein nicht, dass Oxaion den Auftrag nicht verarbeitet hat.
 
@@ -83,7 +137,7 @@ Ein Ergebnis ist unklar, wenn Oxaion die Anfrage moeglicherweise erhalten oder v
 Dann gilt:
 
 1. Status auf `UNCERTAIN` setzen.
-2. Weitere automatische und manuelle Doppel-Ausloesung derselben Vorgangs-ID blockieren.
+2. Weitere automatische und manuelle Doppel-Ausloesung derselben Transaktions-ID blockieren.
 3. Vorhandene Referenzen und Protokolle sichern, ohne Secrets zu speichern.
 4. Eine bestaetigte Ergebnisabfrage versuchen, sofern diese rein lesend und fachlich geklaert ist.
 5. Bei fehlender Klaerbarkeit auf `MANUAL_REVIEW_REQUIRED` setzen.
@@ -91,21 +145,42 @@ Dann gilt:
 
 ## Retry-Regeln
 
+### PWA -> Backend
+
+- Derselbe Outbox-Eintrag darf mit derselben `clientOperationId` nach Transportfehler erneut uebertragen werden.
+- Eine neue `clientOperationId` fuer denselben fachlichen Vorgang darf nicht als einfacher Retry erzeugt werden.
+- Wiederholte Uebertragung darf serverseitig keine zweite Transaktion beziehungsweise Oxaion-Buchung erzeugen.
+
+### Backend -> Oxaion
+
 - Kein Retry bei `SUCCESS`, `REJECTED`, `LOCKED`, `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`.
 - Ein automatischer Retry ist nur bei eindeutigem Nichtversand beziehungsweise nachgewiesener Nichtverarbeitung zulaessig.
 - Anzahl, Abstand und technische Bedingungen erlaubter Retries werden begrenzt und protokolliert.
 - Ein manueller erneuter Versuch nach `LOCKED` ist ein bewusster Bedienvorgang und muss nachvollziehbar dem vorherigen Vorgang zugeordnet werden.
 - `TODO`: Konkrete Retry-Policy erst nach Analyse der Oxaion-Schnittstelle festlegen.
 
+## PWA-Update und Fehlerfall
+
+Ein App-Update darf weder einen laufenden Vorgang abbrechen noch noch nicht synchronisierte Outbox-Daten verlieren.
+
+- Kein erzwungener Reload waehrend eines aktiven kritischen Vorgangs oder laufender Synchronisation.
+- Service-Worker-Cache-Bereinigung darf IndexedDB nicht loeschen.
+- IndexedDB-Schemamigrationen muessen `PENDING_SYNC`-Daten erhalten.
+- Wenn eine neue Frontend-Version mit dem aktuell erreichbaren Backend nicht kompatibel ist, muss die App einen klaren administrativen Fehler anzeigen statt Buchungen mit unklarem Verhalten zu versuchen.
+
+Details stehen in `docs/OFFLINE_PWA.md`.
+
 ## Manuelle Nachbearbeitung
 
 Eine manuelle Nachbearbeitung benoetigt mindestens:
 
+- `clientOperationId`, soweit vorhanden
 - Transaktions-ID und Zeitstempel
 - Benutzer und Buchungsart
 - Fertigungsauftrag, Material, Charge und Mix-Charge
 - Plan- und Ist-Maschine
 - angeforderte Menge, Quell- und Ziellager
+- lokaler Sync-Status und verwendeter Maschinen-Cache, wenn relevant
 - Versandstatus und bereinigte Oxaion-Referenz/-Antwort
 - bisherigen Statusverlauf
 - dokumentierte Pruefung in Oxaion
@@ -119,3 +194,4 @@ Die Nachbearbeitung darf keine unkontrollierte direkte SQL-Buchung in Oxaion ver
 - Personenbezogene Daten nur im erforderlichen Umfang speichern und angemessen schuetzen.
 - Request- und Response-Daten vor der Persistierung filtern beziehungsweise redigieren.
 - Audit-Daten gegen unbeabsichtigte Aenderung schuetzen und eine noch festzulegende Aufbewahrungsregel anwenden.
+- Lokale Browserdaten sind nur Zwischenpuffer und duerfen nicht als einziges dauerhaftes Audit-Archiv verwendet werden.
