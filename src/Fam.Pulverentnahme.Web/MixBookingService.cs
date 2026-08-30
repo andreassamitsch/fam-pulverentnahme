@@ -31,32 +31,12 @@ public sealed class MixBookingService
             var existing = await _store.GetAsync(request.ClientOperationId, ct);
             if (existing is not null) return existing;
 
-            var tx = new MixTransaction
-            {
-                ClientOperationId = request.ClientOperationId,
-                Request = request,
-                Status = TransactionStatuses.Created,
-                Stage = "CREATED",
-                Message = "Transaction created."
-            };
+            var tx = new MixTransaction { ClientOperationId = request.ClientOperationId, Request = request, Status = TransactionStatuses.Created, Stage = "CREATED", Message = "Transaction created." };
             await SaveEventAsync(tx, "CREATED", "Transaction created.", ct);
-
             try { await ExecuteNewTransactionAsync(tx, ct); }
-            catch (OxaionRejectedException ex)
-            {
-                tx.Status = TransactionStatuses.Rejected;
-                await SaveEventAsync(tx, "REJECTED", ex.Message, ct);
-            }
-            catch (Exception ex) when (ex is OxaionTransportException or SimulatedAnswerLossException)
-            {
-                tx.Status = TransactionStatuses.Uncertain;
-                await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct);
-            }
-            catch (Exception ex)
-            {
-                tx.Status = TransactionStatuses.ManualReviewRequired;
-                await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct);
-            }
+            catch (OxaionRejectedException ex) { tx.Status = TransactionStatuses.Rejected; await SaveEventAsync(tx, "REJECTED", ex.Message, ct); }
+            catch (Exception ex) when (ex is OxaionTransportException or SimulatedAnswerLossException) { tx.Status = TransactionStatuses.Uncertain; await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct); }
+            catch (Exception ex) { tx.Status = TransactionStatuses.ManualReviewRequired; await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct); }
             return tx;
         }
         finally { gate.Release(); }
@@ -78,18 +58,13 @@ public sealed class MixBookingService
                 await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", "No confirmed Oxaion document number is available. Do not retry blindly.", ct);
                 return tx;
             }
-
             try
             {
                 await using var session = await _oxaion.ConnectAsync(ct);
                 var context = await OpenExistingDocumentAsync(session, tx, ct);
                 var analysis = AnalyzeMovements(tx.Request, ParseMovements(context.List.Xml));
                 tx.LastMovements = analysis.Rows.ToList();
-
-                if (analysis.Status == "COMPLETE")
-                {
-                    await FinalizeAndVerifyAsync(session, tx, ct);
-                }
+                if (analysis.Status == "COMPLETE") await FinalizeAndVerifyAsync(session, tx, ct);
                 else if (analysis.Status == "POS1_ONLY")
                 {
                     if (tx.Position1ValidatedState is null) throw new InvalidOperationException("Position 1 exists but the continuation state is missing.");
@@ -113,21 +88,9 @@ public sealed class MixBookingService
                     await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", "Unexpected partial Oxaion document state; automatic continuation blocked.", ct);
                 }
             }
-            catch (OxaionRejectedException ex)
-            {
-                tx.Status = TransactionStatuses.Rejected;
-                await SaveEventAsync(tx, "REJECTED", ex.Message, ct);
-            }
-            catch (Exception ex) when (ex is OxaionTransportException or SimulatedAnswerLossException)
-            {
-                tx.Status = TransactionStatuses.Uncertain;
-                await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct);
-            }
-            catch (Exception ex)
-            {
-                tx.Status = TransactionStatuses.ManualReviewRequired;
-                await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct);
-            }
+            catch (OxaionRejectedException ex) { tx.Status = TransactionStatuses.Rejected; await SaveEventAsync(tx, "REJECTED", ex.Message, ct); }
+            catch (Exception ex) when (ex is OxaionTransportException or SimulatedAnswerLossException) { tx.Status = TransactionStatuses.Uncertain; await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct); }
+            catch (Exception ex) { tx.Status = TransactionStatuses.ManualReviewRequired; await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct); }
             return tx;
         }
         finally { gate.Release(); }
@@ -163,8 +126,7 @@ public sealed class MixBookingService
         OxaionSession.AssertNoFcod(put);
         var doc = Get(put.Dta, "KOBGNR");
         if (string.IsNullOrWhiteSpace(doc)) throw new InvalidOperationException("LB20100J *PUTNEW did not return KOBGNR.");
-        tx.DocumentNo = doc;
-        tx.HeaderDta = put.Dta;
+        tx.DocumentNo = doc; tx.HeaderDta = put.Dta;
         await SaveEventAsync(tx, "HEADER_CREATED", $"Oxaion material document {doc} created.", ct);
         return await OpenExistingDocumentAsync(session, tx, ct);
     }
@@ -183,36 +145,20 @@ public sealed class MixBookingService
     private async Task<Dictionary<string, string>> AddPosition1Async(OxaionSession session, MixTransaction tx, string ssid, CancellationToken ct)
     {
         await SaveEventAsync(tx, "POSITION_1_VALIDATING", "Validating old MIX -> new MIX.", ct);
-        var r = tx.Request;
-        var ts = OxaionTimestamp();
+        var r = tx.Request; var ts = OxaionTimestamp();
         var seed = Merge(tx.HeaderDta!, Dict(("ANWG", "LBS"), ("PSANWG", "LBS"), ("PSBGNR", tx.DocumentNo!), ("PSBGDT", Iso(r.BookingDate)), ("PSBGKZ", "MB"), ("PSFIRM", _oxaionOptions.Firm), ("PSPOSI", "1"), ("PSKOPO", "0"), ("PSBGZT", ts), ("PSBMN1", "0,000"), ("PSBMN2", "0,000"), ("KEYTYPE", "C_LKOPF"), ("SSID", ssid), ("SNR", "1"), ("WSTR", "1"), ("PGMN", "LB20110R"), ("MTYPE", "*PGM"), ("NAME", "UPOSTP.POPONR"), ("MC-Modus", "true"), ("NoModDlg", "true"), ("keyFields", "PSBGNR PSPOSI PSKOPO PSBGZT"), ("keyFirm", "FIRM")));
-        var created = await session.CallAsync("LB20115J", "*NEW", seed, ct);
-        var state = Merge(seed, created.Dta);
-        var context = PositionContext.Position1(tx);
-
-        var p0 = ApplyPosition(state, tx, context, "", "0,000", FormatQty(r.OldMixAmountKg), true, ts, Iso(r.ProductionDate));
-        state = Merge(p0, (await session.CallAsync("LB20115J", "*PUTNEW", p0, ct)).Dta);
-        var pLn = ApplyPosition(state, tx, context, "LN", "0,000", FormatQty(r.OldMixAmountKg), true, ts, Iso(r.ProductionDate));
-        state = Merge(pLn, (await session.CallAsync("LB20115J", "*PUTNEW", pLn, ct)).Dta);
-        var pLm = ApplyPosition(state, tx, context, "LM", "0,000", FormatQty(r.OldMixAmountKg), true, ts, Iso(r.ProductionDate));
-        state = Merge(pLm, (await session.CallAsync("LB20115J", "*PUTNEW", pLm, ct)).Dta);
+        var created = await session.CallAsync("LB20115J", "*NEW", seed, ct); var state = Merge(seed, created.Dta); var context = PositionContext.Position1(tx);
+        var p0 = ApplyPosition(state, tx, context, "", "0,000", FormatQty(r.OldMixAmountKg), true, ts, Iso(r.ProductionDate)); state = Merge(p0, (await session.CallAsync("LB20115J", "*PUTNEW", p0, ct)).Dta);
+        var pLn = ApplyPosition(state, tx, context, "LN", "0,000", FormatQty(r.OldMixAmountKg), true, ts, Iso(r.ProductionDate)); state = Merge(pLn, (await session.CallAsync("LB20115J", "*PUTNEW", pLn, ct)).Dta);
+        var pLm = ApplyPosition(state, tx, context, "LM", "0,000", FormatQty(r.OldMixAmountKg), true, ts, Iso(r.ProductionDate)); state = Merge(pLm, (await session.CallAsync("LB20115J", "*PUTNEW", pLm, ct)).Dta);
         state = Merge(state, (await session.CallAsync("LB20115J", "*LOADWIN3", Dict(("NOHWPgm", "LB201153"), ("NoHints", "")), ct)).Dta);
-
         var final = ApplyPosition(state, tx, context, "LM", FormatQty(r.OldMixAmountKg), FormatQty(r.OldMixAmountKg), false, ts, Iso(r.ProductionDate));
         foreach (var key in new[] { "TX_B1BSUB", "TX_B1CHUB", "TX_WLO1BZ", "TX_WLO2", "TX__LBBSUB" }) if (state.TryGetValue(key, out var value)) final[key] = value;
         final["NoVPDialog"] = "true"; final["NoWinSnnr"] = "true"; final["NoWindow"] = "true";
-        var finalResult = await session.CallAsync("LB20115J", "*PUTNEW", final, ct);
-        OxaionSession.AssertNoFcod(finalResult);
-        var validated = Merge(final, finalResult.Dta);
-        tx.Position1ValidatedState = validated;
-
-        tx.Status = TransactionStatuses.SendingToOxaion;
-        await SaveEventAsync(tx, "POSITION_1_UPD_SENT", "Submitting LB20110R *UPD for position 1.", ct);
-        var update = await session.CallAsync("LB20110R", "*UPD", Merge(validated, Dict(("SSID", ssid), ("mode", "update"), ("KEYTYPE", "C_LKOPF"))), ct);
-        OxaionSession.AssertNoFcod(update); VerifyContainsLmLn(update); MaybeSimulate(r, "after_pos1_upd");
-        tx.Status = TransactionStatuses.Position1Confirmed;
-        await SaveEventAsync(tx, "POSITION_1_CONFIRMED", "Position 1 confirmed by Oxaion.", ct);
-        return validated;
+        var finalResult = await session.CallAsync("LB20115J", "*PUTNEW", final, ct); OxaionSession.AssertNoFcod(finalResult); var validated = Merge(final, finalResult.Dta); tx.Position1ValidatedState = validated;
+        tx.Status = TransactionStatuses.SendingToOxaion; await SaveEventAsync(tx, "POSITION_1_UPD_SENT", "Submitting LB20110R *UPD for position 1.", ct);
+        var update = await session.CallAsync("LB20110R", "*UPD", Merge(validated, Dict(("SSID", ssid), ("mode", "update"), ("KEYTYPE", "C_LKOPF"))), ct); OxaionSession.AssertNoFcod(update); VerifyContainsLmLn(update); MaybeSimulate(r, "after_pos1_upd");
+        tx.Status = TransactionStatuses.Position1Confirmed; await SaveEventAsync(tx, "POSITION_1_CONFIRMED", "Position 1 confirmed by Oxaion.", ct); return validated;
     }
 
     private async Task AddContinuationPositionAsync(OxaionSession session, MixTransaction tx, string ssid, Dictionary<string, string> previous, CancellationToken ct)
@@ -220,12 +166,10 @@ public sealed class MixBookingService
         await SaveEventAsync(tx, "POSITION_2_VALIDATING", "Validating new powder batch -> same new MIX.", ct);
         var r = tx.Request; var op = OperatorContext(tx);
         var seed = Merge(previous, Dict(("SSID", ssid), ("SNR", "2"), ("WSTR", "1"), ("PGMN", "LB20110R"), ("MTYPE", "*PGM"), ("NAME", "UPOSTP.POPONR"), ("MC-Modus", "true"), ("NoModDlg", "true"), ("keyFields", "PSBGNR PSPOSI PSKOPO PSBGZT"), ("keyFirm", "FIRM"), ("KEYTYPE", "C_LKOPF")));
-        var created = await session.CallAsync("LB20115J", "*NEW", seed, ct); OxaionSession.AssertNoFcod(created);
-        var state = Merge(seed, created.Dta);
+        var created = await session.CallAsync("LB20115J", "*NEW", seed, ct); OxaionSession.AssertNoFcod(created); var state = Merge(seed, created.Dta);
         var first = Merge(state, Dict(("PSANWG", "LBS"), ("PSBGKZ", "MB"), ("PSBGNR", tx.DocumentNo!), ("PSBGDT", Iso(r.BookingDate)), ("PSBGTX", op.BookingText), ("TX_BGT1", op.Operator), ("PSFIRM", _oxaionOptions.Firm), ("PSPOSI", "2"), ("PSBWKZ", "LM"), ("PSIDNR", r.Article), ("I_PSIDNR", r.Article), ("DEMO_IDNR", r.Article), ("POIDNR", r.Article), ("I_TX_IDN2", ""), ("I_TX_PCKMM", ""), ("I_TX_PCKMS", ""), ("I_TX_PCKMZ", ""), ("PSLAGO", r.AddWarehouse), ("PSPONR", r.AddBatch), ("TX_LAG2", r.TargetWarehouse), ("TX_PON2", r.TargetBatch), ("PSLAPL", r.AddStorageBin ?? ""), ("PSPRDT", ""), ("PSBMN1", "0,000"), ("PSBMN2", FormatQty(r.AddAmountKg)), ("TX_FIRST", "J"), ("TX_LAGO", TextOrCode(r.AddWarehouseText, r.AddWarehouse)), ("TX_LAGO2", TextOrCode(r.TargetWarehouseText, r.TargetWarehouse)), ("TX_PDBZ2", "pro 1"), ("KEYTYPE", "C_LKOPF"), ("mode", "merge")));
         if (!string.IsNullOrWhiteSpace(r.TargetStorageBin)) first["TX_LAP2"] = r.TargetStorageBin;
-        var r1 = await session.CallAsync("LB20115J", "*PUTNEW", first, ct); OxaionSession.AssertNoFcod(r1);
-        state = Merge(first, r1.Dta);
+        var r1 = await session.CallAsync("LB20115J", "*PUTNEW", first, ct); OxaionSession.AssertNoFcod(r1); state = Merge(first, r1.Dta);
         var tcode = FirstText(r1.Xml, "TCODE"); var txFirst = FirstText(r1.Xml, "TX_FIRST"); var q1 = FirstText(r1.Xml, "PSBMN1"); var q2 = FirstText(r1.Xml, "PSBMN2"); var newTs = FirstText(r1.Xml, "PSBGZT");
         Dictionary<string, string> validated;
         if (tcode == "WIN3")
@@ -237,13 +181,9 @@ public sealed class MixBookingService
         }
         else if (txFirst == "N" && !string.IsNullOrWhiteSpace(newTs) && newTs != Get(first, "PSBGZT") && !string.IsNullOrWhiteSpace(q1) && !string.IsNullOrWhiteSpace(q2)) validated = state;
         else throw new InvalidOperationException("Position 2 PUTNEW returned neither TCODE=WIN3 nor the proven final HTTP state.");
-
-        tx.Status = TransactionStatuses.SendingToOxaion;
-        await SaveEventAsync(tx, "POSITION_2_UPD_SENT", "Submitting LB20110R *UPD for position 2.", ct);
-        var update = await session.CallAsync("LB20110R", "*UPD", Merge(validated, Dict(("SSID", ssid), ("mode", "update"), ("KEYTYPE", "C_LKOPF"))), ct);
-        OxaionSession.AssertNoFcod(update); VerifyContainsLmLn(update); MaybeSimulate(r, "after_pos2_upd");
-        tx.Status = TransactionStatuses.Position2Confirmed;
-        await SaveEventAsync(tx, "POSITION_2_CONFIRMED", "Position 2 confirmed by Oxaion.", ct);
+        tx.Status = TransactionStatuses.SendingToOxaion; await SaveEventAsync(tx, "POSITION_2_UPD_SENT", "Submitting LB20110R *UPD for position 2.", ct);
+        var update = await session.CallAsync("LB20110R", "*UPD", Merge(validated, Dict(("SSID", ssid), ("mode", "update"), ("KEYTYPE", "C_LKOPF"))), ct); OxaionSession.AssertNoFcod(update); VerifyContainsLmLn(update); MaybeSimulate(r, "after_pos2_upd");
+        tx.Status = TransactionStatuses.Position2Confirmed; await SaveEventAsync(tx, "POSITION_2_CONFIRMED", "Position 2 confirmed by Oxaion.", ct);
     }
 
     private async Task FinalizeAndVerifyAsync(OxaionSession session, MixTransaction tx, CancellationToken ct)
@@ -251,12 +191,9 @@ public sealed class MixBookingService
         await SaveEventAsync(tx, "ENDING", "Closing Oxaion material document.", ct);
         var end = await session.CallAsync("LB20100J", "*END", Dict(("KOBGNR", tx.DocumentNo!), ("KEYTYPE", "LKOPF")), ct); OxaionSession.AssertNoFcod(end);
         await SaveEventAsync(tx, "VERIFYING", "Reopening document and verifying four movements.", ct);
-        var reopened = await OpenExistingDocumentAsync(session, tx, ct);
-        var analysis = AnalyzeMovements(tx.Request, ParseMovements(reopened.List.Xml));
-        tx.LastMovements = analysis.Rows.ToList();
+        var reopened = await OpenExistingDocumentAsync(session, tx, ct); var analysis = AnalyzeMovements(tx.Request, ParseMovements(reopened.List.Xml)); tx.LastMovements = analysis.Rows.ToList();
         if (analysis.Status != "COMPLETE") throw new InvalidOperationException("Final verification failed: " + analysis.Message);
-        tx.Status = TransactionStatuses.Success;
-        await SaveEventAsync(tx, "SUCCESS", $"Oxaion document {tx.DocumentNo} verified with exactly four expected LM/LN movements.", ct);
+        tx.Status = TransactionStatuses.Success; await SaveEventAsync(tx, "SUCCESS", $"Oxaion document {tx.DocumentNo} verified with exactly four expected LM/LN movements.", ct);
     }
 
     private Dictionary<string, string> ApplyPosition(Dictionary<string, string> baseState, MixTransaction tx, PositionContext c, string bwkz, string q1, string q2, bool firstPass, string ts, string prodDate)
@@ -273,21 +210,9 @@ public sealed class MixBookingService
         return (operatorText, room > 0 && !string.IsNullOrWhiteSpace(r.BookingText) ? prefix + "|" + r.BookingText[..Math.Min(room, r.BookingText.Length)] : prefix);
     }
 
-    private async Task SaveEventAsync(MixTransaction tx, string stage, string message, CancellationToken ct)
-    {
-        tx.Stage = stage; tx.Message = message; tx.Events.Add(new TransactionEvent(DateTimeOffset.UtcNow, stage, message)); await _store.SaveAsync(tx, ct);
-    }
-
-    private void MaybeSimulate(RealMixRequest r, string stage)
-    {
-        if (_prototype.EnableFailureSimulation && string.Equals(r.SimulateFailure, stage, StringComparison.OrdinalIgnoreCase)) throw new SimulatedAnswerLossException(stage);
-    }
-
-    private static void VerifyContainsLmLn(OxaionCallResult result)
-    {
-        var keys = result.Xml.Descendants("LPSDAP.PSBWKZ").Select(x => x.Value.Trim()).ToHashSet(StringComparer.Ordinal);
-        if (!keys.Contains("LM") || !keys.Contains("LN")) throw new InvalidOperationException("LB20110R *UPD did not return both LM and LN rows.");
-    }
+    private async Task SaveEventAsync(MixTransaction tx, string stage, string message, CancellationToken ct) { tx.Stage = stage; tx.Message = message; tx.Events.Add(new TransactionEvent(DateTimeOffset.UtcNow, stage, message)); await _store.SaveAsync(tx, ct); }
+    private void MaybeSimulate(RealMixRequest r, string stage) { if (_prototype.EnableFailureSimulation && string.Equals(r.SimulateFailure, stage, StringComparison.OrdinalIgnoreCase)) throw new SimulatedAnswerLossException(stage); }
+    private static void VerifyContainsLmLn(OxaionCallResult result) { var keys = result.Xml.Descendants("LPSDAP.PSBWKZ").Select(x => x.Value.Trim()).ToHashSet(StringComparer.Ordinal); if (!keys.Contains("LM") || !keys.Contains("LN")) throw new InvalidOperationException("LB20110R *UPD did not return both LM and LN rows."); }
 
     private static Dictionary<string, string> TargetLnStateFromRows(string targetBatch, XDocument xml, Dictionary<string, string> fallback)
     {
@@ -322,7 +247,7 @@ public sealed class MixBookingService
         return new("INCONSISTENT","MANUAL_REVIEW","Unexpected/ambiguous movement state.",rows);
     }
 
-    private static bool Matches(MovementRow r, Expected e) => (string.IsNullOrWhiteSpace(r.Position)||r.Position==e.Position)&&r.BookingKey==e.BookingKey&&r.Article==e.Article&&r.Batch==e.Batch&&r.Warehouse==e.Warehouse&&(r.StorageBin??"")===(e.StorageBin??"")&&Math.Abs(r.Quantity-e.Quantity)<0.0005m;
+    private static bool Matches(MovementRow r, Expected e) => (string.IsNullOrWhiteSpace(r.Position)||r.Position==e.Position)&&r.BookingKey==e.BookingKey&&r.Article==e.Article&&r.Batch==e.Batch&&r.Warehouse==e.Warehouse&&(r.StorageBin??"")== (e.StorageBin??"")&&Math.Abs(r.Quantity-e.Quantity)<0.0005m;
     private static decimal ParseEu(string s){if(string.IsNullOrWhiteSpace(s))return 0m;var x=s.Trim();if(x.Contains(',')&&x.Contains('.'))x=x.LastIndexOf(',')>x.LastIndexOf('.')?x.Replace(".","").Replace(',','.') : x.Replace(",","");else if(x.Contains(','))x=x.Replace(',','.');return decimal.TryParse(x,NumberStyles.Number|NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out var v)?v:0m;}
     private static void ValidateRequest(RealMixRequest r){if(string.IsNullOrWhiteSpace(r.ClientOperationId)||string.IsNullOrWhiteSpace(r.PersonnelNo)||string.IsNullOrWhiteSpace(r.Article))throw new ArgumentException("clientOperationId, PersonnelNo and Article are required.");if(string.IsNullOrWhiteSpace(r.OldMixWarehouse)||string.IsNullOrWhiteSpace(r.OldMixBatch)||string.IsNullOrWhiteSpace(r.AddWarehouse)||string.IsNullOrWhiteSpace(r.AddBatch)||string.IsNullOrWhiteSpace(r.TargetWarehouse)||string.IsNullOrWhiteSpace(r.TargetBatch))throw new ArgumentException("Source/target data are incomplete.");if(r.OldMixAmountKg<=0||r.AddAmountKg<=0)throw new ArgumentException("Amounts must be > 0.");if(r.TargetBatch==r.OldMixBatch||r.TargetBatch==r.AddBatch)throw new ArgumentException("Target MIX batch must differ from both source batches.");}
     private static Dictionary<string,string> Dict(params (string Key,string Value)[] v)=>v.ToDictionary(x=>x.Key,x=>x.Value??"",StringComparer.Ordinal);
