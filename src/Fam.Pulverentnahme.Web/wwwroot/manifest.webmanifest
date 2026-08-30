@@ -1,0 +1,8 @@
+{
+  "name": "FAM Pulverentnahme STAGING",
+  "short_name": "FAM Pulver",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef2f5",
+  "theme_color": "#15324a"
+}
