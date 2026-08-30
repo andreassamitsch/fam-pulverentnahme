@@ -82,7 +82,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Ergebnisstatus:** `REJECTED`.
 - **Fehlerbehandlung:** Kein automatischer Retry ohne fachliche Korrektur; nach Korrektur bewusster neuer Versuch mit nachvollziehbarer Zuordnung.
 
-## Szenario I: Netzwerk-/HTTP-Abbruch vor Versand
+## Szenario I: Netzwerk-/HTTP-Abbruch vor Versand Backend -> Oxaion
 
 - **Trigger:** Das Backend kann technisch zweifelsfrei nachweisen, dass der Buchungsauftrag Oxaion nicht erreicht hat.
 - **Pruefungen:** Versandphase und Telemetrie muessen den Nichtversand eindeutig belegen.
@@ -92,7 +92,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Ergebnisstatus:** Technischer Fehler vor Versand; genauer Statusname wird bei Implementierung festgelegt.
 - **Fehlerbehandlung:** Automatischer Retry ist nur bei diesem zweifelsfreien Nichtversand und nach definierter Retry-Regel zulaessig.
 
-## Szenario J: Netzwerk-/HTTP-Abbruch mit unklarem Buchungsergebnis
+## Szenario J: Netzwerk-/HTTP-Abbruch mit unklarem Buchungsergebnis Backend -> Oxaion
 
 - **Trigger:** Verbindung bricht waehrend oder nach dem Versand ab; Oxaion koennte die Anfrage verarbeitet haben.
 - **Pruefungen:** Transaktions-ID, Versandzeitpunkt und vorhandene Oxaion-Referenzen auswerten; Ergebnis nach Moeglichkeit ueber eine bestaetigte Statusabfrage klaeren.
@@ -111,3 +111,36 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Oxaion-Aktion:** Nur Bestandsabfrage; keine Entnahme-, Ruecklagerungs- oder Befuellungsbuchung.
 - **Ergebnisstatus:** `MANUAL_REVIEW_REQUIRED` oder ein bei Implementierung festgelegter eindeutiger Validierungsstatus.
 - **Fehlerbehandlung:** Bestand in Oxaion und physische Situation klaeren; danach bewussten neuen Vorgang starten oder den bestehenden nach definierter Regel fortsetzen.
+
+## Szenario L: Smartphone verliert Verbindung zum Backend / Offline-Erfassung
+
+- **Trigger:** Die PWA ist geoeffnet oder wird aus dem lokalen App-Cache gestartet, das Backend ist aber nicht erreichbar.
+- **Pruefungen:** Backend-Erreichbarkeit ueber einen echten Connectivity-/Health-Aufruf pruefen; `navigator.onLine` allein reicht nicht. Fuer fachliche Entscheidungen nur einen zuvor eindeutig bestaetigten lokalen Maschinenzustand verwenden, der alle benoetigten Felder und einen gueltigen Zeitstempel besitzt.
+- **Bedieneranzeige:** Deutlicher Offline-Status. Ein lokal gespeicherter Vorgang wird als `Offline erfasst - noch nicht serverseitig bestaetigt` angezeigt und niemals als erfolgreich gebucht.
+- **Frontend-Aktion:** Beim lokalen Anlegen eine eindeutige `clientOperationId` erzeugen; Scans und erlaubte Prozessdaten in `IndexedDB` speichern; vollstaendige synchronisierbare Vorgaenge in die Outbox mit `PENDING_SYNC` stellen.
+- **Backend-Aktion:** Keine, solange das Backend nicht erreichbar ist.
+- **Oxaion-Aktion:** Keine produktive Buchung durch die PWA im Offline-Zustand.
+- **Ergebnisstatus:** Lokaler Sync-Status `LOCAL_DRAFT` oder `PENDING_SYNC`; kein serverseitiges `SUCCESS`.
+- **Fehlerbehandlung:** Ist der lokale Maschinenzustand nicht eindeutig oder aelter als die noch festzulegende maximale Gueligkeitsdauer, keine sichere Freigabe vortaeuschen. Meldung: `Der aktuelle Maschinenzustand kann offline nicht sicher geprueft werden. Vorgang derzeit nicht freigegeben.`
+- **Offen:** Welche konkreten Schritte je Prozess offline bis `PENDING_SYNC` vorbereitet werden duerfen und wie lange ein Maschinenzustand als gueltig gilt, steht in `docs/OPEN_POINTS.md`.
+
+## Szenario M: Verbindung wiederhergestellt / Outbox-Synchronisation
+
+- **Trigger:** Das Backend ist nach einer Offline-Phase wieder erreichbar oder die App wird mit offenen `PENDING_SYNC`-Vorgaengen gestartet.
+- **Pruefungen:** Jeden Outbox-Eintrag mit unveraenderter `clientOperationId` uebertragen; serverseitig Idempotenz pruefen; aktuellen Maschinen- und sonstigen fachlichen Zustand erneut aus der fuehrenden Quelle validieren.
+- **Bedieneranzeige:** `Synchronisation laeuft` und anschliessend getrennte Anzeige von lokalem Sync-Status und serverseitigem Buchungsstatus.
+- **Backend-Aktion:** Eine bereits bekannte `clientOperationId` dem bestehenden Vorgang zuordnen und keine zweite wirksame Buchung erzeugen. Unbekannte ID genau einmal als neuen serverseitigen Vorgang anlegen. Vor produktiver Oxaion-Buchung aktuelle fachliche Daten erneut pruefen.
+- **Oxaion-Aktion:** Nur nach erfolgreicher serverseitiger Revalidierung und nach den normalen Buchungsregeln.
+- **Ergebnisstatus:** Lokal `SYNCED`, wenn die Zuordnung zum Backend eindeutig ist; serverseitig separat zum Beispiel `CREATED`, `VALIDATING`, `SUCCESS`, `REJECTED`, `LOCKED`, `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`.
+- **Fehlerbehandlung:** Hat sich der Zustand seit der Offline-Erfassung geaendert, keine automatische Ueberschreibung oder Blindbuchung. Lokaler Status `CONFLICT` beziehungsweise serverseitig `MANUAL_REVIEW_REQUIRED` und konkrete Bedienermassnahme.
+
+## Szenario N: PWA-Update waehrend laufendem oder ungesynctem Vorgang
+
+- **Trigger:** Eine neue Frontend-/Service-Worker-Version ist verfuegbar, waehrend ein kritischer Vorgang, eine Synchronisation oder noch nicht sicher migrationsfaehige `PENDING_SYNC`-Daten vorhanden sind.
+- **Pruefungen:** Aktiven Prozess, ungespeicherte Daten, Outbox und laufende Synchronisation pruefen.
+- **Bedieneranzeige:** `Neue Version verfuegbar. Aktualisierung erfolgt, sobald der aktuelle Vorgang sicher abgeschlossen ist.`
+- **Frontend-Aktion:** Neue Version darf vorgeladen werden, aber kein erzwungener Reload und keine Aktivierung, die Datenverlust verursachen kann. Service-Worker-Cache und IndexedDB getrennt behandeln.
+- **Backend-Aktion:** Keine fachliche Sonderbuchung. API-/Frontend-Kompatibilitaet muss bei der technischen Umsetzung versioniert werden.
+- **Oxaion-Aktion:** Keine.
+- **Ergebnisstatus:** Aktueller Vorgang behaelt seinen Zustand; Update wird erst in einem sicheren Zustand aktiviert.
+- **Fehlerbehandlung:** IndexedDB-Schemamigrationen muessen `PENDING_SYNC`-Daten erhalten. Kann Kompatibilitaet nicht garantiert werden, Update nicht mitten im Vorgang erzwingen und klare administrative Meldung ausgeben.
