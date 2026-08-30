@@ -1,23 +1,48 @@
 # FAM Pulverentnahme / Pulverwechsel
 
-Mobile WebApp fuer die sichere, nachvollziehbare Pulverentnahme, Pulvernachfuellung und den Pulverwechsel in der FAM-Produktion mit geplanter Oxaion-Integration.
+Mobile WebApp fuer die sichere, nachvollziehbare Pulverentnahme, Pulvernachfuellung und den Pulverwechsel in der FAM-Produktion mit Oxaion-Integration.
 
 ## Status
 
-Konzept- und Prototypenphase. Dieses Repository enthaelt aktuell die abgestimmte fachliche Grundlage und Zielarchitektur. Produktive Buchungslogik ist noch nicht implementiert.
+Neben der fachlichen Grundlage enthaelt das Repository jetzt einen **testbaren STAGING-Prototyp** unter [`src/Fam.Pulverentnahme.Web`](src/Fam.Pulverentnahme.Web).
+
+Der bereits manuell und per HTTP getestete Vorgang **alte Mix-Charge + neue Pulvercharge -> neue Mix-Charge** ist als ASP.NET-Core-Backend mit mobilem Webfrontend umgesetzt. Das Backend verwendet die bestaetigte Oxaion-Sequenz mit `LB20100J`, `LB20090J`, `LB20110R` und `LB20115J`, dokumentiert Personalnummer/Name im Lagerbeleg, verhindert blinde Doppelbuchungen ueber `clientOperationId` und kann einen unklaren Teilzustand gegen den bestehenden Oxaion-Lagerbeleg abgleichen.
+
+Details und Startanleitung: [`docs/STAGING_REAL_MIX_PROTOTYPE.md`](docs/STAGING_REAL_MIX_PROTOTYPE.md).
 
 ## Architektur
 
-Ein HTML-/CSS-/JavaScript-Frontend fuer Android wird als Progressive Web App (PWA) mit Service Worker und `IndexedDB` geplant. Es kommuniziert per REST/JSON mit einem ASP.NET Core Backend unter IIS. Nur das Backend greift ueber freigegebene Oxaion HTTP-Schnittstellen auf die Oxaion-Fachlogik zu. Direkte ERP-Buchungen per SQL sind ausgeschlossen.
+```text
+Android Webbrowser / PWA
+  -> HTML/CSS/JavaScript Frontend
+  -> ASP.NET Core Backend
+  -> Oxaion HTTP-Schnittstelle
+  -> Oxaion Fachlogik
+```
 
-Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten und eine Outbox in `IndexedDB` zwischengespeichert. Offline erfasste Vorgaenge gelten dabei nicht als erfolgreich gebucht. Nach Reconnect erfolgt eine serverseitige Revalidierung und idempotente Synchronisation. PWA-Updates werden kontrolliert aktiviert, damit laufende oder noch nicht synchronisierte Vorgaenge nicht verloren gehen.
+Das Frontend enthaelt keine Oxaion-Zugangsdaten. Das Oxaion-Passwort wird im Test ueber die Backend-Laufzeitvariable `Oxaion__Password` gesetzt und niemals in Git gespeichert.
+
+Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten. Das Backend fuehrt eine serverseitige Transaktion je `clientOperationId`. Ein unklarer Oxaion-Ausgang wird nicht blind wiederholt, sondern ueber den bekannten Lagerbeleg revalidiert.
 
 ## Technologie
 
-- Frontend: HTML, CSS, JavaScript, PWA, Service Worker, `IndexedDB`, Smartphone-Kamera fuer QR-/Barcodes
-- Backend: ASP.NET Core, C#, REST API, IIS
-- ERP: Oxaion HTTP-Schnittstelle, bevorzugt vorhandene BDE-/PPS-Fachlogik
-- Optional: separate WebApp-Datenbank fuer Transaktionen, Idempotenz, Status und Audit Trail
+- Frontend: HTML, CSS, JavaScript, PWA, Service Worker, `IndexedDB`, spaeter Smartphone-Kamera fuer QR-/Barcodes
+- Backend: ASP.NET Core / .NET 8, REST API, IIS-faehig
+- ERP: Oxaion HTTP-Schnittstelle
+- Prototyp-Persistenz: JSON-Transaktionsdateien unter `App_Data/transactions`; spaeter eigene Transaktionsdatenbank vorgesehen
+
+## Schnellstart STAGING
+
+Voraussetzung: .NET 8 SDK.
+
+```powershell
+$env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
+dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
+```
+
+Danach am PC `http://localhost:5080` oder am Android-Geraet `http://<SERVER-IP>:5080` aufrufen.
+
+Der Prototyp blockiert bei `StagingOnly=true` Oxaion-Port `11108` und erwartet Port `11118` sowie Firma `103`.
 
 ## Projektwissen fuer ChatGPT / Codex
 
@@ -25,8 +50,7 @@ Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten und eine Outbox in `Ind
 - Verbindliche Regeln fuer Coding Agents stehen in [`AGENTS.md`](AGENTS.md).
 - PWA-, Offline-, Outbox-, Sync- und Update-Regeln stehen in [`docs/OFFLINE_PWA.md`](docs/OFFLINE_PWA.md).
 - Fehler-, Retry- und Idempotenzregeln stehen in [`docs/ERROR_HANDLING.md`](docs/ERROR_HANDLING.md).
+- Der bestaetigte STAGING-Mix-Ablauf steht in [`docs/STAGING_REAL_MIX_PROTOTYPE.md`](docs/STAGING_REAL_MIX_PROTOTYPE.md).
 - Ein kopierbarer Repository-first-Projektprompt steht in [`PROJECT_PROMPT.md`](PROJECT_PROMPT.md).
 
 Der Grundsatz lautet: Vor Antworten und Aenderungen zuerst den aktuellen Stand im Repository lesen und gezielt nach bereits vorhandenen Entscheidungen und Implementierungen suchen.
-
-Oxaion-spezifische Programme, Endpunkte, Buchungsschluessel und weitere Integrationsdetails werden noch untersucht und duerfen bis zur fachlichen Bestaetigung nicht erfunden oder hart codiert werden.
