@@ -35,6 +35,16 @@ Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten
 
 Voraussetzung: .NET 8 SDK.
 
+Am einfachsten:
+
+```powershell
+.\scripts\start-staging.ps1
+```
+
+Das Skript fragt das STAGING-Passwort fuer `KHCSYN` verdeckt ab und setzt es nur fuer den laufenden Backend-Prozess.
+
+Alternativ manuell:
+
 ```powershell
 $env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
 dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
