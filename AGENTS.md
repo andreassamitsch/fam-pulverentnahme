@@ -2,6 +2,23 @@
 
 Diese Datei ist fuer Codex und alle anderen Coding Agents verbindlich.
 
+## Repository-first: Pflicht vor jeder Arbeit
+
+Dieses Repository ist die primaere und dauerhafte Wissensquelle fuer das Projekt.
+
+Bevor du eine fachliche Antwort gibst, Code aenderst, Architektur vorschlaegst oder eine neue Aufgabe beginnst:
+
+1. Ermittle zuerst den aktuellen Stand im Repository.
+2. Lies `AGENTS.md` und die fuer die Aufgabe relevanten Dateien unter `docs/`.
+3. Suche zusaetzlich im Repository nach den konkreten Begriffen, Funktionen, Oxaion-Programmen, Fehlermeldungen, Tabellen, Endpunkten oder Prozessnamen, die fuer die Aufgabe relevant sind.
+4. Wenn der aktuelle Implementierungsstand wichtig ist, pruefe auch den vorhandenen Code sowie relevante aktuelle Commits, Pull Requests oder Issues.
+5. Verwende bereits dokumentierte Entscheidungen als Ausgangspunkt und frage nicht erneut nach Informationen, die im Repository eindeutig beantwortet sind.
+6. Bei Widerspruechen gilt: aktuelle, explizit als entschieden dokumentierte Projektinformation hat Vorrang vor aelteren Annahmen. Widersprueche nicht stillschweigend aufloesen, sondern sichtbar machen.
+7. Fehlt eine Information, pruefe zuerst `docs/OPEN_POINTS.md`. Ist sie dort offen, darf sie nicht erfunden werden.
+8. Nach einer neuen verbindlichen fachlichen oder technischen Entscheidung aktualisiere die passende Dokumentation im selben Arbeitsschritt.
+
+Wichtig: Nicht nur Dateinamen lesen oder aus Erinnerung arbeiten. Den tatsaechlichen Inhalt der relevanten Dateien und den aktuellen Codebestand pruefen.
+
 ## Pflichtlektuere
 
 Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gelesen werden:
@@ -12,6 +29,18 @@ Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gel
 4. bei Buchungslogik zusaetzlich `docs/BOOKING_SCENARIOS.md`
 5. bei Fehlerbehandlung zusaetzlich `docs/ERROR_HANDLING.md`
 6. `docs/OPEN_POINTS.md`
+
+## Quellenprioritaet
+
+Bei der Ermittlung des aktuellen Projektstands gilt grundsaetzlich folgende Reihenfolge:
+
+1. aktuell vorhandener Code und Tests fuer den technischen Ist-Stand
+2. `docs/PROJECT_CONTEXT.md` fuer verbindliche fachliche Entscheidungen
+3. spezialisierte Dokumente wie `ARCHITECTURE.md`, `BOOKING_SCENARIOS.md` und `ERROR_HANDLING.md`
+4. `docs/OPEN_POINTS.md` fuer bewusst noch nicht entschiedene Themen
+5. README, Issues, Pull Requests und Commit-Historie als ergaenzender Kontext
+
+Wenn Code und Dokumentation voneinander abweichen, nicht automatisch einen der beiden Staende als richtig annehmen. Die Abweichung benennen und anhand der juengsten expliziten Entscheidung beziehungsweise des Projektziels klaeren.
 
 ## Grundregeln
 
