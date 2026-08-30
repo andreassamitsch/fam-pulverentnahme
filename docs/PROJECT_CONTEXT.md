@@ -26,7 +26,7 @@ Die WebApp schreibt nicht direkt auf die Oxaion-Datenbank.
 Grundsaetzlicher Kommunikationsweg:
 
 ```text
-Android Webbrowser
+Android Webbrowser / PWA
   -> HTML/JavaScript Frontend
   -> ASP.NET Core Backend
   -> Oxaion HTTP-Schnittstelle
@@ -34,6 +34,23 @@ Android Webbrowser
 ```
 
 Fuer Materialbuchungen soll nach Moeglichkeit die vorhandene Oxaion BDE-/PPS-Logik ueber die HTTP-Schnittstelle verwendet werden.
+
+## PWA und Offline-Faehigkeit
+
+Die mobile WebApp wird als Progressive Web App (PWA) geplant, damit sie auf Android-Smartphones wie eine installierte App genutzt und bei kurzen Netzwerkausfaellen kontrolliert weiterbedient werden kann.
+
+Verbindliche Grundregeln:
+
+- Service Worker fuer App-Shell und statische Ressourcen.
+- `IndexedDB` fuer lokale fachliche Zwischenspeicherung und Outbox; kein `localStorage` fuer diese Daten.
+- Browser-/Geraetespeicher ist nur ein Zwischenpuffer. Backend und Oxaion bleiben fuer produktive Buchungen und den aktuellen fachlichen Zustand fuehrend.
+- Offline erfasste Vorgaenge duerfen niemals als erfolgreich gebucht dargestellt werden.
+- Jeder offline angelegte Vorgang erhaelt eine eindeutige `clientOperationId`; das Backend ordnet diese eindeutig einer serverseitigen Transaktion zu beziehungsweise nutzt sie als Idempotency Key.
+- Nach Wiederherstellung der Verbindung muss der aktuelle fachliche Zustand serverseitig erneut validiert werden, bevor eine produktive Oxaion-Buchung ausgeloest wird.
+- Bei geaendertem oder nicht eindeutigem Zustand wird nicht automatisch ueberschrieben oder blind gebucht; der Vorgang geht in Konflikt beziehungsweise manuelle Klaerung.
+- Eine neue PWA-Version darf nicht unkontrolliert mitten in einem laufenden Vorgang oder unter Verlust noch nicht synchronisierter Daten aktiviert werden.
+
+Details stehen verbindlich in `docs/OFFLINE_PWA.md`.
 
 ## Hauptfunktionen fuer den Bediener
 
@@ -74,7 +91,7 @@ Die WebApp darf organisatorisch nicht entscheiden, ob eine andere Maschine grund
 
 ### Pruefung des Maschinenbestands
 
-Vor dem Nachfuellen wird der aktuelle Oxaion-Bestand der tatsaechlichen Maschine geprueft.
+Im Online-Fall wird vor dem Nachfuellen der aktuelle Oxaion-Bestand der tatsaechlichen Maschine ueber das Backend geprueft.
 
 - **Maschine leer:** Nachfuellen ist zulaessig.
 - **Maschine enthaelt passendes Pulver:** Nachfuellen ist zulaessig.
@@ -84,11 +101,13 @@ Im letzten Fall erscheint die klare Meldung `Pulverwechsel erforderlich` und die
 
 Die WebApp darf niemals unterschiedliches oder nicht kompatibles Pulver zusammenmischen.
 
+Fuer Offline-Betrieb darf ein zuvor bestaetigter lokaler Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Die konkrete maximale Gueligkeitsdauer und der genaue Umfang offline freigegebener Prozessschritte sind noch festzulegen. Nach Reconnect erfolgt vor jeder produktiven Buchung erneut eine serverseitige Validierung.
+
 ## 2. Pulver tauschen
 
 Beim Pulverwechsel ist die Maschine der Ausgangspunkt. Ein Maschinenscan ist daher immer verpflichtend.
 
-Der aktuelle Pulverbestand wird nicht manuell eingegeben. Nach dem Maschinenscan fragt das Backend ueber die freigegebene Oxaion-Logik den aktuellen Bestand der Maschine ab.
+Der aktuelle Pulverbestand wird nicht manuell eingegeben. Im Online-Fall fragt das Backend nach dem Maschinenscan ueber die freigegebene Oxaion-Logik den aktuellen Bestand der Maschine ab.
 
 Mindestens anzuzeigen sind:
 
@@ -106,6 +125,8 @@ Kann Oxaion keinen eindeutigen Bestand ermitteln, darf die WebApp nicht raten. D
 - mehrere nicht eindeutig zuordenbare Chargen
 
 Die WebApp zeigt dann eine verstaendliche Fehlerbeschreibung und eine konkrete Massnahme an.
+
+Welche Teilschritte eines Pulverwechsels offline lediglich vorbereitet und bis `PENDING_SYNC` zwischengespeichert werden duerfen, ist noch offen. Eine produktive Oxaion-Buchung wird offline nicht simuliert oder als erfolgreich angenommen.
 
 ### Entnommenes Pulver
 
@@ -141,17 +162,21 @@ Das endgueltige Nummernschema ist als fachliche Entscheidung noch zu bestaetigen
 
 Fehlerhandling ist ein zentraler Bestandteil des Projekts. Bei jedem Buchungsvorgang muss eindeutig nachvollziehbar sein:
 
-- wurde noch nichts gesendet?
+- wurde nur lokal erfasst?
+- wartet der Vorgang auf Synchronisation?
+- wurde er an das Backend uebertragen?
+- wurde noch nichts an Oxaion gesendet?
 - wurde die Anfrage an Oxaion gesendet?
 - wurde erfolgreich gebucht?
 - wurde von Oxaion fachlich abgelehnt?
 - ist der Ausgang wegen eines Verbindungsabbruchs unbekannt?
 - ist ein Datensatz gesperrt?
+- ist ein Konflikt nach Offline-Erfassung entstanden?
 - ist ein manueller Eingriff notwendig?
 
-Jeder Buchungsvorgang erhaelt eine eindeutige Transaktions-ID.
+Jeder lokal angelegte Vorgang erhaelt eine eindeutige `clientOperationId`. Jeder serverseitig angenommene produktive Buchungsvorgang erhaelt zusaetzlich eine eindeutige Transaktions-ID. Beide werden eindeutig korreliert.
 
-Beispielhafte fachliche Status:
+Beispielhafte serverseitige fachliche Status:
 
 - `CREATED`
 - `VALIDATING`
@@ -162,19 +187,25 @@ Beispielhafte fachliche Status:
 - `UNCERTAIN`
 - `MANUAL_REVIEW_REQUIRED`
 
+Lokale Sync-Zustaende wie `PENDING_SYNC`, `SYNCING`, `SYNCED` oder `CONFLICT` sind davon getrennt zu fuehren.
+
 Die endgueltigen technischen Statusnamen koennen bei der Implementierung sinnvoll angepasst werden. Die fachliche Unterscheidung muss erhalten bleiben.
 
 ### Verbindungsabbruch
 
-Bricht die HTTP-Verbindung ab, nachdem die Anfrage moeglicherweise bereits bei Oxaion angekommen ist, darf nicht einfach erneut gebucht werden. Andernfalls besteht Doppelbuchungsgefahr.
+Es sind zwei Ebenen zu unterscheiden:
+
+1. **Smartphone <-> Backend:** Noch nicht bestaetigte Vorgaenge koennen nach den Regeln aus `docs/OFFLINE_PWA.md` lokal in der Outbox bleiben und spaeter mit derselben `clientOperationId` idempotent synchronisiert werden.
+2. **Backend <-> Oxaion:** Bricht die Verbindung ab, nachdem die Anfrage moeglicherweise bereits bei Oxaion angekommen ist, darf nicht einfach erneut gebucht werden. Andernfalls besteht Doppelbuchungsgefahr.
 
 Das Backend muss deshalb:
 
 - jede Anfrage protokollieren
-- eine eigene Vorgangs-ID fuehren
+- eine eigene Transaktions-ID fuehren
+- die `clientOperationId` eindeutig zuordnen und gegen Mehrfachverarbeitung schuetzen
 - nach Moeglichkeit das Oxaion-Ergebnis pruefen
 - bei unklarem Zustand `UNCERTAIN` verwenden
-- keine unkontrollierten automatischen Wiederholungen ausfuehren
+- keine unkontrollierten automatischen Wiederholungen von Oxaion-Buchungen ausfuehren
 
 ## Oxaion-Sperren
 
@@ -211,6 +242,7 @@ Bei einer Sperre gilt:
 
 Fuer die spaetere Nachvollziehbarkeit werden mindestens gespeichert:
 
+- `clientOperationId`, wenn der Vorgang im Frontend angelegt wurde
 - Transaktions-ID
 - Zeitstempel
 - Benutzer beziehungsweise Bediener
@@ -224,6 +256,8 @@ Fuer die spaetere Nachvollziehbarkeit werden mindestens gespeichert:
 - Menge
 - Quelllager
 - Ziellager
+- lokaler Sync-Status und Synchronisationsversuche, soweit relevant
+- verwendeter Maschinen-Cache mit Abfragezeitpunkt/Version, falls eine Offline-Entscheidung darauf beruhte
 - Oxaion Request/Referenz, soweit fachlich und datenschutzrechtlich sinnvoll
 - Oxaion Response/Status
 - Fehlerstatus
@@ -243,6 +277,8 @@ Die Oberflaeche soll fuer Produktionsmitarbeiter moeglichst einfach sein. Die be
 
 Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, Oxaion und dem vorhandenen Maschinenbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind.
 
+Offline-, Sync- und Buchungsstatus muessen fuer den Bediener klar und eindeutig sichtbar sein. `Lokal gespeichert` darf niemals wie `erfolgreich gebucht` aussehen.
+
 ## Offene Punkte
 
 Die folgenden Punkte sind noch nicht final geklaert und duerfen nicht erfunden werden:
@@ -259,3 +295,7 @@ Die folgenden Punkte sind noch nicht final geklaert und duerfen nicht erfunden w
 - TODO: endgueltige Lagerort-/Lagerplatzlogik
 - TODO: genaue Benutzer-Authentifizierung der WebApp
 - TODO: endgueltiger produktiver Server fuer die WebApp
+- TODO: maximale Offline-Gueligkeitsdauer eines Maschinenzustands
+- TODO: konkrete offline zulaessige Prozessschritte je Buchungsszenario
+- TODO: IndexedDB-Schema und migrationssichere Versionsstrategie
+- TODO: Frontend-/API-Kompatibilitaet bei PWA-Updates
