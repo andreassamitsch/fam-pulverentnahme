@@ -28,7 +28,8 @@ Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gel
 3. `docs/ARCHITECTURE.md`
 4. bei Buchungslogik zusaetzlich `docs/BOOKING_SCENARIOS.md`
 5. bei Fehlerbehandlung zusaetzlich `docs/ERROR_HANDLING.md`
-6. `docs/OPEN_POINTS.md`
+6. bei PWA, Offline-Betrieb, lokalem Cache, Outbox, Synchronisation oder App-Updates zusaetzlich `docs/OFFLINE_PWA.md`
+7. `docs/OPEN_POINTS.md`
 
 ## Quellenprioritaet
 
@@ -36,7 +37,7 @@ Bei der Ermittlung des aktuellen Projektstands gilt grundsaetzlich folgende Reih
 
 1. aktuell vorhandener Code und Tests fuer den technischen Ist-Stand
 2. `docs/PROJECT_CONTEXT.md` fuer verbindliche fachliche Entscheidungen
-3. spezialisierte Dokumente wie `ARCHITECTURE.md`, `BOOKING_SCENARIOS.md` und `ERROR_HANDLING.md`
+3. spezialisierte Dokumente wie `ARCHITECTURE.md`, `BOOKING_SCENARIOS.md`, `ERROR_HANDLING.md` und `OFFLINE_PWA.md`
 4. `docs/OPEN_POINTS.md` fuer bewusst noch nicht entschiedene Themen
 5. README, Issues, Pull Requests und Commit-Historie als ergaenzender Kontext
 
@@ -54,7 +55,11 @@ Wenn Code und Dokumentation voneinander abweichen, nicht automatisch einen der b
 - Buchungsprozesse muessen transaktionssicher und nachvollziehbar gestaltet werden.
 - Bei unklarem Ausgang einer Oxaion-Buchung darf niemals automatisch angenommen werden, dass die Buchung fehlgeschlagen ist.
 - Doppelbuchungen muessen technisch verhindert werden.
-- Jeder produktive Buchungsvorgang benoetigt eine eigene Transaktions-/Vorgangs-ID.
+- Jeder lokal angelegte Offline-Vorgang benoetigt eine eindeutige `clientOperationId`.
+- Jeder serverseitig angenommene produktive Buchungsvorgang benoetigt eine eigene Transaktions-/Vorgangs-ID.
+- Wiederholte Uebertragung derselben `clientOperationId` muss serverseitig idempotent behandelt werden.
+- Ein offline erfasster Vorgang darf niemals wie eine erfolgreich bestaetigte Oxaion-Buchung dargestellt werden.
+- Nach Reconnect muss vor produktiver Buchung eine serverseitige Revalidierung des fachlichen Zustands erfolgen.
 - Benutzer muessen bei Fehlern eine verstaendliche Meldung und eine konkrete Massnahme erhalten.
 - Das Frontend darf keine Oxaion-Zugangsdaten enthalten.
 - Zugangsdaten und Secrets gehoeren niemals in Git.
@@ -71,6 +76,8 @@ Geplanter Stack:
 - HTML
 - CSS
 - JavaScript
+- PWA mit Web App Manifest und Service Worker
+- `IndexedDB` fuer lokale fachliche Zwischenspeicherung und Outbox
 - mobile Nutzung auf Android
 - QR-/Barcode-Scanner ueber die Smartphone-Kamera
 
