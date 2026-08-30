@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#15324a">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <title>FAM Pulver-Mix STAGING</title>
+</head>
+<body>
+<header><div class="title">FAM Pulver-Mix → oxaion</div><div class="sub">Frontend + ASP.NET Core Backend · STAGING</div></header>
+<main>
+  <div class="notice warn"><b>STAGING:</b> Dieser Prototyp ist auf oxaion Port 11118 / Firma 103 begrenzt. Die Buchung ist trotzdem eine echte STAGING-Lagerbuchung.</div>
+  <div id="recovery" class="card recovery hidden">
+    <h2>⚠ Offener / unklarer Vorgang</h2>
+    <div id="recoveryText"></div>
+    <div class="actions"><button class="primary" id="reconcileBtn">Status in oxaion prüfen</button><button class="secondary" id="clearLocalBtn">Nur lokale Anzeige zurücksetzen</button></div>
+  </div>
+
+  <section class="card"><h2>Backend</h2><div id="health" class="status neutral">wird geprüft …</div><div class="actions"><button class="secondary" id="healthBtn">Oxaion-Verbindung testen</button></div></section>
+
+  <section class="card"><h2>Mitarbeiter</h2><div class="grid"><label>Personalnummer<input id="personnelNo" value="001234"></label><label>Name<input id="personnelName" value="Max Mustermann"></label></div></section>
+  <section class="card"><h2>Material</h2><div class="grid"><label>Artikel<input id="article" value="RP.00010"></label><label>Bezeichnung<input id="articleText" value="AlSi10Mg"></label></div></section>
+
+  <section class="card">
+    <h2>1 · Alte Mix-Charge</h2>
+    <div class="grid3">
+      <label>Maschine / Lagerort<input id="oldMixWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="oldMixWarehouseText" value="EOS 1 -Tank"></label><label>Lagerplatz optional<input id="oldMixStorageBin"></label>
+      <label>Alte Mix-Charge<input id="oldMixBatch" placeholder="z. B. RP10MIX_20260827_04"></label><label>Restmenge kg<input id="oldMixAmountKg" value="0,001" inputmode="decimal"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 · Neue Pulvercharge</h2>
+    <div class="grid3">
+      <label>Quell-Lagerort<input id="addWarehouse" value="FAMLAB"></label><label>Lagerort-Bezeichnung<input id="addWarehouseText" value="FAM LABOR"></label><label>Lagerplatz<input id="addStorageBin" value="KA1"></label>
+      <label>Charge<input id="addBatch" value="87911"></label><label>Einfüllmenge kg<input id="addAmountKg" value="0,001" inputmode="decimal"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3 · Neue Mix-Charge</h2>
+    <div class="grid3">
+      <label>Ziel / Maschine<input id="targetWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="targetWarehouseText" value="EOS 1 -Tank"></label><label>Ziel-Lagerplatz optional<input id="targetStorageBin"></label>
+      <label>Neue Mix-Charge<input id="targetBatch"></label><label>Produktionsdatum<input id="productionDate" type="date"></label><label>Buchungsdatum<input id="bookingDate" type="date"></label>
+    </div>
+    <button class="secondary compact" id="newBatchBtn">Neue Testcharge erzeugen</button>
+  </section>
+
+  <section class="card"><h2>Dokumentation</h2><label>Buchungstext<input id="bookingText" value="Pulver nachfüllen EOS1"></label><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach Position 2 *UPD</option></select></details></section>
+  <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn">Echte STAGING-Buchung starten</button></div></section>
+  <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>
