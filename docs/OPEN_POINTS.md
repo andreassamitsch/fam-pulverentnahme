@@ -31,3 +31,23 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach Analyse der Oxaion-Schnittstelle festlegen
 - [ ] Datenschutz-, Berechtigungs- und Aufbewahrungskonzept fuer Protokolldaten festlegen
+
+## PWA, Offline und Synchronisation
+
+Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Outbox, `clientOperationId`, serverseitige Revalidierung und kontrollierte Updates ist in `docs/OFFLINE_PWA.md` dokumentiert. Offen sind noch die konkreten Betriebsparameter und Prozessgrenzen:
+
+- [ ] Maximale Gueligkeitsdauer eines lokal gecachten Maschinenzustands fachlich festlegen
+- [ ] Pro Buchungsszenario festlegen, welche Schritte offline bis `PENDING_SYNC` vorbereitet werden duerfen
+- [ ] Entscheiden, ob Pulverwechsel offline nur erfasst oder teilweise vorbereitet werden darf
+- [ ] IndexedDB-Schema, Store-Namen, Indizes und Versionierung festlegen
+- [ ] Migrationsstrategie fuer IndexedDB so definieren, dass `PENDING_SYNC`-Vorgaenge bei App-Updates erhalten bleiben
+- [ ] Reihenfolge und Abhaengigkeiten bei der Synchronisation mehrerer lokaler Vorgaenge definieren
+- [ ] Verhalten bei vollem, vom Benutzer geloeschtem oder vom Browser bereinigtem lokalem Speicher festlegen
+- [ ] Pruefen, ob `navigator.storage.persist()` auf den eingesetzten Android-Geraeten sinnvoll und ausreichend unterstuetzt wird
+- [ ] Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb definieren
+- [ ] Health-/Connectivity-Endpunkt des Backends definieren; `navigator.onLine` allein ist nicht ausreichend
+- [ ] Frontend-/API-Versionierung und Kompatibilitaetsregeln definieren
+- [ ] Technische Update-Erkennung fuer die PWA festlegen, zum Beispiel Versionsressource plus Service-Worker-Lebenszyklus
+- [ ] Verhalten bei neuer App-Version und offenen `PENDING_SYNC`-Vorgaengen im Detail festlegen
+- [ ] Browser Background Sync nur als optionale Optimierung pruefen; Zuverlaessigkeit darf nicht davon abhaengen
+- [ ] Installations-/Rollout-Konzept fuer verwaltete Android-Geraete festlegen
