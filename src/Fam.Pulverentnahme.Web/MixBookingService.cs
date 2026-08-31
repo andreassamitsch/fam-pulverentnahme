@@ -248,10 +248,36 @@ public sealed class MixBookingService
     }
 
     private static bool Matches(MovementRow r, Expected e) => (string.IsNullOrWhiteSpace(r.Position)||r.Position==e.Position)&&r.BookingKey==e.BookingKey&&r.Article==e.Article&&r.Batch==e.Batch&&r.Warehouse==e.Warehouse&&(r.StorageBin??"")== (e.StorageBin??"")&&Math.Abs(r.Quantity-e.Quantity)<0.0005m;
-    private static decimal ParseEu(string s){if(string.IsNullOrWhiteSpace(s))return 0m;var x=s.Trim();if(x.Contains(',')&&x.Contains('.'))x=x.LastIndexOf(',')>x.LastIndexOf('.')?x.Replace(".","").Replace(',','.') : x.Replace(",","");else if(x.Contains(','))x=x.Replace(',','.');return decimal.TryParse(x,NumberStyles.Number|NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out var v)?v:0m;}
+
+    private static decimal ParseEu(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return 0m;
+
+        var trimmed = s.Trim();
+        var numeric = new string(trimmed
+            .TakeWhile(ch => char.IsDigit(ch) || ch is '+' or '-' or ',' or '.')
+            .ToArray());
+
+        if (string.IsNullOrWhiteSpace(numeric))
+            throw new FormatException($"Oxaion quantity '{s}' does not start with a numeric value.");
+
+        var x = numeric;
+        if (x.Contains(',') && x.Contains('.'))
+            x = x.LastIndexOf(',') > x.LastIndexOf('.')
+                ? x.Replace(".", "").Replace(',', '.')
+                : x.Replace(",", "");
+        else if (x.Contains(','))
+            x = x.Replace(',', '.');
+
+        if (decimal.TryParse(x, NumberStyles.Number | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value))
+            return value;
+
+        throw new FormatException($"Oxaion quantity '{s}' could not be parsed safely.");
+    }
+
     private static void ValidateRequest(RealMixRequest r){if(string.IsNullOrWhiteSpace(r.ClientOperationId)||string.IsNullOrWhiteSpace(r.PersonnelNo)||string.IsNullOrWhiteSpace(r.Article))throw new ArgumentException("clientOperationId, PersonnelNo and Article are required.");if(string.IsNullOrWhiteSpace(r.OldMixWarehouse)||string.IsNullOrWhiteSpace(r.OldMixBatch)||string.IsNullOrWhiteSpace(r.AddWarehouse)||string.IsNullOrWhiteSpace(r.AddBatch)||string.IsNullOrWhiteSpace(r.TargetWarehouse)||string.IsNullOrWhiteSpace(r.TargetBatch))throw new ArgumentException("Source/target data are incomplete.");if(r.OldMixAmountKg<=0||r.AddAmountKg<=0)throw new ArgumentException("Amounts must be > 0.");if(r.TargetBatch==r.OldMixBatch||r.TargetBatch==r.AddBatch)throw new ArgumentException("Target MIX batch must differ from both source batches.");}
     private static Dictionary<string,string> Dict(params (string Key,string Value)[] v)=>v.ToDictionary(x=>x.Key,x=>x.Value??"",StringComparer.Ordinal);
-    private static Dictionary<string,string> Merge(IReadOnlyDictionary<string,string> a,IReadOnlyDictionary<string,string> b){var r=new Dictionary<string,string>(a,StringComparer.Ordinal);foreach(var p in b)r[p.Key]=p.Value??"";return r;}
+    private static Dictionary<string,string> Merge(IReadOnlyDictionary<string,string> a,IReadOnlyDictionary<string,string>b){var r=new Dictionary<string,string>(a,StringComparer.Ordinal);foreach(var p in b)r[p.Key]=p.Value??"";return r;}
     private static string Get(IReadOnlyDictionary<string,string>d,string k)=>d.TryGetValue(k,out var v)?v:"";
     private static string FirstText(XDocument x,string n)=>x.Descendants(n).FirstOrDefault()?.Value.Trim()??"";
     private static string Iso(DateOnly d)=>d.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);
