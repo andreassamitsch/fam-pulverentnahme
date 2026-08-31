@@ -59,9 +59,13 @@ Diese Unterscheidung verhindert `AKT1504: Datensatz bereits vorhanden`.
 
 `<STOP/>` innerhalb einer Tabellenantwort ist ein normaler Tabellenabschluss und kein Buchungsfehler, wenn die erwarteten Zeilen vorhanden sind.
 
+Die Bewegungsmenge aus der `FIRSTLIST`-Tabellenantwort kann als formatierter Anzeigewert inklusive Mengeneinheit geliefert werden, zum Beispiel `0,001 KGM` oder `0,005 KGM`. Fuer die Abschluss- und Recovery-Verifikation wird deshalb der fuehrende numerische Anteil kulturunabhaengig ausgewertet. Ein nichtleerer, nicht sicher parsbarer Mengenwert wird nicht als `0` interpretiert, sondern fuehrt weiterhin kontrolliert in die Fehlerbehandlung. Dieser Fall wurde nach dem erfolgreichen Beleg `FA26MB00026` korrigiert und ist durch Regressionstests abgedeckt.
+
 ## Fehler-/Recovery-Verhalten
 
 Das Frontend vergibt vor Versand eine `clientOperationId` und speichert den offenen Vorgang in `IndexedDB`.
+
+Auf Android kann `crypto.randomUUID()` bei Zugriff ueber eine unverschluesselte HTTP-Adresse wie `http://<SERVER-IP>:5080` fehlen, weil die API an einen Secure Context gebunden sein kann. Das Frontend verwendet deshalb `crypto.randomUUID()` nur, wenn es verfuegbar ist, und faellt sonst auf eine UUID-v4-Erzeugung mit `crypto.getRandomValues()` zurueck. Eine schwache Zufalls-ID auf Basis von `Math.random()` wird fuer die Idempotenz-ID nicht verwendet.
 
 Das Backend persistiert je `clientOperationId` eine Transaktion unter `App_Data/transactions` und fuehrt dieselbe ID niemals blind ein zweites Mal als neue Oxaion-Buchung aus.
 
@@ -75,20 +79,6 @@ Bei einem unklaren Transportfehler Backend -> Oxaion:
 - alle vier Bewegungen vorhanden -> nichts erneut buchen, nur Abschluss/Verifikation;
 - anderer Zustand -> `MANUAL_REVIEW_REQUIRED`.
 
-## Android-/HTTP-Kompatibilitaet der clientOperationId
-
-Beim STAGING-Test kann die WebApp am Android-Geraet ueber eine unverschluesselte lokale URL wie `http://<PC-IP>:5080` aufgerufen werden. In diesem Kontext stellen manche Browser `crypto.randomUUID()` nicht bereit, obwohl die Web-Crypto-API grundsaetzlich vorhanden ist.
-
-Das Frontend verwendet deshalb folgende sichere Reihenfolge:
-
-1. `crypto.randomUUID()`, wenn verfuegbar;
-2. andernfalls UUID-v4-Erzeugung mit `crypto.getRandomValues()`;
-3. wenn auch `crypto.getRandomValues()` fehlt, wird der Buchungsvorgang gestoppt statt eine schwache oder moeglicherweise kollidierende Idempotenz-ID zu erzeugen.
-
-Die `clientOperationId` bleibt damit auch im lokalen Android-STAGING-Test ein technisch belastbarer Idempotency Key.
-
-Hinweis: Die spaetere produktive PWA soll gemaess Architektur ueber HTTPS betrieben werden. Fuer Service Worker und vollstaendige PWA-Funktionen ist ein Secure Context erforderlich; der aktuelle HTTP-Aufruf ueber die PC-IP dient nur dem STAGING-Funktionstest.
-
 ## Lokaler Start
 
 Voraussetzung fuer den Quellcode-Start: .NET 8 SDK.
@@ -97,8 +87,6 @@ Voraussetzung fuer den Quellcode-Start: .NET 8 SDK.
 $env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
 dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
 ```
-
-Alternativ erzeugt GitHub Actions bei jedem Build das self-contained Windows-Artefakt `FAM-Pulverentnahme-STAGING-win-x64`. Dieses enthaelt die benoetigte .NET-Laufzeit und kann auf einem Windows-Testrechner ohne installiertes Git oder .NET SDK entpackt und mit `START_STAGING.bat` gestartet werden.
 
 Danach am PC:
 
@@ -111,6 +99,8 @@ oder am Android-Geraet im selben Netz:
 ```text
 http://<IP-DES-WEBSERVERS>:5080
 ```
+
+Fuer Windows-Tests ohne lokal installiertes .NET SDK erzeugt GitHub Actions auf `main` zusaetzlich das self-contained Artifact `FAM-Pulverentnahme-STAGING-win-x64`. Dieses Paket enthaelt die benoetigte .NET-Laufzeit und wird mit `START_STAGING.bat` gestartet.
 
 Fuer IIS spaeter normal mit `dotnet publish` veroeffentlichen und das ASP.NET Core Hosting Bundle verwenden.
 
