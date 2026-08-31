@@ -29,3 +29,26 @@ jobs:
 
       - name: Build
         run: dotnet build .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --configuration Release --no-restore
+
+      - name: Publish self-contained Windows STAGING package
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $out = '.\artifacts\FAM-Pulverentnahme-STAGING-win-x64'
+          dotnet publish .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output $out
+
+          Copy-Item .\scripts\start-staging-published.ps1 (Join-Path $out 'start-staging-published.ps1')
+          Copy-Item .\scripts\START_STAGING.bat (Join-Path $out 'START_STAGING.bat')
+
+      - name: Upload self-contained Windows STAGING package
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FAM-Pulverentnahme-STAGING-win-x64
+          path: .\artifacts\FAM-Pulverentnahme-STAGING-win-x64\
+          if-no-files-found: error
+          retention-days: 14
