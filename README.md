@@ -33,9 +33,18 @@ Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten
 
 ## Schnellstart STAGING
 
-Voraussetzung: .NET 8 SDK.
+### Ohne Git und ohne lokale .NET-Installation
 
-Am einfachsten:
+Der GitHub-Actions-Workflow `Build` erzeugt auf `main` das Artefakt `FAM-Pulverentnahme-STAGING-win-x64` als **self-contained Windows-Paket**. Die .NET-8-Laufzeit ist darin enthalten.
+
+1. Artefakt ZIP herunterladen und komplett entpacken.
+2. `START_STAGING.bat` starten.
+3. STAGING-Passwort fuer `KHCSYN` verdeckt eingeben.
+4. Am PC `http://localhost:5080` oder am Android-Geraet `http://<SERVER-IP>:5080` aufrufen.
+
+Es ist weder Git noch ein lokal installiertes .NET SDK/Runtime erforderlich.
+
+### Entwicklung mit lokalem .NET 8 SDK
 
 ```powershell
 .\scripts\start-staging.ps1
@@ -49,8 +58,6 @@ Alternativ manuell:
 $env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
 dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
 ```
-
-Danach am PC `http://localhost:5080` oder am Android-Geraet `http://<SERVER-IP>:5080` aufrufen.
 
 Der Prototyp blockiert bei `StagingOnly=true` Oxaion-Port `11108` und erwartet Port `11118` sowie Firma `103`.
 
