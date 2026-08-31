@@ -10,7 +10,17 @@ function pad(n){return String(n).padStart(2,'0')}
 function today(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
 function parseQty(v){const n=Number(String(v).replace(',','.'));if(!Number.isFinite(n))throw new Error(`Ungültige Menge: ${v}`);return n}
 function newBatch(){const d=new Date();return `RP10WEB_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`}
-function opId(){return crypto.randomUUID()}
+function opId(){
+  const c=globalThis.crypto;
+  if(c&&typeof c.randomUUID==='function')return c.randomUUID();
+  if(c&&typeof c.getRandomValues==='function'){
+    const bytes=new Uint8Array(16);c.getRandomValues(bytes);
+    bytes[6]=(bytes[6]&0x0f)|0x40;bytes[8]=(bytes[8]&0x3f)|0x80;
+    const h=Array.from(bytes,b=>b.toString(16).padStart(2,'0'));
+    return `${h.slice(0,4).join('')}-${h.slice(4,6).join('')}-${h.slice(6,8).join('')}-${h.slice(8,10).join('')}-${h.slice(10,16).join('')}`;
+  }
+  throw new Error('Dieser Browser kann keine sichere clientOperationId erzeugen. Bitte einen aktuellen Android-Browser verwenden.');
+}
 
 function openDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function dbGet(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const r=tx.objectStore(STORE).get(ACTIVE_KEY);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
