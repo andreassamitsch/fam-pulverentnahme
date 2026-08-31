@@ -75,14 +75,30 @@ Bei einem unklaren Transportfehler Backend -> Oxaion:
 - alle vier Bewegungen vorhanden -> nichts erneut buchen, nur Abschluss/Verifikation;
 - anderer Zustand -> `MANUAL_REVIEW_REQUIRED`.
 
+## Android-/HTTP-Kompatibilitaet der clientOperationId
+
+Beim STAGING-Test kann die WebApp am Android-Geraet ueber eine unverschluesselte lokale URL wie `http://<PC-IP>:5080` aufgerufen werden. In diesem Kontext stellen manche Browser `crypto.randomUUID()` nicht bereit, obwohl die Web-Crypto-API grundsaetzlich vorhanden ist.
+
+Das Frontend verwendet deshalb folgende sichere Reihenfolge:
+
+1. `crypto.randomUUID()`, wenn verfuegbar;
+2. andernfalls UUID-v4-Erzeugung mit `crypto.getRandomValues()`;
+3. wenn auch `crypto.getRandomValues()` fehlt, wird der Buchungsvorgang gestoppt statt eine schwache oder moeglicherweise kollidierende Idempotenz-ID zu erzeugen.
+
+Die `clientOperationId` bleibt damit auch im lokalen Android-STAGING-Test ein technisch belastbarer Idempotency Key.
+
+Hinweis: Die spaetere produktive PWA soll gemaess Architektur ueber HTTPS betrieben werden. Fuer Service Worker und vollstaendige PWA-Funktionen ist ein Secure Context erforderlich; der aktuelle HTTP-Aufruf ueber die PC-IP dient nur dem STAGING-Funktionstest.
+
 ## Lokaler Start
 
-Voraussetzung: .NET 8 SDK.
+Voraussetzung fuer den Quellcode-Start: .NET 8 SDK.
 
 ```powershell
 $env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
 dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
 ```
+
+Alternativ erzeugt GitHub Actions bei jedem Build das self-contained Windows-Artefakt `FAM-Pulverentnahme-STAGING-win-x64`. Dieses enthaelt die benoetigte .NET-Laufzeit und kann auf einem Windows-Testrechner ohne installiertes Git oder .NET SDK entpackt und mit `START_STAGING.bat` gestartet werden.
 
 Danach am PC:
 
