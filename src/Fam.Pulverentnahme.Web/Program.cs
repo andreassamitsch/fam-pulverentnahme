@@ -51,6 +51,20 @@ app.MapPost("/api/mix", async (RealMixRequest request, MixBookingService service
 {
     try
     {
+        if (!string.IsNullOrWhiteSpace(request.RetryOfClientOperationId))
+        {
+            if (string.Equals(request.RetryOfClientOperationId, request.ClientOperationId, StringComparison.Ordinal))
+                return Results.BadRequest(new { error = "A retry must use a new clientOperationId." });
+
+            var rejected = await service.GetAsync(request.RetryOfClientOperationId, ct);
+            if (rejected is null)
+                return Results.BadRequest(new { error = "The referenced rejected operation was not found." });
+            if (rejected.Status != TransactionStatuses.Rejected)
+                return Results.BadRequest(new { error = "Only a confirmed REJECTED operation may be retried as a new operation." });
+            if (!SameBookingData(rejected.Request, request))
+                return Results.BadRequest(new { error = "A retry of a rejected operation must use the same booking data. Start a normal new operation if booking data must change." });
+        }
+
         var tx = await service.ExecuteAsync(request, ct);
         return tx.Status switch
         {
@@ -99,6 +113,13 @@ app.MapPost("/api/mix/{clientOperationId}/reconcile", async (string clientOperat
         return Results.NotFound();
     }
 });
+
+static bool SameBookingData(RealMixRequest source, RealMixRequest retry)
+{
+    var a = source with { ClientOperationId = "", SimulateFailure = null, RetryOfClientOperationId = null };
+    var b = retry with { ClientOperationId = "", SimulateFailure = null, RetryOfClientOperationId = null };
+    return a == b;
+}
 
 app.MapFallbackToFile("index.html");
 app.Run();
