@@ -10,11 +10,12 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [ ] Oxaion Buchungsschluessel Maschinenlager -> Pulverlager fuer den Pulverwechsel ermitteln
 - [ ] Oxaion Buchungsschluessel Pulverlager -> Maschine fuer noch nicht durch den bestaetigten Mix-Ablauf abgedeckte Faelle ermitteln
 - [x] Chargenumbuchung fuer den getesteten Nachfuell-/Mix-Vorgang mit `LM` und automatisch erzeugtem `LN` bestaetigt
-- [ ] Abfrage des aktuellen Maschinenbestands in Oxaion klaeren
+- [ ] Abfrage des aktuellen Maschinenbestands in Oxaion klaeren; bis dahin ist im STAGING-Prototyp die alte Mix-Charge temporaer mit `RP10MIX_20260827_04` vorbelegt und vor jeder Buchung manuell zu pruefen
 - [ ] Abfrage der Oxaion-Stammdatensperre klaeren
 - [ ] Sperrdatensatz und sperrenden Benutzer technisch zuverlaessig identifizieren
 - [x] Geeignete WebApp-/Backend-Transaktionsreferenz fuer den STAGING-Prototyp in den vorhandenen Oxaion-Freitextfeldern dokumentiert; finale produktive Referenz-/Suchstrategie noch bewerten
 - [x] Belastbare Ergebnisabfrage fuer den getesteten Mix-Beleg ueber erneutes Oeffnen und `LB20110R *FIRSTLIST` umgesetzt; fuer andere Buchungsarten weiterhin offen
+- [x] Bewusster neuer Versuch nach eindeutigem `REJECTED` umgesetzt: neue `clientOperationId`, identische Buchungsdaten und Verknuepfung ueber `retryOfClientOperationId`; kein Retry derselben abgelehnten Transaktion
 
 ## Fachliche Entscheidungen
 
