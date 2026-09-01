@@ -75,7 +75,8 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - Aufruf ausschliesslich freigegebener Oxaion HTTP-Schnittstellen
 - sichere technische Protokollierung ohne Secrets
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
-- fuer den STAGING-Nachfuellprototyp: lesender Endpunkt `GET /api/machine-stock`, der den im JET-Datenstrom bestaetigten Ablauf `Chargen pro Lagerort` / Filter `mit Bestand` kapselt; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- fuer den STAGING-Nachfuellprototyp: lesender Endpunkt `GET /api/machine-stock`, der die im JET-Datenstrom bestaetigte Auflistung `Chargen pro Lagerort` kapselt; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- der Maschinenbestand ist nicht von einem gespeicherten Oxaion-Filter abhaengig: das Backend liest die vollstaendige `LB30230R`-Liste des Lagerorts und wertet direkt die bestaetigte Bedingung `LLAWEP.LALABE != 0` aus
 - vor einem neuen Mix-Buchungsversuch: erneute Bestandsabfrage und Vergleich von Lagerort, Artikel, Charge und kompletter Maschinenmenge mit dem vom Frontend vorbereiteten Request; bei Abweichung keine schreibende Materialbuchung starten
 
 Dasselbe `clientOperationId` darf nicht zu mehreren wirksamen Oxaion-Buchungen fuehren. Wiederholtes Senden derselben Outbox-Nachricht muss serverseitig idempotent behandelt werden.
@@ -110,9 +111,11 @@ Sie ist kein Ersatz fuer Oxaion als fachlich fuehrendes ERP-System.
 
 Online wird der aktuelle Maschinenzustand vor einer produktiven Freigabe ueber das Backend aus der bestaetigten Oxaion-Logik ermittelt.
 
-Im aktuellen STAGING-Nachfuellprototyp wird die positive Charge des erwarteten Artikels auf dem Maschinen-Lagerort ueber `LB30230R` mit dem Oxaion-Filter `mit Bestand` gelesen. Alte Mix-Charge und gesamte Restmenge werden im Frontend nur angezeigt und nicht manuell eingegeben. Das Backend liest denselben Zustand vor dem Start einer neuen schreibenden Materialbuchung nochmals und blockiert erkannte Abweichungen.
+Im aktuellen STAGING-Nachfuellprototyp wird die ungefilterte `LB30230R`-Lagerortliste bis zum bestaetigten `<STOP/>` gelesen. Fuer `EOS1` enthielt der Referenzdatenstrom 25 Zeilen verschiedener Artikel und Chargen. Das Backend wendet darauf die in der Oxaion-Selektionsmaske nachgewiesene Bedingung `LLAWEP.LALABE <> 0` direkt an. Damit ist die Laufzeitlogik unabhaengig von Namen, Freigabe oder Existenz eines gespeicherten Oxaion-Filters.
 
-Die derzeit bestaetigte Abfrage ist artikelbezogen. Liefert sie keinen positiven Bestand, darf daraus noch nicht `Maschine leer` geschlossen werden; bis eine artikelunabhaengige Bestandsabfrage bestaetigt ist, wird dieser Zustand gestoppt. Auch eine atomare Sperr-/Reservierungsstrategie zwischen letzter Bestandspruefung und erster schreibender Buchung ist noch offen.
+Bei genau einem positiven `KGM`-Bestand des erwarteten Artikels werden alte Mix-Charge und gesamte Restmenge im Frontend nur angezeigt und nicht manuell eingegeben. Kein Bestand ungleich 0 wird als leerer Maschinen-Lagerort erkannt. Ein positiver Bestand eines anderen Artikels erzwingt Pulverwechsel; mehrere Bestaende ungleich 0, negative Bestaende oder unerwartete Mengeneinheiten sperren den Nachfuellvorgang.
+
+Das Backend liest denselben Zustand vor dem Start einer neuen schreibenden Materialbuchung nochmals und blockiert erkannte Abweichungen. Eine atomare Sperr-/Reservierungsstrategie zwischen letzter Bestandspruefung und erster schreibender Buchung ist weiterhin offen.
 
 Offline darf ein zuvor serverseitig bestaetigter Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Insbesondere benoetigt er einen Abfragezeitpunkt und muss innerhalb einer noch festzulegenden maximalen Gueligkeitsdauer liegen.
 
@@ -141,6 +144,7 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Bevorzugter Produktivbetrieb: eigener Web-/Application-Server beziehungsweise eigene VM mit IIS und ASP.NET Core Hosting Bundle.
 - Kommunikation erfolgt verschluesselt per HTTPS.
 - Secrets werden ueber eine noch festzulegende sichere Laufzeitkonfiguration bereitgestellt und niemals im Repository gespeichert.
+- Der Oxaion-Laufzeitbenutzer ist nicht fest im Anwendungscode konfiguriert; der STAGING-Starter fragt Benutzer und Passwort interaktiv ab.
 - PWA-Assets muessen mit einer kontrollierten Cache- und Versionsstrategie ausgeliefert werden.
 
 ## Integrationsgrenzen

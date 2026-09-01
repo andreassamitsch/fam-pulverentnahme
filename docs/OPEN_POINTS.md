@@ -5,9 +5,10 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 ## Oxaion-Integration
 
 - [x] HTTP-Buchungsfolge fuer den getesteten Vorgang `alte Mix-Charge + neue Pulvercharge -> neue Mix-Charge` bestaetigt und im STAGING-Prototyp umgesetzt; Details siehe `docs/STAGING_REAL_MIX_PROTOTYPE.md`
-- [x] JET-Datenstrom fuer die artikelbezogene Abfrage `Chargen pro Lagerort` mit Filter `mit Bestand` identifiziert und im Backend als lesender STAGING-Prototyp umgesetzt; Programme/Felder siehe `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- [x] JET-Datenstrom fuer `Chargen pro Lagerort` identifiziert und im Backend als lesender STAGING-Prototyp umgesetzt; Programme/Felder siehe `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- [x] Filterbedingung technisch aus der Selektionsmaske bestaetigt: `LLAWEP.LALABE <> 0`. Der Backend-Prototyp haengt nicht mehr von einem gespeicherten Filter `mit Bestand`, dessen Freigabe oder Filter-ID ab, sondern liest die vollstaendige Lagerortliste und wertet diese Bedingung direkt aus.
+- [x] Artikelunabhaengige Sicht auf den Maschinen-Lagerort im Referenzdatenstrom bestaetigt: die ungefilterte `LB30230R *FIRSTLIST` fuer `EOS1` lieferte 25 Zeilen verschiedener Artikel inklusive Nullbestaenden und `<STOP/>`. Dadurch koennen `Maschine leer`, `anderes Pulver vorhanden` und `mehrere Bestaende` unterschieden werden.
 - [ ] Den serverseitigen Start der neuen Bestandsabfrage in STAGING live bestaetigen: der aufgezeichnete interaktive `US30600J`-Aufruf enthielt eine Elternbildschirm-`SSID`; der Backend-Prototyp sendet beim rein lesenden Start `SSID` leer und verlangt die neu gelieferte `SSID`
-- [ ] Artikelunabhaengige Abfrage des gesamten positiven Maschinenbestands technisch bestaetigen, damit `kein Bestand fuer erwarteten Artikel` sicher zwischen `Maschine leer` und `anderes Pulver vorhanden` unterscheiden kann
 - [ ] Konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen identifizieren, insbesondere FA-Materialrueckmeldung und Pulverwechsel/Ruecklagerung
 - [ ] Konkretes Oxaion BDE-/PPS-Programm fuer die spaetere FA-Materialrueckmeldung identifizieren
 - [ ] Oxaion Buchungsschluessel Maschinenlager -> Pulverlager fuer den Pulverwechsel ermitteln
@@ -28,7 +29,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 
 - [ ] Authentifizierungskonzept fuer Benutzer der WebApp festlegen
 - [ ] Endgueltigen produktiven Web-/Application-Server festlegen
-- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten und sonstigen Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess
+- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten und sonstigen Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Es gibt keinen fest vorgegebenen Oxaion-Laufzeitbenutzer im Repository.
 - [ ] Persistenztechnik fuer produktives Transaktionslog, Idempotenz, Status und Audit Trail festlegen; STAGING-Prototyp verwendet vorerst JSON-Dateien unter `App_Data/transactions`
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach weiterer Analyse der Oxaion-Schnittstelle festlegen
