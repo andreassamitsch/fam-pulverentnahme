@@ -52,6 +52,7 @@ public static class TransactionStatuses
     public const string Position2Confirmed = "POSITION_2_CONFIRMED";
     public const string Success = "SUCCESS";
     public const string Rejected = "REJECTED";
+    public const string Conflict = "CONFLICT";
     public const string Uncertain = "UNCERTAIN";
     public const string ManualReviewRequired = "MANUAL_REVIEW_REQUIRED";
 }
