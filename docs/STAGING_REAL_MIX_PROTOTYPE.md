@@ -4,15 +4,46 @@
 
 Dieser Stand bildet den bereits praktisch getesteten Oxaion-Vorgang als testbare Webanwendung ab:
 
-1. alte Mix-Charge auf neue Mix-Charge umbuchen;
-2. zusaetzliche Pulver-/Liefercharge auf dieselbe neue Mix-Charge buchen;
-3. beide Quellen in einem Oxaion-Lagerbeleg dokumentieren;
-4. Personalnummer/Name in den vorhandenen Oxaion-Freitextfeldern dokumentieren;
-5. nach Abschluss die vier erwarteten LM/LN-Bewegungen erneut aus Oxaion lesen und verifizieren.
+1. aktuellen positiven Maschinenbestand fuer den erwarteten Artikel lesen und alte Mix-Charge plus Gesamtmenge automatisch uebernehmen;
+2. alte Mix-Charge auf neue Mix-Charge umbuchen;
+3. zusaetzliche Pulver-/Liefercharge auf dieselbe neue Mix-Charge buchen;
+4. beide Quellen in einem Oxaion-Lagerbeleg dokumentieren;
+5. Personalnummer/Name in den vorhandenen Oxaion-Freitextfeldern dokumentieren;
+6. nach Abschluss die vier erwarteten LM/LN-Bewegungen erneut aus Oxaion lesen und verifizieren.
 
 Es handelt sich bewusst um einen **STAGING-Prototyp** fuer Firma `103` und Port `11118`.
 
-## Bestaetigte Oxaion-Sequenz fuer diesen Prototyp
+## Automatische Bestandsabfrage vor dem Nachfuellen
+
+Der am 01.09.2026 aufgezeichnete Oxaion-Datenstrom fuer **Chargen pro Lagerort** ist in `docs/OXAION_MACHINE_STOCK_LOOKUP.md` dokumentiert und im Backend als rein lesende Abfrage umgesetzt.
+
+Der beobachtete Ablauf ist:
+
+- `US30600J` mit Startkontext fuer Artikel/Lagerort
+- `LB30230R *GETHDR`
+- `LB30230R *FIRSTLIST` mit `mode=reset`
+- `LB30230 *GETFILTER`
+- Filter `mit Bestand` anhand der von Oxaion gelieferten Filterdaten ermitteln
+- `LB30230 *LOADSET`
+- `LB30230R *GETU01`
+- `LB30230R *FIRSTLIST` mit `mode=replace`
+
+Der Referenzfall `Firma 103 / EOS1 / RP.00010` lieferte nach dem Filter genau eine positive Charge:
+
+```text
+Charge:  RP10WEB_20260901_085443
+Bestand: 164,330 KGM
+```
+
+Der STAGING-Prototyp stellt dafuer `GET /api/machine-stock` bereit. Im Frontend werden **Aktuelle Mix-Charge** und **Gesamter Tankbestand kg** automatisch befuellt und sind nicht manuell editierbar.
+
+Nur ein Ergebnis `UNIQUE` mit genau einer positiven Charge fuer den erwarteten Artikel gibt den aktuellen Nachfuellablauf frei. Mehrere positive Chargen werden als `AMBIGUOUS` gestoppt. Kein positiver Bestand fuer den erwarteten Artikel wird als `NO_STOCK_FOR_ARTICLE` gestoppt und **nicht** als sicher leere Maschine interpretiert, weil der bisher bestaetigte Datenstrom artikelbezogen ist.
+
+Unmittelbar vor dem Senden liest das Frontend den Bestand erneut. Das Backend fuehrt vor dem Start der schreibenden Materialbuchung nochmals eine eigene Bestandsabfrage durch und vergleicht Lagerort, Artikel, Charge und Menge mit dem Request. Bei einer Abweichung antwortet es mit `CONFLICT` / `MACHINE_STOCK_VALIDATION`; es wird kein Lagerbelegkopf angelegt und keine Materialbuchung gestartet.
+
+Noch live zu bestaetigen ist der serverseitige Einstieg in die Lesetransaktion: Der aufgezeichnete interaktive `US30600J`-Aufruf enthielt eine Elternbildschirm-`SSID`, waehrend das Backend bei diesem rein lesenden Start `SSID` leer sendet und eine neue `SSID` in der Antwort verlangt. Bis dieser Punkt in STAGING bestaetigt ist, ist die Programmlogik aus dem Datenstrom technisch nachgewiesen, der Backend-Start aber noch nicht produktiv freigegeben.
+
+## Bestaetigte Oxaion-Sequenz fuer die Mix-Buchung
 
 ### Lagerbelegkopf
 
@@ -69,6 +100,8 @@ Auf Android kann `crypto.randomUUID()` bei Zugriff ueber eine unverschluesselte 
 
 Das Backend persistiert je `clientOperationId` eine Transaktion unter `App_Data/transactions` und fuehrt dieselbe ID niemals blind ein zweites Mal als neue Oxaion-Buchung aus.
 
+Die Maschinenbestands-Revalidierung behandelt eine bereits bekannte `clientOperationId` bewusst idempotent: existiert der Vorgang bereits serverseitig, wird zuerst dessen gespeicherter Transaktionsstatus zurueckgegeben. Ein spaeter veraenderter Maschinenbestand darf einen bereits erfolgreich oder unklar verarbeiteten Vorgang nicht in einen neuen Vorgang umdeuten.
+
 Bei einem unklaren Transportfehler Backend -> Oxaion:
 
 - Status `UNCERTAIN`;
@@ -115,19 +148,10 @@ Ist die Ursache einer eindeutigen fachlichen Ablehnung behoben, kann der Bediene
 - Artikel, Chargen, Lagerorte, Lagerplaetze, Mengen, Personalnummer, Buchungs-/Produktionsdatum, Buchungstext und Ziel-Mix-Charge werden unveraendert uebernommen;
 - eine eventuell gesetzte STAGING-Fehlersimulation wird fuer den neuen Versuch nicht uebernommen;
 - das Backend akzeptiert einen solchen verknuepften neuen Versuch nur, wenn der referenzierte Vorgang eindeutig `REJECTED` ist und die fachlichen Buchungsdaten exakt mit dem abgelehnten Vorgang uebereinstimmen;
+- vor dem neuen Versuch muss der aktuelle Maschinenbestand erneut exakt zur alten Mix-Charge und Menge des abgelehnten Requests passen; andernfalls wird der Versuch vor jeder schreibenden Materialbuchung als Bestandskonflikt gestoppt;
 - sollen Buchungsdaten geaendert werden, ist stattdessen ein normaler neuer Vorgang erforderlich.
 
 Auch historische STAGING-Vorgaenge, bei denen eine fruehere Frontend-/Recovery-Version einen bereits protokollierten `REJECTED`-Status spaeter irrtuemlich in `MANUAL_REVIEW_REQUIRED` ueberschrieben hat, werden fuer diesen Zweck als bestaetigt abgelehnt erkannt, wenn keine Oxaion-Belegnummer vorhanden ist und die Ereignishistorie eindeutig ein `REJECTED` enthaelt.
-
-## Vorlaeufige STAGING-Eingabewerte
-
-Bis die aktive Mix-Charge einer Maschine automatisch aus Oxaion ermittelt wird, ist das Feld **Alte Mix-Charge** im STAGING-Prototyp vorlaeufig mit
-
-```text
-RP10MIX_20260827_04
-```
-
-vorbelegt. Das ist ausschliesslich eine temporaere Test-/Bedienhilfe und keine fachliche Regel fuer den Produktivbetrieb. Vor einer Buchung bleibt der Wert vom Bediener zu pruefen. Die automatische Ermittlung der aktiven Maschinencharge bleibt offen.
 
 ## Oxaion-Laufzeitbenutzer
 
@@ -180,8 +204,9 @@ Im IIS-Betrieb sollen technische Zugangsdaten ueber eine geschuetzte Server-/Pro
 
 ## Noch nicht Teil dieses Prototyps
 
-- automatische Abfrage der aktuell aktiven Mix-Charge der Maschine;
-- unabhaengige Bestandsabfrage vor/nach dem Mix;
+- artikelunabhaengige Ermittlung des gesamten Maschinenbestands zur sicheren Unterscheidung `leer` / `anderes Pulver`;
+- live bestaetigter Backend-Start der `US30600J`-Lesetransaktion mit leerer Eltern-`SSID`;
+- atomare Reservierung/Sperrung zwischen Bestands-Revalidierung und erster Materialbuchung;
 - FA-QR-Scan und FA-Materialrueckmeldung;
 - finale Authentifizierung der WebApp-Benutzer;
 - produktive Transaktionsdatenbank statt JSON-Dateistore;
