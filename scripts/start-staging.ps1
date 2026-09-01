@@ -17,16 +17,22 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw "dotnet was not found. Install the .NET 8 SDK first."
 }
 
-$securePassword = Read-Host "Oxaion STAGING password for KHCSYN" -AsSecureString
-$credential = New-Object System.Management.Automation.PSCredential("KHCSYN", $securePassword)
+$oxaionUser = (Read-Host "Oxaion STAGING user").Trim()
+if ([string]::IsNullOrWhiteSpace($oxaionUser)) {
+    throw "Oxaion STAGING user must not be empty."
+}
+
+$securePassword = Read-Host "Oxaion STAGING password for $oxaionUser" -AsSecureString
+$credential = New-Object System.Management.Automation.PSCredential($oxaionUser, $securePassword)
 $plainPassword = $credential.GetNetworkCredential().Password
 
 try {
+    $env:Oxaion__User = $oxaionUser
     $env:Oxaion__Password = $plainPassword
 
     Write-Host ""
     Write-Host "FAM Pulverentnahme STAGING" -ForegroundColor Cyan
-    Write-Host "Oxaion: http://oxapp.cnc-domain.fuchshofer:11118 / Firma 103" -ForegroundColor DarkGray
+    Write-Host "Oxaion: http://oxapp.cnc-domain.fuchshofer:11118 / Firma 103 / User $oxaionUser" -ForegroundColor DarkGray
     Write-Host "WebApp: http://localhost:$Port" -ForegroundColor Green
     Write-Host "Android im selben Netz: http://<IP-DIESES-PCS>:$Port" -ForegroundColor Green
     Write-Host ""
@@ -36,6 +42,8 @@ try {
     & dotnet run --project $project --urls "http://0.0.0.0:$Port"
 }
 finally {
+    Remove-Item Env:Oxaion__User -ErrorAction SilentlyContinue
     Remove-Item Env:Oxaion__Password -ErrorAction SilentlyContinue
     $plainPassword = $null
+    $oxaionUser = $null
 }
