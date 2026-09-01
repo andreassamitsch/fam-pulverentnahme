@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $exe)) {
     throw "Published backend not found: $exe"
 }
 
-$oxaionUser = (Read-Host "Oxaion STAGING user").Trim()
+$oxaionUser = (Read-Host "Oxaion STAGING user (frei waehlen, kein Standardwert)").Trim()
 if ([string]::IsNullOrWhiteSpace($oxaionUser)) {
     throw "Oxaion STAGING user must not be empty."
 }
