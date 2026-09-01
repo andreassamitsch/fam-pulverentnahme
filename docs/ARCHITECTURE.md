@@ -75,6 +75,8 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - Aufruf ausschliesslich freigegebener Oxaion HTTP-Schnittstellen
 - sichere technische Protokollierung ohne Secrets
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
+- fuer den STAGING-Nachfuellprototyp: lesender Endpunkt `GET /api/machine-stock`, der den im JET-Datenstrom bestaetigten Ablauf `Chargen pro Lagerort` / Filter `mit Bestand` kapselt; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- vor einem neuen Mix-Buchungsversuch: erneute Bestandsabfrage und Vergleich von Lagerort, Artikel, Charge und kompletter Maschinenmenge mit dem vom Frontend vorbereiteten Request; bei Abweichung keine schreibende Materialbuchung starten
 
 Dasselbe `clientOperationId` darf nicht zu mehreren wirksamen Oxaion-Buchungen fuehren. Wiederholtes Senden derselben Outbox-Nachricht muss serverseitig idempotent behandelt werden.
 
@@ -107,6 +109,10 @@ Sie ist kein Ersatz fuer Oxaion als fachlich fuehrendes ERP-System.
 ## Online-/Offline-Grenze
 
 Online wird der aktuelle Maschinenzustand vor einer produktiven Freigabe ueber das Backend aus der bestaetigten Oxaion-Logik ermittelt.
+
+Im aktuellen STAGING-Nachfuellprototyp wird die positive Charge des erwarteten Artikels auf dem Maschinen-Lagerort ueber `LB30230R` mit dem Oxaion-Filter `mit Bestand` gelesen. Alte Mix-Charge und gesamte Restmenge werden im Frontend nur angezeigt und nicht manuell eingegeben. Das Backend liest denselben Zustand vor dem Start einer neuen schreibenden Materialbuchung nochmals und blockiert erkannte Abweichungen.
+
+Die derzeit bestaetigte Abfrage ist artikelbezogen. Liefert sie keinen positiven Bestand, darf daraus noch nicht `Maschine leer` geschlossen werden; bis eine artikelunabhaengige Bestandsabfrage bestaetigt ist, wird dieser Zustand gestoppt. Auch eine atomare Sperr-/Reservierungsstrategie zwischen letzter Bestandspruefung und erster schreibender Buchung ist noch offen.
 
 Offline darf ein zuvor serverseitig bestaetigter Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Insbesondere benoetigt er einen Abfragezeitpunkt und muss innerhalb einer noch festzulegenden maximalen Gueligkeitsdauer liegen.
 
@@ -143,4 +149,5 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Keine direkten ERP-Buchungen per SQL.
 - Bei unklarem Buchungsergebnis bleibt der Vorgang offen beziehungsweise wird zur manuellen Pruefung markiert; er wird nicht blind wiederholt.
 - Offline erfasste Daten sind keine bestaetigten ERP-Buchungen.
-- Authentifizierung, konkrete Oxaion-Aufrufe, Datenmodelle und noch offene Offline-Grenzen sind in `docs/OPEN_POINTS.md` als offen gefuehrt.
+- Der serverseitige Start des neuen `US30600J`-Bestandslesevorgangs mit leerer Eltern-`SSID` ist im STAGING noch live zu bestaetigen; solange diese rein lesende Abfrage nicht sicher funktioniert, darf keine darauf angewiesene Materialbuchung gestartet werden.
+- Authentifizierung, weitere konkrete Oxaion-Aufrufe, Datenmodelle und noch offene Offline-Grenzen sind in `docs/OPEN_POINTS.md` als offen gefuehrt.
