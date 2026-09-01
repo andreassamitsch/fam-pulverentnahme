@@ -1,0 +1,270 @@
+using System.Globalization;
+using System.Xml.Linq;
+using Microsoft.Extensions.Options;
+
+namespace Fam.Pulverentnahme.Web;
+
+public static class MachineStockStatuses
+{
+    public const string Unique = "UNIQUE";
+    public const string NoStockForArticle = "NO_STOCK_FOR_ARTICLE";
+    public const string Ambiguous = "AMBIGUOUS";
+}
+
+public sealed record MachineStockRow(
+    string Warehouse,
+    string Article,
+    string ArticleText,
+    string Batch,
+    string ManufacturerBatch,
+    decimal QuantityKg,
+    string Unit,
+    string LastBookingTimestamp);
+
+public sealed record MachineStockResult(
+    string Status,
+    string Warehouse,
+    string Article,
+    string Message,
+    DateTimeOffset ReadAt,
+    IReadOnlyList<MachineStockRow> Rows);
+
+public sealed record MachineStockFilterSelection(
+    string Firm,
+    string Kidn,
+    string FilterType,
+    string Set,
+    string Type);
+
+public sealed class MachineStockConflictException(string message) : Exception(message);
+
+/// <summary>
+/// Read-only Oxaion lookup for the current positive batch stock of one article on one machine warehouse.
+/// The program/action sequence is reconstructed from the captured JET data stream of 2026-09-01:
+/// US30600J -> LB30230R *GETHDR -> *FIRSTLIST(reset) -> LB30230 *GETFILTER -> *LOADSET("mit Bestand")
+/// -> LB30230R *GETU01 -> *FIRSTLIST(replace).
+/// </summary>
+public sealed class MachineStockService
+{
+    private readonly OxaionClient _oxaion;
+    private readonly OxaionOptions _options;
+
+    public MachineStockService(OxaionClient oxaion, IOptions<OxaionOptions> options)
+    {
+        _oxaion = oxaion;
+        _options = options.Value;
+    }
+
+    public async Task<MachineStockResult> ReadAsync(
+        string warehouse,
+        string article,
+        string? warehouseText,
+        string? articleText,
+        CancellationToken ct)
+    {
+        await using var session = await _oxaion.ConnectAsync(ct);
+        return await ReadAsync(session, warehouse, article, warehouseText, articleText, ct);
+    }
+
+    public async Task<MachineStockResult> ReadAsync(
+        OxaionSession session,
+        string warehouse,
+        string article,
+        string? warehouseText,
+        string? articleText,
+        CancellationToken ct)
+    {
+        warehouse = (warehouse ?? "").Trim();
+        article = (article ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(warehouse) || string.IsNullOrWhiteSpace(article))
+            throw new ArgumentException("Warehouse and article are required for machine stock lookup.");
+
+        var launchInput = BuildLaunchContext(warehouse, article, warehouseText, articleText);
+
+        // The captured interactive request carried the SSID of its parent screen and US30600J
+        // returned a new SSID for LB30230R. A backend request has no parent JET screen, therefore
+        // it sends SSID explicitly empty and requires US30600J to return a fresh SSID. This call is
+        // read-only; STAGING live confirmation of this backend startup detail is still required.
+        var launch = await session.CallAsync("US30600J", "", launchInput, ct);
+        OxaionSession.AssertNoFcod(launch);
+        var ssid = Get(launch.Dta, "SSID");
+        if (string.IsNullOrWhiteSpace(ssid))
+            throw new InvalidOperationException("US30600J did not return an SSID for LB30230R.");
+
+        var context = Merge(launchInput, launch.Dta);
+        context["SSID"] = ssid;
+        context["NOHWPgm"] = "LB30230R";
+
+        var header = await session.CallAsync("LB30230R", "*GETHDR", context, ct);
+        OxaionSession.AssertNoFcod(header);
+        context = Merge(context, header.Dta);
+        context["SSID"] = ssid;
+
+        var initialList = await session.CallAsync("LB30230R", "*FIRSTLIST", ListContext(ssid, "reset"), ct);
+        OxaionSession.AssertNoFcod(initialList);
+
+        var filterTree = await session.CallAsync("LB30230", "*GETFILTER", Dict(("SSID", ssid)), ct);
+        OxaionSession.AssertNoFcod(filterTree);
+        var filter = ParseWithStockFilter(filterTree.Xml);
+
+        var loaded = await session.CallAsync("LB30230", "*LOADSET", Dict(
+            ("FIRM", filter.Firm),
+            ("KIDN", filter.Kidn),
+            ("SSID", ssid),
+            ("FLTY", filter.FilterType),
+            ("NEW_MODE", "J"),
+            ("SET", filter.Set),
+            ("TYPE", filter.Type)), ct);
+        OxaionSession.AssertNoFcod(loaded);
+
+        var u01 = await session.CallAsync("LB30230R", "*GETU01", Dict(("SSID", ssid)), ct);
+        OxaionSession.AssertNoFcod(u01);
+
+        var filteredList = await session.CallAsync("LB30230R", "*FIRSTLIST", ListContext(ssid, "replace"), ct);
+        OxaionSession.AssertNoFcod(filteredList);
+
+        var rows = ParseRows(filteredList.Xml)
+            .Where(r => string.Equals(r.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase))
+            .Where(r => string.Equals(r.Article, article, StringComparison.OrdinalIgnoreCase))
+            .Where(r => r.QuantityKg > 0m)
+            .ToList();
+
+        return rows.Count switch
+        {
+            1 => new MachineStockResult(
+                MachineStockStatuses.Unique,
+                warehouse,
+                article,
+                $"Eindeutiger positiver Oxaion-Bestand: Charge {rows[0].Batch}, {rows[0].QuantityKg:0.###} kg.",
+                DateTimeOffset.UtcNow,
+                rows),
+            0 => new MachineStockResult(
+                MachineStockStatuses.NoStockForArticle,
+                warehouse,
+                article,
+                "Kein positiver Bestand für den erwarteten Artikel gefunden. Die Abfrage ist artikelbezogen; daraus darf nicht abgeleitet werden, dass die Maschine sicher leer ist.",
+                DateTimeOffset.UtcNow,
+                rows),
+            _ => new MachineStockResult(
+                MachineStockStatuses.Ambiguous,
+                warehouse,
+                article,
+                $"Mehrere positive Chargenbestände ({rows.Count}) gefunden. Vorgang muss geklärt werden.",
+                DateTimeOffset.UtcNow,
+                rows)
+        };
+    }
+
+    public static MachineStockFilterSelection ParseWithStockFilter(XDocument xml)
+    {
+        foreach (var tree in xml.Descendants("TREE"))
+        {
+            var key = tree.Element("KEY");
+            if (key is null) continue;
+            var set = key.Element("SET")?.Value.Trim() ?? "";
+            if (!string.Equals(set, "mit Bestand", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var kidn = key.Element("KIDN")?.Value.Trim() ?? "";
+            var flty = key.Element("FLTY")?.Value.Trim() ?? "";
+            var type = key.Element("TYPE")?.Value.Trim() ?? "";
+            var firm = key.Element("FIRM")?.Value.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(kidn) || string.IsNullOrWhiteSpace(flty) || string.IsNullOrWhiteSpace(type))
+                throw new InvalidOperationException("Oxaion filter 'mit Bestand' is missing KIDN/FLTY/TYPE.");
+
+            return new MachineStockFilterSelection(firm, kidn, flty, set, type);
+        }
+
+        throw new InvalidOperationException("Oxaion filter 'mit Bestand' was not returned by LB30230 *GETFILTER.");
+    }
+
+    public static IReadOnlyList<MachineStockRow> ParseRows(XDocument xml)
+    {
+        var result = new List<MachineStockRow>();
+        foreach (var row in xml.Descendants("ROW"))
+        {
+            var key = row.Element("KEY");
+            if (key is null) continue;
+
+            var warehouse = key.Element("LALAGO")?.Value.Trim() ?? "";
+            var article = key.Element("LAIDNR")?.Value.Trim() ?? "";
+            var batch = key.Element("LAPONR")?.Value.Trim() ?? row.Element("LLAGEP.LAPONR")?.Value.Trim() ?? "";
+            var quantityText = row.Element("LLAWEP.LALABE")?.Value.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(warehouse) || string.IsNullOrWhiteSpace(article) || string.IsNullOrWhiteSpace(batch))
+                continue;
+
+            var (quantity, unit) = ParseQuantity(quantityText);
+            result.Add(new MachineStockRow(
+                warehouse,
+                article,
+                row.Element("IDNR.TLBEZG")?.Value.Trim() ?? "",
+                batch,
+                row.Element("PONR.POCHNL")?.Value.Trim() ?? "",
+                quantity,
+                unit,
+                row.Element("LLAWEP.LAYZLBU")?.Value.Trim() ?? ""));
+        }
+        return result;
+    }
+
+    public static (decimal Quantity, string Unit) ParseQuantity(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return (0m, "");
+        var trimmed = value.Trim();
+        var numeric = new string(trimmed.TakeWhile(ch => char.IsDigit(ch) || ch is '+' or '-' or ',' or '.').ToArray());
+        if (string.IsNullOrWhiteSpace(numeric))
+            throw new FormatException($"Oxaion stock quantity '{value}' does not start with a numeric value.");
+
+        var normalized = numeric;
+        if (normalized.Contains(',') && normalized.Contains('.'))
+            normalized = normalized.LastIndexOf(',') > normalized.LastIndexOf('.')
+                ? normalized.Replace(".", "").Replace(',', '.')
+                : normalized.Replace(",", "");
+        else if (normalized.Contains(','))
+            normalized = normalized.Replace(',', '.');
+
+        if (!decimal.TryParse(normalized, NumberStyles.Number | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var quantity))
+            throw new FormatException($"Oxaion stock quantity '{value}' could not be parsed safely.");
+
+        var unit = trimmed[numeric.Length..].Trim();
+        return (quantity, unit);
+    }
+
+    private Dictionary<string, string> BuildLaunchContext(string warehouse, string article, string? warehouseText, string? articleText)
+    {
+        var dta = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["WRKB"] = "", ["DATV"] = "", ["LHKZ20"] = "", ["KSTB"] = "",
+            ["TIDF"] = article, ["BWKZBZ"] = "",
+            ["STARTUP"] = $"<DUFIRM>{_options.Firm}</DUFIRM><DUIDNV>{article}</DUIDNV><DULAGV>{warehouse}</DULAGV>",
+            ["NANW"] = "", ["XLFTBZ"] = "", ["mode"] = "no-attribute-update", ["SNNR20"] = "",
+            ["TX_FFMT"] = "Chargen pro Lagerort", ["TX_LAGR"] = "", ["LAGR20"] = "", ["KOBN"] = "",
+            ["TX_LAGO"] = warehouseText ?? "", ["DATB"] = "", ["KOKO"] = "0", ["PONR"] = "", ["PONR20"] = "",
+            ["ABCK"] = "", ["LHKZBZ"] = "", ["LHKZ"] = "", ["ABCK20"] = "", ["TX_KSTT"] = "",
+            ["REPORT"] = "", ["KSTTV"] = "", ["ANWG"] = "LBS", ["KOAW"] = "", ["TX_BUKR"] = "",
+            ["FMANWG"] = "LBS", ["BGNR"] = "", ["LHMT20"] = "", ["XLFT"] = "", ["BWKZ"] = "",
+            ["B_BBL20"] = "", ["FFMT"] = "CO", ["LAGO20"] = "", ["FFMS"] = "CO", ["LAGR"] = "",
+            ["KOPS"] = "0", ["LAPL20"] = "", ["PGMN"] = "LB30230R", ["LAGO"] = warehouse,
+            ["KSTTB"] = "", ["TX_TIDF"] = articleText ?? "", ["SNNR"] = "", ["KOVU20"] = "", ["LAPL"] = "",
+            ["BWKZ20"] = "", ["TX_WERK"] = "", ["I_TIDF"] = article, ["ABCKBZ"] = "", ["XLFT20"] = "",
+            ["WRKV"] = "", ["LHMT"] = "", ["KSTV"] = "", ["BUKR"] = "", ["SSID"] = "",
+            ["LHMTBZ"] = "", ["BLNR20"] = "", ["DATE20"] = "", ["BLNR"] = "0"
+        };
+        return dta;
+    }
+
+    private static Dictionary<string, string> ListContext(string ssid, string mode) => Dict(
+        ("FLD", ""), ("SSID", ssid), ("PFLD", ""), ("MC-Modus", ""), ("mode", mode));
+
+    private static string Get(IReadOnlyDictionary<string, string> values, string key) =>
+        values.TryGetValue(key, out var value) ? value : "";
+
+    private static Dictionary<string, string> Dict(params (string Key, string Value)[] values) =>
+        values.ToDictionary(x => x.Key, x => x.Value ?? "", StringComparer.Ordinal);
+
+    private static Dictionary<string, string> Merge(IReadOnlyDictionary<string, string> left, IReadOnlyDictionary<string, string> right)
+    {
+        var result = new Dictionary<string, string>(left, StringComparer.Ordinal);
+        foreach (var item in right) result[item.Key] = item.Value ?? "";
+        return result;
+    }
+}
