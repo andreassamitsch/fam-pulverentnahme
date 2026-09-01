@@ -79,11 +79,21 @@ Bei einem unklaren Transportfehler Backend -> Oxaion:
 - alle vier Bewegungen vorhanden -> nichts erneut buchen, nur Abschluss/Verifikation;
 - anderer Zustand -> `MANUAL_REVIEW_REQUIRED`.
 
+Seit dem Diagnose-Stand vom 01.09.2026 loest das Frontend beim blossen Oeffnen oder Neuladen der PWA **kein schreibendes Reconcile mehr automatisch aus**. Bei einem vorhandenen lokalen Vorgang wird beim Start nur der bereits gespeicherte Backend-Status ueber `GET /api/mix/{clientOperationId}` gelesen. Ein Oxaion-Reconcile erfolgt erst nach bewusster Bedieneraktion und nur, wenn eine bestaetigte Oxaion-Belegnummer vorhanden ist. Dadurch bleibt insbesondere die urspruengliche Backend-/Oxaion-Fehlermeldung sichtbar und wird nicht durch eine nachfolgende generische Recovery-Meldung ueberschrieben.
+
+Die Recovery-Karte zeigt jetzt `Status`, `Stage`, `DocumentNo` und die letzte Backend-Meldung. Wenn noch keine bestaetigte Belegnummer existiert, fuehrt der Recovery-Button nur eine lesende Backend-Statusaktualisierung aus und keine weitere Oxaion-Buchung.
+
+Der Service Worker verwendet fuer diesen Diagnose-Stand einen neuen App-Shell-Cache und behandelt Navigationen network-first mit Cache-Fallback. Damit soll ein Android-Geraet nach einem Serverupdate nicht dauerhaft die vorherige STAGING-Oberflaeche aus dem Cache ausfuehren. Der IndexedDB-Vorgangsspeicher wird durch diesen Cachewechsel nicht geloescht.
+
+## Oxaion-Laufzeitbenutzer
+
+Der technische Oxaion-Benutzer wird fuer den STAGING-Test nicht in `appsettings.json` fest vorgegeben. Benutzer und Passwort werden beim Serverstart gesetzt. Mit dem Startskript werden beide Werte interaktiv abgefragt.
+
+Wichtig: Der Health-Check `CONNECT + LB20100J *LOADNEW/*NEW` bestaetigt nur Login und diese nicht persistierenden Programmschritte fuer den gewaehlten Benutzer. Er beweist **nicht**, dass derselbe Benutzer auch `LB20100J *PUTNEW`, `LB20115J` und `LB20110R *UPD` mit denselben Berechtigungen beziehungsweise benutzerspezifischen Oxaion-Vorgaben wie der bisher getestete technische Benutzer ausfuehren kann. Unterschiede muessen anhand der konkreten Oxaion-Meldung bewertet werden; fehlende Berechtigungen oder Benutzerparameter duerfen nicht als Ursache erfunden werden.
+
 ## Lokaler Start
 
 Voraussetzung fuer den Quellcode-Start: .NET 8 SDK.
-
-Der technische Oxaion-Benutzer wird fuer den STAGING-Test nicht mehr in `appsettings.json` fest vorgegeben. Benutzer und Passwort werden beim Serverstart gesetzt. Mit dem Startskript werden beide Werte interaktiv abgefragt.
 
 Manueller Quellcode-Start ohne Startskript:
 
