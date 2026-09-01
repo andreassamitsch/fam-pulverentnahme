@@ -83,8 +83,13 @@ Bei einem unklaren Transportfehler Backend -> Oxaion:
 
 Voraussetzung fuer den Quellcode-Start: .NET 8 SDK.
 
+Der technische Oxaion-Benutzer wird fuer den STAGING-Test nicht mehr in `appsettings.json` fest vorgegeben. Benutzer und Passwort werden beim Serverstart gesetzt. Mit dem Startskript werden beide Werte interaktiv abgefragt.
+
+Manueller Quellcode-Start ohne Startskript:
+
 ```powershell
-$env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
+$env:Oxaion__User = "<STAGING-Oxaion-Benutzer>"
+$env:Oxaion__Password = "<STAGING-Passwort>"
 dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
 ```
 
@@ -100,21 +105,24 @@ oder am Android-Geraet im selben Netz:
 http://<IP-DES-WEBSERVERS>:5080
 ```
 
-Fuer Windows-Tests ohne lokal installiertes .NET SDK erzeugt GitHub Actions auf `main` zusaetzlich das self-contained Artifact `FAM-Pulverentnahme-STAGING-win-x64`. Dieses Paket enthaelt die benoetigte .NET-Laufzeit und wird mit `START_STAGING.bat` gestartet.
+Fuer Windows-Tests ohne lokal installiertes .NET SDK erzeugt GitHub Actions auf `main` zusaetzlich das self-contained Artifact `FAM-Pulverentnahme-STAGING-win-x64`. Dieses Paket enthaelt die benoetigte .NET-Laufzeit und wird mit `START_STAGING.bat` gestartet. Beim Start werden zuerst der Oxaion-STAGING-Benutzer und danach dessen Passwort abgefragt.
 
 Fuer IIS spaeter normal mit `dotnet publish` veroeffentlichen und das ASP.NET Core Hosting Bundle verwenden.
 
-## Secrets
+## Zugangsdaten und Secrets
 
-Das Oxaion-Passwort steht **nicht** in Frontend, Repository oder `appsettings.json`.
+Weder Oxaion-Benutzer noch Oxaion-Passwort werden fuer den STAGING-Prototyp im Frontend oder fest in `appsettings.json` hinterlegt.
 
-Fuer den Test wird es als Laufzeitkonfiguration gesetzt:
+Fuer den Test werden beide als Laufzeitkonfiguration gesetzt:
 
 ```text
+Oxaion__User
 Oxaion__Password
 ```
 
-Im IIS-Betrieb soll das Secret ueber eine geschuetzte Server-/Prozesskonfiguration bereitgestellt werden.
+Das Passwort wird vom Startskript verdeckt abgefragt. Die Laufzeitvariablen werden nur fuer den gestarteten Backend-Prozess gesetzt und beim Ende des Startskripts wieder entfernt.
+
+Im IIS-Betrieb sollen technische Zugangsdaten ueber eine geschuetzte Server-/Prozesskonfiguration bereitgestellt werden.
 
 ## Noch nicht Teil dieses Prototyps
 
