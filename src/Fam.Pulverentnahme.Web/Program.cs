@@ -96,8 +96,8 @@ app.MapPost("/api/mix", async (
                 return Results.BadRequest(new { error = "The referenced rejected operation was not found." });
             if (!IsConfirmedRejected(rejected))
                 return Results.BadRequest(new { error = "Only a confirmed REJECTED operation may be retried as a new operation." });
-            if (!SameBookingData(rejected.Request, request))
-                return Results.BadRequest(new { error = "A retry of a rejected operation must use the same booking data. Start a normal new operation if booking data must change." });
+            if (!MixRequestLogic.SameBookingData(rejected.Request, request))
+                return Results.BadRequest(new { error = "A retry of a rejected operation must use the same booking data, including all replenishment batches. Start a normal new operation if booking data must change." });
         }
 
         // Safety gate before any write-capable Oxaion material-booking call.
@@ -207,13 +207,6 @@ static bool StockMatchesRequest(MachineStockRow stock, RealMixRequest request) =
     string.Equals(stock.Article, request.Article, StringComparison.OrdinalIgnoreCase) &&
     string.Equals(stock.Batch, request.OldMixBatch, StringComparison.Ordinal) &&
     Math.Abs(stock.QuantityKg - request.OldMixAmountKg) < 0.0005m;
-
-static bool SameBookingData(RealMixRequest source, RealMixRequest retry)
-{
-    var a = source with { ClientOperationId = "", SimulateFailure = null, RetryOfClientOperationId = null };
-    var b = retry with { ClientOperationId = "", SimulateFailure = null, RetryOfClientOperationId = null };
-    return a == b;
-}
 
 static bool IsConfirmedRejected(MixTransaction tx) =>
     tx.Status == TransactionStatuses.Rejected ||
