@@ -8,7 +8,9 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [x] JET-Datenstrom fuer `Chargen pro Lagerort` identifiziert und im Backend als lesender STAGING-Prototyp umgesetzt; Programme/Felder siehe `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
 - [x] Filterbedingung technisch aus der Selektionsmaske bestaetigt: `LLAWEP.LALABE <> 0`. Der Backend-Prototyp haengt nicht mehr von einem gespeicherten Filter `mit Bestand`, dessen Freigabe oder Filter-ID ab, sondern liest die vollstaendige Lagerortliste und wertet diese Bedingung direkt aus.
 - [x] Artikelunabhaengige Sicht auf den Maschinen-Lagerort im Referenzdatenstrom bestaetigt: die ungefilterte `LB30230R *FIRSTLIST` fuer `EOS1` lieferte 25 Zeilen verschiedener Artikel inklusive Nullbestaenden und `<STOP/>`. Dadurch koennen `Maschine leer`, `anderes Pulver vorhanden` und `mehrere Bestaende` unterschieden werden.
-- [ ] Den serverseitigen Start der neuen Bestandsabfrage in STAGING live bestaetigen: der aufgezeichnete interaktive `US30600J`-Aufruf enthielt eine Elternbildschirm-`SSID`; der Backend-Prototyp sendet beim rein lesenden Start `SSID` leer und verlangt die neu gelieferte `SSID`
+- [x] Serverseitiger Start der Bestandsabfrage mit leerer Eltern-`SSID` in STAGING live bestaetigt: der vom Backend gestartete Lesefluss ermittelt den aktuellen EOS1-Bestand erfolgreich.
+- [x] Mehrere Nachfuellchargen als ein fachlicher Vorgang im Backend/Frontend umgesetzt; Positions-, Verifikations- und Recovery-Logik sind dynamisch. Details siehe `docs/MULTI_BATCH_REPLENISHMENT.md`.
+- [ ] Multi-Batch-Verallgemeinerung fuer Position 3+ real in Oxaion STAGING bestaetigen: mindestens zwei zusaetzliche Nachfuellchargen in einem Vorgang buchen und alle erwarteten LM/LN-Bewegungen pruefen. Position 2 ist bereits praktisch bestaetigt.
 - [ ] Konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen identifizieren, insbesondere FA-Materialrueckmeldung und Pulverwechsel/Ruecklagerung
 - [ ] Konkretes Oxaion BDE-/PPS-Programm fuer die spaetere FA-Materialrueckmeldung identifizieren
 - [ ] Oxaion Buchungsschluessel Maschinenlager -> Pulverlager fuer den Pulverwechsel ermitteln
