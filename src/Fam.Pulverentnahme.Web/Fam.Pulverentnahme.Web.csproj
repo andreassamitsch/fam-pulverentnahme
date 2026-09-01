@@ -5,4 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Fam.Pulverentnahme.Web.Tests" />
+  </ItemGroup>
 </Project>

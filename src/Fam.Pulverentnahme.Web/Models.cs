@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace Fam.Pulverentnahme.Web;
 
 public sealed class OxaionOptions
@@ -17,6 +15,13 @@ public sealed class PrototypeOptions
     public string TransactionDirectory { get; set; } = "App_Data/transactions";
 }
 
+public sealed record AdditionalPowderSource(
+    string Warehouse,
+    string WarehouseText,
+    string StorageBin,
+    string Batch,
+    decimal AmountKg);
+
 public sealed record RealMixRequest(
     string ClientOperationId,
     string PersonnelNo,
@@ -28,6 +33,9 @@ public sealed record RealMixRequest(
     string OldMixStorageBin,
     string OldMixBatch,
     decimal OldMixAmountKg,
+    // Legacy single-source fields are intentionally retained for stored STAGING transactions
+    // and older clients. New clients additionally send AdditionalSources and mirror its first
+    // entry into these fields. Remove only with an explicit migration of persisted transactions.
     string AddWarehouse,
     string AddWarehouseText,
     string AddStorageBin,
@@ -41,7 +49,63 @@ public sealed record RealMixRequest(
     DateOnly BookingDate,
     string BookingText,
     string? SimulateFailure = null,
-    string? RetryOfClientOperationId = null);
+    string? RetryOfClientOperationId = null,
+    IReadOnlyList<AdditionalPowderSource>? AdditionalSources = null);
+
+public static class MixRequestLogic
+{
+    public static IReadOnlyList<AdditionalPowderSource> Sources(RealMixRequest request)
+    {
+        if (request.AdditionalSources is { Count: > 0 })
+            return request.AdditionalSources;
+
+        return
+        [
+            new AdditionalPowderSource(
+                request.AddWarehouse,
+                request.AddWarehouseText,
+                request.AddStorageBin,
+                request.AddBatch,
+                request.AddAmountKg)
+        ];
+    }
+
+    public static bool LegacyFirstSourceMatches(RealMixRequest request)
+    {
+        if (request.AdditionalSources is not { Count: > 0 }) return true;
+        var first = request.AdditionalSources[0];
+        return string.Equals(request.AddWarehouse, first.Warehouse, StringComparison.Ordinal)
+            && string.Equals(request.AddWarehouseText, first.WarehouseText, StringComparison.Ordinal)
+            && string.Equals(request.AddStorageBin, first.StorageBin, StringComparison.Ordinal)
+            && string.Equals(request.AddBatch, first.Batch, StringComparison.Ordinal)
+            && request.AddAmountKg == first.AmountKg;
+    }
+
+    public static bool SameBookingData(RealMixRequest a, RealMixRequest b)
+    {
+        if (!string.Equals(a.PersonnelNo, b.PersonnelNo, StringComparison.Ordinal)
+            || !string.Equals(a.PersonnelName, b.PersonnelName, StringComparison.Ordinal)
+            || !string.Equals(a.Article, b.Article, StringComparison.Ordinal)
+            || !string.Equals(a.ArticleText, b.ArticleText, StringComparison.Ordinal)
+            || !string.Equals(a.OldMixWarehouse, b.OldMixWarehouse, StringComparison.Ordinal)
+            || !string.Equals(a.OldMixWarehouseText, b.OldMixWarehouseText, StringComparison.Ordinal)
+            || !string.Equals(a.OldMixStorageBin, b.OldMixStorageBin, StringComparison.Ordinal)
+            || !string.Equals(a.OldMixBatch, b.OldMixBatch, StringComparison.Ordinal)
+            || a.OldMixAmountKg != b.OldMixAmountKg
+            || !string.Equals(a.TargetWarehouse, b.TargetWarehouse, StringComparison.Ordinal)
+            || !string.Equals(a.TargetWarehouseText, b.TargetWarehouseText, StringComparison.Ordinal)
+            || !string.Equals(a.TargetStorageBin, b.TargetStorageBin, StringComparison.Ordinal)
+            || !string.Equals(a.TargetBatch, b.TargetBatch, StringComparison.Ordinal)
+            || a.ProductionDate != b.ProductionDate
+            || a.BookingDate != b.BookingDate
+            || !string.Equals(a.BookingText, b.BookingText, StringComparison.Ordinal))
+            return false;
+
+        var left = Sources(a);
+        var right = Sources(b);
+        return left.Count == right.Count && left.Zip(right).All(pair => pair.First == pair.Second);
+    }
+}
 
 public static class TransactionStatuses
 {
@@ -70,6 +134,7 @@ public sealed class MixTransaction
     public RealMixRequest Request { get; set; } = default!;
     public Dictionary<string, string>? HeaderDta { get; set; }
     public Dictionary<string, string>? Position1ValidatedState { get; set; }
+    public Dictionary<string, Dictionary<string, string>> PositionValidatedStates { get; set; } = new(StringComparer.Ordinal);
     public List<MovementRow> LastMovements { get; set; } = [];
     public List<TransactionEvent> Events { get; set; } = [];
 }
@@ -86,7 +151,12 @@ public sealed record MovementRow(
     decimal Quantity,
     string Timestamp);
 
-public sealed record ReconcileResult(string Status, string Action, string Message, IReadOnlyList<MovementRow> Rows);
+public sealed record ReconcileResult(
+    string Status,
+    string Action,
+    string Message,
+    IReadOnlyList<MovementRow> Rows,
+    int CompletedPositions = 0);
 
 public sealed record ApiTransactionResponse(
     string ClientOperationId,
