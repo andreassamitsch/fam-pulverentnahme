@@ -85,6 +85,27 @@ Die Recovery-Karte zeigt jetzt `Status`, `Stage`, `DocumentNo` und die letzte Ba
 
 Der Service Worker verwendet fuer diesen Diagnose-Stand einen neuen App-Shell-Cache und behandelt Navigationen network-first mit Cache-Fallback. Damit soll ein Android-Geraet nach einem Serverupdate nicht dauerhaft die vorherige STAGING-Oberflaeche aus dem Cache ausfuehren. Der IndexedDB-Vorgangsspeicher wird durch diesen Cachewechsel nicht geloescht.
 
+### Bestaetigte fachliche Ablehnung `U180500`
+
+Am 01.09.2026 wurde im STAGING bei `LB20100J *PUTNEW` fuer den Lagerbelegkopf folgende eindeutige Oxaion-Ablehnung beobachtet:
+
+```text
+U180500
+Periode 3/2026 fuer Anwendung "Lagerbuchhaltung" noch nicht eroeffnet.
+Field: KOBGDT
+```
+
+Der betroffene Vorgang hatte danach `documentNo=null`, `headerDta=null` und keine Bewegungen. Dieser Fall ist deshalb `REJECTED`, nicht `UNCERTAIN`: Es wurde keine Lagerbuchung durchgefuehrt und es ist kein Belegkopf bestaetigt worden.
+
+Verbindliches Verhalten des STAGING-Prototyps:
+
+- `REJECTED` ist fuer dieselbe `clientOperationId` ein terminaler Zustand;
+- ein Reconcile darf `REJECTED` nicht in `MANUAL_REVIEW_REQUIRED` umwandeln;
+- bei `U180500` wird dem Bediener angezeigt, dass die benoetigte Lagerbuchhaltungsperiode nicht geoeffnet ist;
+- Massnahme: Periode in Oxaion oeffnen lassen beziehungsweise das zulaessige Buchungsdatum klaeren;
+- erst danach wird ein **neuer** Vorgang mit neuer `clientOperationId` gestartet;
+- es gibt keinen automatischen Oxaion-Retry fuer den abgelehnten Vorgang.
+
 ## Oxaion-Laufzeitbenutzer
 
 Der technische Oxaion-Benutzer wird fuer den STAGING-Test nicht in `appsettings.json` fest vorgegeben. Benutzer und Passwort werden beim Serverstart gesetzt. Mit dem Startskript werden beide Werte interaktiv abgefragt.
