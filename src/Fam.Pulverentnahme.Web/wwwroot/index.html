@@ -13,9 +13,13 @@
 <main>
   <div class="notice warn"><b>STAGING:</b> Dieser Prototyp ist auf oxaion Port 11118 / Firma 103 begrenzt. Die Buchung ist trotzdem eine echte STAGING-Lagerbuchung.</div>
   <div id="recovery" class="card recovery hidden">
-    <h2>⚠ Offener / unklarer Vorgang</h2>
+    <h2 id="recoveryTitle">⚠ Offener / unklarer Vorgang</h2>
     <div id="recoveryText"></div>
-    <div class="actions"><button class="primary" id="reconcileBtn">Status in oxaion prüfen</button><button class="secondary" id="clearLocalBtn">Nur lokale Anzeige zurücksetzen</button></div>
+    <div class="actions">
+      <button class="primary" id="reconcileBtn">Status in oxaion prüfen</button>
+      <button class="primary hidden" id="retryRejectedBtn">Nach Behebung mit gleichen Daten erneut versuchen</button>
+      <button class="secondary" id="clearLocalBtn">Nur lokale Anzeige zurücksetzen</button>
+    </div>
   </div>
 
   <section class="card"><h2>Backend</h2><div id="health" class="status neutral">wird geprüft …</div><div class="actions"><button class="secondary" id="healthBtn">Oxaion-Verbindung testen</button></div></section>
@@ -27,8 +31,9 @@
     <h2>1 · Alte Mix-Charge</h2>
     <div class="grid3">
       <label>Maschine / Lagerort<input id="oldMixWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="oldMixWarehouseText" value="EOS 1 -Tank"></label><label>Lagerplatz optional<input id="oldMixStorageBin"></label>
-      <label>Alte Mix-Charge<input id="oldMixBatch" placeholder="z. B. RP10MIX_20260827_04"></label><label>Restmenge kg<input id="oldMixAmountKg" value="0,001" inputmode="decimal"></label>
+      <label>Alte Mix-Charge<input id="oldMixBatch" value="RP10MIX_20260827_04"></label><label>Restmenge kg<input id="oldMixAmountKg" value="0,001" inputmode="decimal"></label>
     </div>
+    <div class="footerNote">STAGING-Übergang: Alte Mix-Charge ist vorläufig vorbelegt, bis sie automatisch aus dem aktuellen Maschinenbestand ermittelt wird.</div>
   </section>
 
   <section class="card">
@@ -52,6 +57,6 @@
   <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn">Echte STAGING-Buchung starten</button></div></section>
   <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
 </main>
-<script src="/app.js?v=20260901-recovery-diagnostics"></script>
+<script src="/app.js?v=20260901-rejected-retry"></script>
 </body>
 </html>
