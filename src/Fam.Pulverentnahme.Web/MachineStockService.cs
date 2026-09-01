@@ -7,7 +7,9 @@ namespace Fam.Pulverentnahme.Web;
 public static class MachineStockStatuses
 {
     public const string Unique = "UNIQUE";
-    public const string NoStockForArticle = "NO_STOCK_FOR_ARTICLE";
+    public const string Empty = "EMPTY";
+    public const string WrongArticle = "WRONG_ARTICLE";
+    public const string InvalidStock = "INVALID_STOCK";
     public const string Ambiguous = "AMBIGUOUS";
 }
 
@@ -29,23 +31,19 @@ public sealed record MachineStockResult(
     DateTimeOffset ReadAt,
     IReadOnlyList<MachineStockRow> Rows);
 
-public sealed record MachineStockFilterSelection(
-    string Firm,
-    string Kidn,
-    string FilterType,
-    string Set,
-    string Type);
-
 public sealed class MachineStockConflictException(string message) : Exception(message);
 
 /// <summary>
-/// Read-only Oxaion lookup for the current positive batch stock of one article on one machine warehouse.
-/// The program/action sequence is reconstructed from the captured JET data stream of 2026-09-01:
-/// US30600J -> LB30230R *GETHDR -> *FIRSTLIST(reset) -> LB30230 *GETFILTER -> *LOADSET("mit Bestand")
-/// -> LB30230R *GETU01 -> *FIRSTLIST(replace).
+/// Read-only Oxaion lookup for the current non-zero batch stock on one machine warehouse.
+/// The program/action sequence is reconstructed from the captured JET data stream of 2026-09-01.
+/// The captured selection is LLAWEP.LALABE &lt;&gt; 0. The backend deliberately does not depend
+/// on a saved/user-specific Oxaion filter: it reads the complete LB30230R warehouse list and
+/// evaluates the confirmed non-zero condition itself. This also exposes a positive stock of a
+/// different article instead of incorrectly interpreting it as an empty machine.
 /// </summary>
 public sealed class MachineStockService
 {
+    private const int MaxListPages = 100;
     private readonly OxaionClient _oxaion;
     private readonly OxaionOptions _options;
 
@@ -97,84 +95,100 @@ public sealed class MachineStockService
 
         var header = await session.CallAsync("LB30230R", "*GETHDR", context, ct);
         OxaionSession.AssertNoFcod(header);
-        context = Merge(context, header.Dta);
-        context["SSID"] = ssid;
 
-        var initialList = await session.CallAsync("LB30230R", "*FIRSTLIST", ListContext(ssid, "reset"), ct);
-        OxaionSession.AssertNoFcod(initialList);
+        // The unfiltered captured FIRSTLIST for EOS1 returned all 25 charge rows, including
+        // other articles and zero stock, and ended with STOP. Do not rely on GETFILTER/LOADSET:
+        // the saved filter can be renamed, deleted or unavailable to another runtime user.
+        var page = await session.CallAsync("LB30230R", "*FIRSTLIST", ListContext(ssid, "reset"), ct);
+        OxaionSession.AssertNoFcod(page);
 
-        var filterTree = await session.CallAsync("LB30230", "*GETFILTER", Dict(("SSID", ssid)), ct);
-        OxaionSession.AssertNoFcod(filterTree);
-        var filter = ParseWithStockFilter(filterTree.Xml);
-
-        var loaded = await session.CallAsync("LB30230", "*LOADSET", Dict(
-            ("FIRM", filter.Firm),
-            ("KIDN", filter.Kidn),
-            ("SSID", ssid),
-            ("FLTY", filter.FilterType),
-            ("NEW_MODE", "J"),
-            ("SET", filter.Set),
-            ("TYPE", filter.Type)), ct);
-        OxaionSession.AssertNoFcod(loaded);
-
-        var u01 = await session.CallAsync("LB30230R", "*GETU01", Dict(("SSID", ssid)), ct);
-        OxaionSession.AssertNoFcod(u01);
-
-        var filteredList = await session.CallAsync("LB30230R", "*FIRSTLIST", ListContext(ssid, "replace"), ct);
-        OxaionSession.AssertNoFcod(filteredList);
-
-        var rows = ParseRows(filteredList.Xml)
-            .Where(r => string.Equals(r.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase))
-            .Where(r => string.Equals(r.Article, article, StringComparison.OrdinalIgnoreCase))
-            .Where(r => r.QuantityKg > 0m)
-            .ToList();
-
-        return rows.Count switch
+        var allWarehouseRows = new List<MachineStockRow>();
+        var completed = false;
+        for (var pageNumber = 1; pageNumber <= MaxListPages; pageNumber++)
         {
-            1 => new MachineStockResult(
-                MachineStockStatuses.Unique,
+            allWarehouseRows.AddRange(ParseRows(page.Xml)
+                .Where(r => string.Equals(r.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase)));
+
+            if (HasStop(page.Xml))
+            {
+                completed = true;
+                break;
+            }
+
+            page = await session.CallAsync("LB30230R", "*NEXTLIST", Dict(("SSID", ssid)), ct);
+            OxaionSession.AssertNoFcod(page);
+        }
+
+        if (!completed)
+            throw new InvalidOperationException($"LB30230R list did not return STOP within {MaxListPages} pages. Machine stock result is incomplete.");
+
+        // Exact condition captured from the Oxaion selection dialog:
+        // field LLAWEP.LALABE, operator '<>', comparison value 0.
+        var nonZeroRows = allWarehouseRows.Where(r => r.QuantityKg != 0m).ToList();
+
+        if (nonZeroRows.Count == 0)
+        {
+            return new MachineStockResult(
+                MachineStockStatuses.Empty,
                 warehouse,
                 article,
-                $"Eindeutiger positiver Oxaion-Bestand: Charge {rows[0].Batch}, {rows[0].QuantityKg:0.###} kg.",
+                $"Auf {warehouse} wurde kein Bestand ungleich 0 gefunden. Die Maschine ist laut aktueller Oxaion-Liste leer.",
                 DateTimeOffset.UtcNow,
-                rows),
-            0 => new MachineStockResult(
-                MachineStockStatuses.NoStockForArticle,
-                warehouse,
-                article,
-                "Kein positiver Bestand für den erwarteten Artikel gefunden. Die Abfrage ist artikelbezogen; daraus darf nicht abgeleitet werden, dass die Maschine sicher leer ist.",
-                DateTimeOffset.UtcNow,
-                rows),
-            _ => new MachineStockResult(
+                nonZeroRows);
+        }
+
+        if (nonZeroRows.Count > 1)
+        {
+            return new MachineStockResult(
                 MachineStockStatuses.Ambiguous,
                 warehouse,
                 article,
-                $"Mehrere positive Chargenbestände ({rows.Count}) gefunden. Vorgang muss geklärt werden.",
+                $"Auf {warehouse} wurden mehrere Bestände ungleich 0 ({nonZeroRows.Count}) gefunden. Keine automatische Auswahl zulässig.",
                 DateTimeOffset.UtcNow,
-                rows)
-        };
-    }
-
-    public static MachineStockFilterSelection ParseWithStockFilter(XDocument xml)
-    {
-        foreach (var tree in xml.Descendants("TREE"))
-        {
-            var key = tree.Element("KEY");
-            if (key is null) continue;
-            var set = key.Element("SET")?.Value.Trim() ?? "";
-            if (!string.Equals(set, "mit Bestand", StringComparison.OrdinalIgnoreCase)) continue;
-
-            var kidn = key.Element("KIDN")?.Value.Trim() ?? "";
-            var flty = key.Element("FLTY")?.Value.Trim() ?? "";
-            var type = key.Element("TYPE")?.Value.Trim() ?? "";
-            var firm = key.Element("FIRM")?.Value.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(kidn) || string.IsNullOrWhiteSpace(flty) || string.IsNullOrWhiteSpace(type))
-                throw new InvalidOperationException("Oxaion filter 'mit Bestand' is missing KIDN/FLTY/TYPE.");
-
-            return new MachineStockFilterSelection(firm, kidn, flty, set, type);
+                nonZeroRows);
         }
 
-        throw new InvalidOperationException("Oxaion filter 'mit Bestand' was not returned by LB30230 *GETFILTER.");
+        var current = nonZeroRows[0];
+        if (current.QuantityKg < 0m)
+        {
+            return new MachineStockResult(
+                MachineStockStatuses.InvalidStock,
+                warehouse,
+                article,
+                $"Auf {warehouse} wurde ein negativer Bestand gefunden: {current.Article}, Charge {current.Batch}, {current.QuantityKg:0.###} {current.Unit}. Vorgang muss geklärt werden.",
+                DateTimeOffset.UtcNow,
+                nonZeroRows);
+        }
+
+        if (!string.Equals(current.Unit, "KGM", StringComparison.OrdinalIgnoreCase))
+        {
+            return new MachineStockResult(
+                MachineStockStatuses.InvalidStock,
+                warehouse,
+                article,
+                $"Der Maschinenbestand wird in der unerwarteten Mengeneinheit '{current.Unit}' geliefert. Automatische kg-Buchung ist gesperrt.",
+                DateTimeOffset.UtcNow,
+                nonZeroRows);
+        }
+
+        if (!string.Equals(current.Article, article, StringComparison.OrdinalIgnoreCase))
+        {
+            return new MachineStockResult(
+                MachineStockStatuses.WrongArticle,
+                warehouse,
+                article,
+                $"Auf {warehouse} liegt anderes Pulver: {current.Article} ({current.ArticleText}), Charge {current.Batch}, {current.QuantityKg:0.###} kg. Vor dem Nachfüllen ist ein Pulverwechsel erforderlich.",
+                DateTimeOffset.UtcNow,
+                nonZeroRows);
+        }
+
+        return new MachineStockResult(
+            MachineStockStatuses.Unique,
+            warehouse,
+            article,
+            $"Eindeutiger Oxaion-Bestand: Charge {current.Batch}, {current.QuantityKg:0.###} kg.",
+            DateTimeOffset.UtcNow,
+            nonZeroRows);
     }
 
     public static IReadOnlyList<MachineStockRow> ParseRows(XDocument xml)
@@ -228,6 +242,8 @@ public sealed class MachineStockService
         var unit = trimmed[numeric.Length..].Trim();
         return (quantity, unit);
     }
+
+    public static bool HasStop(XDocument xml) => xml.Descendants("STOP").Any();
 
     private Dictionary<string, string> BuildLaunchContext(string warehouse, string article, string? warehouseText, string? articleText)
     {
