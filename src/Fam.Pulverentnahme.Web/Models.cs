@@ -40,7 +40,8 @@ public sealed record RealMixRequest(
     DateOnly ProductionDate,
     DateOnly BookingDate,
     string BookingText,
-    string? SimulateFailure = null);
+    string? SimulateFailure = null,
+    string? RetryOfClientOperationId = null);
 
 public static class TransactionStatuses
 {
@@ -89,6 +90,7 @@ public sealed record ReconcileResult(string Status, string Action, string Messag
 public sealed record ApiTransactionResponse(
     string ClientOperationId,
     string TransactionId,
+    string? RetryOfClientOperationId,
     string Status,
     string Stage,
     string Message,
@@ -101,6 +103,7 @@ public static class TransactionMapping
     public static ApiTransactionResponse ToResponse(this MixTransaction tx) => new(
         tx.ClientOperationId,
         tx.TransactionId,
+        tx.Request.RetryOfClientOperationId,
         tx.Status,
         tx.Stage,
         tx.Message,
