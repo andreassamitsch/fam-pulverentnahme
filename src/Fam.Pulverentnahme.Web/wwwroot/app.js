@@ -35,7 +35,7 @@ function values(){return {
   oldMixWarehouse:$('oldMixWarehouse').value.trim(),oldMixWarehouseText:$('oldMixWarehouseText').value.trim(),oldMixStorageBin:$('oldMixStorageBin').value.trim(),oldMixBatch:$('oldMixBatch').value.trim(),oldMixAmountKg:parseQty($('oldMixAmountKg').value),
   addWarehouse:$('addWarehouse').value.trim(),addWarehouseText:$('addWarehouseText').value.trim(),addStorageBin:$('addStorageBin').value.trim(),addBatch:$('addBatch').value.trim(),addAmountKg:parseQty($('addAmountKg').value),
   targetWarehouse:$('targetWarehouse').value.trim(),targetWarehouseText:$('targetWarehouseText').value.trim(),targetStorageBin:$('targetStorageBin').value.trim(),targetBatch:$('targetBatch').value.trim(),
-  productionDate:$('productionDate').value,bookingDate:$('bookingDate').value,bookingText:$('bookingText').value.trim(),simulateFailure:$('simulateFailure').value||null
+  productionDate:$('productionDate').value,bookingDate:$('bookingDate').value,bookingText:$('bookingText').value.trim(),simulateFailure:$('simulateFailure').value||null,retryOfClientOperationId:null
 }}
 
 function validate(r){const req=['clientOperationId','personnelNo','article','oldMixWarehouse','oldMixBatch','addWarehouse','addBatch','targetWarehouse','targetBatch','productionDate','bookingDate'];const m=req.filter(k=>!r[k]);if(m.length)throw new Error('Pflichtfelder fehlen: '+m.join(', '));if(r.oldMixAmountKg<=0||r.addAmountKg<=0)throw new Error('Mengen müssen > 0 sein.');if(r.targetBatch===r.oldMixBatch||r.targetBatch===r.addBatch)throw new Error('Neue Mix-Charge muss von beiden Quellchargen verschieden sein.')}
@@ -43,7 +43,7 @@ function validate(r){const req=['clientOperationId','personnelNo','article','old
 function friendlyServerMessage(s){
   const raw=s?.message||'';
   if(s?.status==='REJECTED'&&/U180500/.test(raw)&&/KOBGDT/.test(raw)){
-    return 'Keine Buchung durchgeführt. Die für das Buchungsdatum benötigte Lagerbuchhaltungsperiode ist in oxaion noch nicht eröffnet. Bitte Periode in oxaion öffnen lassen bzw. das zulässige Buchungsdatum klären und danach einen neuen Vorgang starten.';
+    return 'Keine Buchung durchgeführt. Die für das Buchungsdatum benötigte Lagerbuchhaltungsperiode ist in oxaion noch nicht eröffnet. Bitte Periode in oxaion öffnen lassen bzw. das zulässige Buchungsdatum klären. Danach kann derselbe Buchungsauftrag bewusst mit einer neuen clientOperationId erneut versucht werden.';
   }
   if(s?.status==='REJECTED')return `Keine Buchung durchgeführt. oxaion hat den Vorgang eindeutig abgelehnt. Ursache: ${raw||'siehe technische Meldung'}`;
   return raw||'Noch keine genaue Backend-Meldung verfügbar.';
@@ -63,19 +63,17 @@ async function health(){const e=$('health');e.className='status neutral';e.textC
 async function oxaionHealth(){const e=$('health');e.className='status neutral';e.textContent='Oxaion-Verbindung wird getestet …';const r=await api('/api/health/oxaion');e.className=r.ok?'status ok':'status bad';e.textContent=r.ok?'✓ '+r.body.message:'✗ '+(r.body?.detail||'Oxaion nicht erreichbar.')}
 
 async function handleTerminalRejected(server){
-  const shown=resultForDisplay(server);
-  showResult(false,'⛔ Buchung von oxaion abgelehnt – nichts gebucht',shown);
-  await dbClear();
-  active=null;
+  if(!active)return;
+  active.server=server||active.server;
+  active.syncStatus='REJECTED';
+  await dbSet(active);
+  showResult(false,'⛔ Buchung von oxaion abgelehnt – nichts gebucht',resultForDisplay(active.server));
   renderRecovery();
 }
 
-async function submit(){
-  if(active){alert('Es gibt bereits einen offenen Vorgang. Zuerst diesen klären.');return}
-  let r;try{r=values();validate(r)}catch(e){alert(e.message);return}
-  const msg=`ECHTE STAGING-BUCHUNG?\n\n${r.article}\n1) ${r.oldMixWarehouse} / ${r.oldMixBatch}: ${r.oldMixAmountKg.toFixed(3)} kg\n2) ${r.addWarehouse} / ${r.addBatch}: ${r.addAmountKg.toFixed(3)} kg\n→ ${r.targetWarehouse} / ${r.targetBatch}\n\nPersonal: ${r.personnelNo} ${r.personnelName}`;
-  if(!confirm(msg))return;
-  active={request:r,syncStatus:'SYNCING',server:null,createdAt:new Date().toISOString()};await dbSet(active);renderRecovery();$('bookBtn').disabled=true;
+async function sendRequest(r){
+  active={request:r,syncStatus:'SYNCING',server:null,createdAt:new Date().toISOString()};
+  await dbSet(active);renderRecovery();$('bookBtn').disabled=true;
   try{
     const res=await api('/api/mix',{method:'POST',body:JSON.stringify(r)});
     active.server=res.body||null;
@@ -85,6 +83,9 @@ async function submit(){
       showResult(true,'✓ Buchung vollständig verifiziert',res.body);await dbClear();active=null;renderRecovery();
     }else if(res.body?.status==='REJECTED'){
       await handleTerminalRejected(res.body);
+    }else if(res.status===400){
+      active.syncStatus='CLIENT_ERROR';await dbSet(active);
+      showResult(false,'⛔ Neuer Versuch vom Backend abgelehnt',res.body||{error:'Ungültige Retry-Anfrage.'});renderRecovery();
     }else{
       showResult(false,'⚠ Buchung nicht eindeutig abgeschlossen',res.body);renderRecovery();
     }
@@ -94,13 +95,31 @@ async function submit(){
   }
 }
 
+async function submit(){
+  if(active){alert('Es gibt bereits einen offenen Vorgang. Zuerst diesen klären.');return}
+  let r;try{r=values();validate(r)}catch(e){alert(e.message);return}
+  const msg=`ECHTE STAGING-BUCHUNG?\n\n${r.article}\n1) ${r.oldMixWarehouse} / ${r.oldMixBatch}: ${r.oldMixAmountKg.toFixed(3)} kg\n2) ${r.addWarehouse} / ${r.addBatch}: ${r.addAmountKg.toFixed(3)} kg\n→ ${r.targetWarehouse} / ${r.targetBatch}\n\nPersonal: ${r.personnelNo} ${r.personnelName}`;
+  if(!confirm(msg))return;
+  await sendRequest(r);
+}
+
+async function retryRejected(){
+  if(!active||active.server?.status!=='REJECTED')return;
+  const previousId=active.request.clientOperationId;
+  const r={...active.request,clientOperationId:opId(),retryOfClientOperationId:previousId,simulateFailure:null};
+  try{validate(r)}catch(e){alert(e.message);return}
+  const msg=`NACH BEHEBUNG ERNEUT VERSUCHEN?\n\nDer vorherige Vorgang wurde von oxaion eindeutig abgelehnt und hat nichts gebucht.\n\nAlle Buchungsdaten werden unverändert übernommen.\n\nVorherige clientOperationId:\n${previousId}\n\nNeue clientOperationId:\n${r.clientOperationId}\n\n${r.article}\n1) ${r.oldMixWarehouse} / ${r.oldMixBatch}: ${r.oldMixAmountKg.toFixed(3)} kg\n2) ${r.addWarehouse} / ${r.addBatch}: ${r.addAmountKg.toFixed(3)} kg\n→ ${r.targetWarehouse} / ${r.targetBatch}\n\nNur fortfahren, wenn die gemeldete Ursache in oxaion behoben wurde.`;
+  if(!confirm(msg))return;
+  await sendRequest(r);
+}
+
 async function refreshActiveStatus(){
   if(!active)return;
   const id=active.request.clientOperationId;
   const status=await api('/api/mix/'+encodeURIComponent(id));
-  if(!status.ok)return;
+  if(!status.ok&&status.status!==422)return;
   active.server=status.body||active.server;
-  active.syncStatus=status.body?.status==='SUCCESS'?'SYNCED':'NEEDS_RECONCILE';
+  active.syncStatus=status.body?.status==='SUCCESS'?'SYNCED':status.body?.status==='REJECTED'?'REJECTED':'NEEDS_RECONCILE';
   await dbSet(active);
   if(status.body?.status==='SUCCESS'){
     showResult(true,'✓ Bereits erfolgreich gebucht',status.body);await dbClear();active=null;
@@ -151,18 +170,22 @@ function renderRecovery(){
   if(!active){c.classList.add('hidden');$('bookBtn').disabled=false;return}
   c.classList.remove('hidden');$('bookBtn').disabled=true;
   const s=active.server;const r=active.request;
+  const rejected=s?.status==='REJECTED';
   const stage=s?.stage||'–';
   const message=friendlyServerMessage(s);
-  $('recoveryText').innerHTML=`<b>clientOperationId:</b> ${esc(r.clientOperationId)}<br><b>Status:</b> ${esc(s?.status||active.syncStatus)}<br><b>Stage:</b> ${esc(stage)}<br><b>Beleg:</b> ${esc(s?.documentNo||'noch nicht bestätigt')}<br><b>Neue Mix-Charge:</b> ${esc(r.targetBatch)}<br><br><b>Meldung:</b><br>${esc(message)}<br><br><b>Nicht erneut buchen.</b> Zuerst den angezeigten Status klären.`;
+  $('recoveryTitle').textContent=rejected?'⛔ Abgelehnter Vorgang – nichts gebucht':'⚠ Offener / unklarer Vorgang';
+  $('recoveryText').innerHTML=`<b>clientOperationId:</b> ${esc(r.clientOperationId)}<br>${r.retryOfClientOperationId?`<b>Wiederholung von:</b> ${esc(r.retryOfClientOperationId)}<br>`:''}<b>Status:</b> ${esc(s?.status||active.syncStatus)}<br><b>Stage:</b> ${esc(stage)}<br><b>Beleg:</b> ${esc(s?.documentNo||'noch nicht bestätigt')}<br><b>Neue Mix-Charge:</b> ${esc(r.targetBatch)}<br><br><b>Meldung:</b><br>${esc(message)}<br><br>${rejected?'<b>Nach Behebung der Ursache kann mit exakt denselben Buchungsdaten ein neuer, verknüpfter Versuch gestartet werden.</b>':'<b>Nicht erneut buchen.</b> Zuerst den angezeigten Status klären.'}`;
+  $('reconcileBtn').classList.toggle('hidden',rejected);
+  $('retryRejectedBtn').classList.toggle('hidden',!rejected);
   $('reconcileBtn').textContent=s?.documentNo?'Status in oxaion prüfen':'Backend-Status aktualisieren';
 }
 
-async function clearLocal(){if(!active)return;if(!confirm('Nur die lokale Recovery-Anzeige löschen? Das ändert NICHTS in oxaion. Nur verwenden, wenn der ERP-Zustand manuell geprüft wurde.'))return;const typed=prompt('Zur Bestätigung clientOperationId eingeben:\n'+active.request.clientOperationId);if(typed!==active.request.clientOperationId)return;await dbClear();active=null;renderRecovery()}
+async function clearLocal(){if(!active)return;if(!confirm('Nur die lokale Recovery-Anzeige löschen? Das ändert NICHTS in oxaion. Nur verwenden, wenn der ERP-Zustand manuell geprüft wurde oder ein REJECTED-Vorgang nicht nochmals versucht werden soll.'))return;const typed=prompt('Zur Bestätigung clientOperationId eingeben:\n'+active.request.clientOperationId);if(typed!==active.request.clientOperationId)return;await dbClear();active=null;renderRecovery()}
 
 async function init(){
   $('productionDate').value=today();$('bookingDate').value=today();$('targetBatch').value=newBatch();
   document.addEventListener('input',renderSummary);$('newBatchBtn').onclick=()=>{if(active){alert('Offenen Vorgang zuerst klären.');return}$('targetBatch').value=newBatch();renderSummary()};
-  $('bookBtn').onclick=submit;$('healthBtn').onclick=oxaionHealth;$('reconcileBtn').onclick=reconcile;$('clearLocalBtn').onclick=clearLocal;
+  $('bookBtn').onclick=submit;$('healthBtn').onclick=oxaionHealth;$('reconcileBtn').onclick=reconcile;$('retryRejectedBtn').onclick=retryRejected;$('clearLocalBtn').onclick=clearLocal;
   active=await dbGet();renderRecovery();renderSummary();await health();
   if(active)refreshActiveStatus().catch(()=>{});
   if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
