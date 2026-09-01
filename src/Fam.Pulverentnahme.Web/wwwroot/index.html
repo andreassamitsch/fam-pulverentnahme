@@ -28,12 +28,14 @@
   <section class="card"><h2>Material</h2><div class="grid"><label>Artikel<input id="article" value="RP.00010"></label><label>Bezeichnung<input id="articleText" value="AlSi10Mg"></label></div></section>
 
   <section class="card">
-    <h2>1 · Alte Mix-Charge</h2>
+    <h2>1 · Aktueller Maschinenbestand</h2>
     <div class="grid3">
-      <label>Maschine / Lagerort<input id="oldMixWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="oldMixWarehouseText" value="EOS 1 -Tank"></label><label>Lagerplatz optional<input id="oldMixStorageBin"></label>
-      <label>Alte Mix-Charge<input id="oldMixBatch" value="RP10MIX_20260827_04"></label><label>Restmenge kg<input id="oldMixAmountKg" value="0,001" inputmode="decimal"></label>
+      <label>Maschine / Lagerort<input id="oldMixWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="oldMixWarehouseText" value="EOS 1 -Tank"></label><label>Lagerplatz optional<input id="oldMixStorageBin" readonly></label>
+      <label>Aktuelle Mix-Charge<input id="oldMixBatch" readonly placeholder="wird aus oxaion ermittelt"></label><label>Gesamter Tankbestand kg<input id="oldMixAmountKg" readonly inputmode="decimal" placeholder="wird aus oxaion ermittelt"></label>
     </div>
-    <div class="footerNote">STAGING-Übergang: Alte Mix-Charge ist vorläufig vorbelegt, bis sie automatisch aus dem aktuellen Maschinenbestand ermittelt wird.</div>
+    <div id="stockStatus" class="status neutral">Maschinenbestand noch nicht aus oxaion gelesen.</div>
+    <div class="actions"><button class="secondary compact" id="stockRefreshBtn">Maschinenbestand neu lesen</button></div>
+    <div class="footerNote">Charge und Menge werden über „Chargen pro Lagerort“ mit Filter „mit Bestand“ aus oxaion gelesen. Vor dem Start der Materialbuchung prüft das Backend denselben Bestand erneut. Die Restmenge wird nicht manuell eingegeben.</div>
   </section>
 
   <section class="card">
@@ -54,9 +56,9 @@
   </section>
 
   <section class="card"><h2>Dokumentation</h2><label>Buchungstext<input id="bookingText" value="Pulver nachfüllen EOS1"></label><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach Position 2 *UPD</option></select></details></section>
-  <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn">Echte STAGING-Buchung starten</button></div></section>
+  <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div></section>
   <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
 </main>
-<script src="/app.js?v=20260901-rejected-retry"></script>
+<script src="/app.js?v=20260901-machine-stock"></script>
 </body>
 </html>
