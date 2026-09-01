@@ -81,9 +81,9 @@ Bei einem unklaren Transportfehler Backend -> Oxaion:
 
 Seit dem Diagnose-Stand vom 01.09.2026 loest das Frontend beim blossen Oeffnen oder Neuladen der PWA **kein schreibendes Reconcile mehr automatisch aus**. Bei einem vorhandenen lokalen Vorgang wird beim Start nur der bereits gespeicherte Backend-Status ueber `GET /api/mix/{clientOperationId}` gelesen. Ein Oxaion-Reconcile erfolgt erst nach bewusster Bedieneraktion und nur, wenn eine bestaetigte Oxaion-Belegnummer vorhanden ist. Dadurch bleibt insbesondere die urspruengliche Backend-/Oxaion-Fehlermeldung sichtbar und wird nicht durch eine nachfolgende generische Recovery-Meldung ueberschrieben.
 
-Die Recovery-Karte zeigt jetzt `Status`, `Stage`, `DocumentNo` und die letzte Backend-Meldung. Wenn noch keine bestaetigte Belegnummer existiert, fuehrt der Recovery-Button nur eine lesende Backend-Statusaktualisierung aus und keine weitere Oxaion-Buchung.
+Die Recovery-Karte zeigt `Status`, `Stage`, `DocumentNo` und die letzte Backend-Meldung. Wenn noch keine bestaetigte Belegnummer existiert, fuehrt der Recovery-Button nur eine lesende Backend-Statusaktualisierung aus und keine weitere Oxaion-Buchung.
 
-Der Service Worker verwendet fuer diesen Diagnose-Stand einen neuen App-Shell-Cache und behandelt Navigationen network-first mit Cache-Fallback. Damit soll ein Android-Geraet nach einem Serverupdate nicht dauerhaft die vorherige STAGING-Oberflaeche aus dem Cache ausfuehren. Der IndexedDB-Vorgangsspeicher wird durch diesen Cachewechsel nicht geloescht.
+Der Service Worker verwendet fuer diesen Stand einen neuen App-Shell-Cache und behandelt Navigationen network-first mit Cache-Fallback. Damit soll ein Android-Geraet nach einem Serverupdate nicht dauerhaft die vorherige STAGING-Oberflaeche aus dem Cache ausfuehren. Der IndexedDB-Vorgangsspeicher wird durch diesen Cachewechsel nicht geloescht.
 
 ### Bestaetigte fachliche Ablehnung `U180500`
 
@@ -103,8 +103,31 @@ Verbindliches Verhalten des STAGING-Prototyps:
 - ein Reconcile darf `REJECTED` nicht in `MANUAL_REVIEW_REQUIRED` umwandeln;
 - bei `U180500` wird dem Bediener angezeigt, dass die benoetigte Lagerbuchhaltungsperiode nicht geoeffnet ist;
 - Massnahme: Periode in Oxaion oeffnen lassen beziehungsweise das zulaessige Buchungsdatum klaeren;
-- erst danach wird ein **neuer** Vorgang mit neuer `clientOperationId` gestartet;
 - es gibt keinen automatischen Oxaion-Retry fuer den abgelehnten Vorgang.
+
+### Bewusster neuer Versuch nach behobenem `REJECTED`
+
+Ist die Ursache einer eindeutigen fachlichen Ablehnung behoben, kann der Bediener **denselben Buchungsauftrag mit denselben Buchungsdaten bewusst erneut versuchen**. Dieser neue Versuch ist technisch kein Retry derselben Transaktion, sondern ein neuer Vorgang:
+
+- der alte Vorgang bleibt unveraendert als `REJECTED` erhalten;
+- das Frontend erzeugt eine **neue** `clientOperationId`;
+- der neue Request traegt `retryOfClientOperationId` mit der `clientOperationId` des vorherigen abgelehnten Vorgangs;
+- Artikel, Chargen, Lagerorte, Lagerplaetze, Mengen, Personalnummer, Buchungs-/Produktionsdatum, Buchungstext und Ziel-Mix-Charge werden unveraendert uebernommen;
+- eine eventuell gesetzte STAGING-Fehlersimulation wird fuer den neuen Versuch nicht uebernommen;
+- das Backend akzeptiert einen solchen verknuepften neuen Versuch nur, wenn der referenzierte Vorgang eindeutig `REJECTED` ist und die fachlichen Buchungsdaten exakt mit dem abgelehnten Vorgang uebereinstimmen;
+- sollen Buchungsdaten geaendert werden, ist stattdessen ein normaler neuer Vorgang erforderlich.
+
+Auch historische STAGING-Vorgaenge, bei denen eine fruehere Frontend-/Recovery-Version einen bereits protokollierten `REJECTED`-Status spaeter irrtuemlich in `MANUAL_REVIEW_REQUIRED` ueberschrieben hat, werden fuer diesen Zweck als bestaetigt abgelehnt erkannt, wenn keine Oxaion-Belegnummer vorhanden ist und die Ereignishistorie eindeutig ein `REJECTED` enthaelt.
+
+## Vorlaeufige STAGING-Eingabewerte
+
+Bis die aktive Mix-Charge einer Maschine automatisch aus Oxaion ermittelt wird, ist das Feld **Alte Mix-Charge** im STAGING-Prototyp vorlaeufig mit
+
+```text
+RP10MIX_20260827_04
+```
+
+vorbelegt. Das ist ausschliesslich eine temporaere Test-/Bedienhilfe und keine fachliche Regel fuer den Produktivbetrieb. Vor einer Buchung bleibt der Wert vom Bediener zu pruefen. Die automatische Ermittlung der aktiven Maschinencharge bleibt offen.
 
 ## Oxaion-Laufzeitbenutzer
 
