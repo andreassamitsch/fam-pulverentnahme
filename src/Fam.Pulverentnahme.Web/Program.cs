@@ -8,6 +8,7 @@ builder.Services.Configure<PrototypeOptions>(builder.Configuration.GetSection("P
 builder.Services.AddHttpClient(nameof(OxaionClient));
 builder.Services.AddSingleton<JsonTransactionStore>();
 builder.Services.AddSingleton<OxaionClient>();
+builder.Services.AddSingleton<MachineStockService>();
 builder.Services.AddSingleton<MixBookingService>();
 
 var app = builder.Build();
@@ -47,6 +48,29 @@ app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken c
     }
 });
 
+app.MapGet("/api/machine-stock", async (
+    string warehouse,
+    string article,
+    string? warehouseText,
+    string? articleText,
+    MachineStockService service,
+    CancellationToken ct) =>
+{
+    try
+    {
+        var stock = await service.ReadAsync(warehouse, article, warehouseText, articleText, ct);
+        return Results.Ok(stock);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 app.MapPost("/api/mix", async (RealMixRequest request, MixBookingService service, CancellationToken ct) =>
 {
     try
@@ -70,7 +94,7 @@ app.MapPost("/api/mix", async (RealMixRequest request, MixBookingService service
         {
             TransactionStatuses.Success => Results.Ok(tx.ToResponse()),
             TransactionStatuses.Rejected => Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status422UnprocessableEntity),
-            TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired => Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status409Conflict),
+            TransactionStatuses.Conflict or TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired => Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status409Conflict),
             _ => Results.Accepted($"/api/mix/{tx.ClientOperationId}", tx.ToResponse())
         };
     }
@@ -102,6 +126,9 @@ app.MapPost("/api/mix/{clientOperationId}/reconcile", async (string clientOperat
         existing.Status = TransactionStatuses.Rejected;
         return Results.Json(existing.ToResponse(), statusCode: StatusCodes.Status422UnprocessableEntity);
     }
+
+    if (existing.Status == TransactionStatuses.Conflict)
+        return Results.Json(existing.ToResponse(), statusCode: StatusCodes.Status409Conflict);
 
     try
     {
