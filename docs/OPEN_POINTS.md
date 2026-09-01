@@ -5,14 +5,14 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 ## Oxaion-Integration
 
 - [x] HTTP-Buchungsfolge fuer den getesteten Vorgang `alte Mix-Charge + neue Pulvercharge -> neue Mix-Charge` bestaetigt und im STAGING-Prototyp umgesetzt; Details siehe `docs/STAGING_REAL_MIX_PROTOTYPE.md`
+- [x] JET-Datenstrom fuer die artikelbezogene Abfrage `Chargen pro Lagerort` mit Filter `mit Bestand` identifiziert und im Backend als lesender STAGING-Prototyp umgesetzt; Programme/Felder siehe `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- [ ] Den serverseitigen Start der neuen Bestandsabfrage in STAGING live bestaetigen: der aufgezeichnete interaktive `US30600J`-Aufruf enthielt eine Elternbildschirm-`SSID`; der Backend-Prototyp sendet beim rein lesenden Start `SSID` leer und verlangt die neu gelieferte `SSID`
+- [ ] Artikelunabhaengige Abfrage des gesamten positiven Maschinenbestands technisch bestaetigen, damit `kein Bestand fuer erwarteten Artikel` sicher zwischen `Maschine leer` und `anderes Pulver vorhanden` unterscheiden kann
 - [ ] Konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen identifizieren, insbesondere FA-Materialrueckmeldung und Pulverwechsel/Ruecklagerung
 - [ ] Konkretes Oxaion BDE-/PPS-Programm fuer die spaetere FA-Materialrueckmeldung identifizieren
 - [ ] Oxaion Buchungsschluessel Maschinenlager -> Pulverlager fuer den Pulverwechsel ermitteln
 - [ ] Oxaion Buchungsschluessel Pulverlager -> Maschine fuer noch nicht durch den bestaetigten Mix-Ablauf abgedeckte Faelle ermitteln
 - [x] Chargenumbuchung fuer den getesteten Nachfuell-/Mix-Vorgang mit `LM` und automatisch erzeugtem `LN` bestaetigt
-- [ ] Abfrage des aktuellen Maschinenbestands in Oxaion klaeren; bis dahin ist im STAGING-Prototyp die alte Mix-Charge temporaer mit `RP10MIX_20260827_04` vorbelegt und vor jeder Buchung manuell zu pruefen
-- [ ] Abfrage der Oxaion-Stammdatensperre klaeren
-- [ ] Sperrdatensatz und sperrenden Benutzer technisch zuverlaessig identifizieren
 - [x] Geeignete WebApp-/Backend-Transaktionsreferenz fuer den STAGING-Prototyp in den vorhandenen Oxaion-Freitextfeldern dokumentiert; finale produktive Referenz-/Suchstrategie noch bewerten
 - [x] Belastbare Ergebnisabfrage fuer den getesteten Mix-Beleg ueber erneutes Oeffnen und `LB20110R *FIRSTLIST` umgesetzt; fuer andere Buchungsarten weiterhin offen
 - [x] Bewusster neuer Versuch nach eindeutigem `REJECTED` umgesetzt: neue `clientOperationId`, identische Buchungsdaten und Verknuepfung ueber `retryOfClientOperationId`; kein Retry derselben abgelehnten Transaktion
@@ -33,6 +33,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach weiterer Analyse der Oxaion-Schnittstelle festlegen
 - [ ] Datenschutz-, Berechtigungs- und Aufbewahrungskonzept fuer Protokolldaten festlegen
+- [ ] Concurrency-/Sperrstrategie fuer den Zeitraum zwischen erfolgreicher Maschinenbestands-Revalidierung und erster schreibender Oxaion-Materialbuchung festlegen; die aktuelle STAGING-Pruefung blockiert erkannte Aenderungen, ist aber noch keine atomare Reservierung
 
 ## PWA, Offline und Synchronisation
 
