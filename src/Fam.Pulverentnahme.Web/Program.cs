@@ -74,6 +74,16 @@ app.MapGet("/api/mix/{clientOperationId}", async (string clientOperationId, MixB
 
 app.MapPost("/api/mix/{clientOperationId}/reconcile", async (string clientOperationId, MixBookingService service, CancellationToken ct) =>
 {
+    var existing = await service.GetAsync(clientOperationId, ct);
+    if (existing is null) return Results.NotFound();
+
+    // A confirmed Oxaion rejection is terminal for this clientOperationId.
+    // Reconcile is only for uncertain/partial outcomes; it must never turn a
+    // clear REJECTED result into MANUAL_REVIEW_REQUIRED merely because no
+    // document number exists.
+    if (existing.Status == TransactionStatuses.Rejected)
+        return Results.Json(existing.ToResponse(), statusCode: StatusCodes.Status422UnprocessableEntity);
+
     try
     {
         var tx = await service.ReconcileAsync(clientOperationId, ct);
