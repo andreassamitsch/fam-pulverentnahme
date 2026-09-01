@@ -17,7 +17,7 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw "dotnet was not found. Install the .NET 8 SDK first."
 }
 
-$oxaionUser = (Read-Host "Oxaion STAGING user").Trim()
+$oxaionUser = (Read-Host "Oxaion STAGING user (frei waehlen, kein Standardwert)").Trim()
 if ([string]::IsNullOrWhiteSpace($oxaionUser)) {
     throw "Oxaion STAGING user must not be empty."
 }
