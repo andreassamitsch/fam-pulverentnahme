@@ -26,27 +26,34 @@ public sealed record SourceStockValidationResult(
 /// <summary>
 /// Read-only lookup for selectable replenishment source stock.
 ///
-/// Evidence from the 2026-09-02 JET captures:
+/// Confirmed by the 2026-09-02 JET captures:
 /// - US30600J -> LB30340R (FFMT/FFMS=CL): "Chargen und Lagerorte pro Artikel".
-///   Its list contains article + warehouse + batch + warehouse stock.
-/// - US30600J -> LB30430R (FFMT/FFMS=PT): "Lagerplaetze pro Artikel und -ort".
-///   Its list contains the exact internal storage-bin key + batch + stock.
+///   The list contains article + warehouse + batch + warehouse stock.
+/// - US30600J -> LB30430R (FFMT/FFMS=PT): "Lagerplätze pro Artikel und -ort".
+///   The list contains the exact internal storage-bin key + batch + stock.
 /// - US00006J *GETPLAIN resolves the warehouse description for US30600J/LAGO.
+/// - LAG1626 means the selected warehouse has no storage-bin organization. In that exact case
+///   the already proven LB30230R "Chargen pro Lagerort" flow is used and StorageBin stays empty.
 ///
-/// No saved/user-specific Oxaion filter is used. The backend reads complete lists to STOP and
-/// evaluates positive stock itself. Only exact Oxaion-returned storage-bin keys are offered to
-/// the frontend and accepted during the pre-write source-stock validation.
+/// No saved/user-specific Oxaion filter is used. Complete lists are read to STOP and positive
+/// stock is evaluated by the backend. Only exact Oxaion-returned keys are offered to the client
+/// and accepted during the pre-write validation.
 /// </summary>
 public sealed class SourceStockService
 {
     private const int MaxListPages = 100;
     private readonly OxaionClient _oxaion;
     private readonly OxaionOptions _options;
+    private readonly MachineStockService _machineStock;
 
-    public SourceStockService(OxaionClient oxaion, IOptions<OxaionOptions> options)
+    public SourceStockService(
+        OxaionClient oxaion,
+        IOptions<OxaionOptions> options,
+        MachineStockService machineStock)
     {
         _oxaion = oxaion;
         _options = options.Value;
+        _machineStock = machineStock;
     }
 
     public async Task<IReadOnlyList<SourceWarehouseOption>> ReadWarehousesAsync(string article, CancellationToken ct)
@@ -58,7 +65,9 @@ public sealed class SourceStockService
         var rows = await ReadArticleWarehouseRowsAsync(session, article, ct);
         var positive = rows.Where(r => r.QuantityKg > 0m).ToList();
         var result = new List<SourceWarehouseOption>();
-        foreach (var group in positive.GroupBy(r => r.Warehouse, StringComparer.OrdinalIgnoreCase).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var group in positive
+                     .GroupBy(r => r.Warehouse, StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
         {
             var text = await ResolveWarehouseTextAsync(session, group.Key, ct);
             result.Add(new SourceWarehouseOption(
@@ -73,7 +82,6 @@ public sealed class SourceStockService
     public async Task<IReadOnlyList<SourceStockPosition>> ReadPositionsAsync(
         string article,
         string warehouse,
-        string? warehouseText,
         CancellationToken ct)
     {
         article = (article ?? "").Trim();
@@ -82,7 +90,7 @@ public sealed class SourceStockService
             throw new ArgumentException("Article and warehouse are required.");
 
         await using var session = await _oxaion.ConnectAsync(ct);
-        return await ReadPositionsAsync(session, article, warehouse, warehouseText, ct);
+        return await ReadPositionsAsync(session, article, warehouse, ct);
     }
 
     public async Task<SourceStockValidationResult> ValidateSourcesAsync(
@@ -109,8 +117,7 @@ public sealed class SourceStockService
         var current = new List<SourceStockPosition>();
         foreach (var warehouseGroup in sources.GroupBy(s => s.Warehouse, StringComparer.OrdinalIgnoreCase))
         {
-            var requestedWarehouseText = warehouseGroup.Select(s => s.WarehouseText).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-            var positions = await ReadPositionsAsync(session, article, warehouseGroup.Key, requestedWarehouseText, ct);
+            var positions = await ReadPositionsAsync(session, article, warehouseGroup.Key, ct);
             current.AddRange(positions);
 
             foreach (var source in warehouseGroup)
@@ -124,7 +131,7 @@ public sealed class SourceStockService
                 {
                     return new SourceStockValidationResult(
                         false,
-                        $"Nachfüllcharge {source.Batch}: Die ausgewählte Oxaion-Bestandsposition {source.Warehouse}/{source.StorageBin} ist nicht mehr eindeutig mit positivem Bestand vorhanden.",
+                        $"Nachfüllcharge {source.Batch}: Die ausgewählte Oxaion-Bestandsposition {DisplayLocation(source.Warehouse, source.StorageBin)} ist nicht mehr eindeutig mit positivem Bestand vorhanden.",
                         current);
                 }
 
@@ -133,13 +140,16 @@ public sealed class SourceStockService
                 {
                     return new SourceStockValidationResult(
                         false,
-                        $"Nachfüllcharge {source.Batch}: Angefordert {source.AmountKg:0.###} kg, aktuell verfügbar {available:0.###} kg auf {source.Warehouse}/{source.StorageBin}.",
+                        $"Nachfüllcharge {source.Batch}: Angefordert {source.AmountKg:0.###} kg, aktuell verfügbar {available:0.###} kg auf {DisplayLocation(source.Warehouse, source.StorageBin)}.",
                         current);
                 }
             }
         }
 
-        return new SourceStockValidationResult(true, "Alle Nachfüllquellen wurden unmittelbar vor der Buchung in oxaion bestätigt.", current);
+        return new SourceStockValidationResult(
+            true,
+            "Alle Nachfüllquellen wurden unmittelbar vor der Buchung in oxaion bestätigt.",
+            current);
     }
 
     public static IReadOnlyList<(string Warehouse, string Article, string Batch, decimal QuantityKg)> ParseArticleWarehouseRows(XDocument xml)
@@ -168,8 +178,12 @@ public sealed class SourceStockService
             if (key is null) continue;
             var warehouse = key.Element("LPLAGO")?.Value.Trim() ?? "";
             var article = key.Element("LPIDNR")?.Value.Trim() ?? "";
-            var storageBin = key.Element("LPLAPL")?.Value.Trim() ?? row.Element("LLPWEP.LPLAPL")?.Value.Trim() ?? "";
-            var batch = key.Element("LPPONR")?.Value.Trim() ?? row.Element("LLPWEP.LPPONR")?.Value.Trim() ?? "";
+            var storageBin = key.Element("LPLAPL")?.Value.Trim()
+                             ?? row.Element("LLPWEP.LPLAPL")?.Value.Trim()
+                             ?? "";
+            var batch = key.Element("LPPONR")?.Value.Trim()
+                        ?? row.Element("LLPWEP.LPPONR")?.Value.Trim()
+                        ?? "";
             var quantityText = row.Element("LLPWEP.LPLABE")?.Value.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(warehouse) || string.IsNullOrWhiteSpace(article) || string.IsNullOrWhiteSpace(batch)) continue;
             var (quantity, unit) = MachineStockService.ParseQuantity(quantityText);
@@ -196,25 +210,44 @@ public sealed class SourceStockService
         OxaionSession session,
         string article,
         string warehouse,
-        string? warehouseText,
         CancellationToken ct)
     {
-        var canonicalText = string.IsNullOrWhiteSpace(warehouseText)
-            ? await ResolveWarehouseTextAsync(session, warehouse, ct)
-            : warehouseText.Trim();
+        var canonicalText = await ResolveWarehouseTextAsync(session, warehouse, ct);
+        try
+        {
+            var context = BuildInquiryContext(article, warehouse, canonicalText, "PT", "Lagerplätze pro Artikel und -ort", "LB30430R");
+            var ssid = await LaunchAsync(session, context, "LB30430R", "LB30430", ct);
+            var pages = await ReadAllPagesAsync(session, "LB30430R", ssid, ct);
+            var rows = pages.SelectMany(x => ParsePositionRows(x, canonicalText))
+                .Where(p => string.Equals(p.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase))
+                .Where(p => p.QuantityKg > 0m)
+                .ToList();
 
-        var context = BuildInquiryContext(article, warehouse, canonicalText, "PT", "Lagerplätze pro Artikel und -ort", "LB30430R");
-        var ssid = await LaunchAsync(session, context, "LB30430R", "LB30430", ct);
-        var pages = await ReadAllPagesAsync(session, "LB30430R", ssid, ct);
-        var rows = pages.SelectMany(x => ParsePositionRows(x, canonicalText))
-            .Where(p => string.Equals(p.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase))
-            .Where(p => p.QuantityKg > 0m)
-            .ToList();
+            if (rows.Any(p => !string.Equals(p.Unit, "KGM", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"LB30430R returned an unexpected unit for {article}/{warehouse}; only kg/KGM is accepted for replenishment.");
 
-        if (rows.Any(p => !string.Equals(p.Unit, "KGM", StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"LB30430R returned an unexpected unit for {article}/{warehouse}; only kg/KGM is accepted for replenishment.");
+            return rows;
+        }
+        catch (OxaionRejectedException ex) when (string.Equals(ex.Code, "LAG1626", StringComparison.OrdinalIgnoreCase))
+        {
+            var stock = await _machineStock.ReadAsync(session, warehouse, article, canonicalText, null, ct);
+            var rows = stock.Rows
+                .Where(r => string.Equals(r.Article, article, StringComparison.OrdinalIgnoreCase))
+                .Where(r => r.QuantityKg > 0m)
+                .Select(r => new SourceStockPosition(
+                    r.Warehouse,
+                    canonicalText,
+                    "",
+                    r.Batch,
+                    r.QuantityKg,
+                    r.Unit))
+                .ToList();
 
-        return rows;
+            if (rows.Any(p => !string.Equals(p.Unit, "KGM", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"LB30230R returned an unexpected unit for no-bin warehouse {article}/{warehouse}; only KGM is accepted for replenishment.");
+
+            return rows;
+        }
     }
 
     private async Task<string> LaunchAsync(
@@ -317,6 +350,9 @@ public sealed class SourceStockService
 
     private static string SourceKey(string warehouse, string storageBin, string batch) =>
         $"{warehouse?.Trim().ToUpperInvariant()}\u001f{storageBin?.Trim()}\u001f{batch?.Trim()}";
+
+    private static string DisplayLocation(string warehouse, string storageBin) =>
+        string.IsNullOrWhiteSpace(storageBin) ? warehouse : $"{warehouse}/{storageBin}";
 
     private static Dictionary<string, string> ListContext(string ssid, string mode) => Dict(
         ("FLD", ""), ("SSID", ssid), ("PFLD", ""), ("MC-Modus", ""), ("mode", mode));
