@@ -15,6 +15,11 @@ public sealed class PrototypeOptions
     public string TransactionDirectory { get; set; } = "App_Data/transactions";
 }
 
+public sealed class MachineTankOptions
+{
+    public List<string> Warehouses { get; set; } = [];
+}
+
 public sealed record AdditionalPowderSource(
     string Warehouse,
     string WarehouseText,
@@ -51,6 +56,31 @@ public sealed record RealMixRequest(
     string? SimulateFailure = null,
     string? RetryOfClientOperationId = null,
     IReadOnlyList<AdditionalPowderSource>? AdditionalSources = null);
+
+public static class ReplenishmentRules
+{
+    public static string BookingText(string machineWarehouse) => $"Pulver nachfüllen {(machineWarehouse ?? "").Trim()}";
+
+    public static string BatchArticlePrefix(string article) =>
+        new((article ?? "").Where(char.IsLetterOrDigit).ToArray());
+
+    public static string CreateMixBatch(string article, DateTime createdAt) =>
+        $"{BatchArticlePrefix(article)}MIX_{createdAt:yyyyMMdd_HHmmss}";
+
+    public static bool IsValidGeneratedMixBatch(string article, string batch, DateOnly createdOn)
+    {
+        var prefix = BatchArticlePrefix(article) + "MIX_" + createdOn.ToString("yyyyMMdd") + "_";
+        if (string.IsNullOrWhiteSpace(batch) || !batch.StartsWith(prefix, StringComparison.Ordinal)) return false;
+        var time = batch[prefix.Length..];
+        if (time.Length != 6 || !time.All(char.IsDigit)) return false;
+        return int.TryParse(time[..2], out var h) && h is >= 0 and <= 23
+            && int.TryParse(time.Substring(2, 2), out var m) && m is >= 0 and <= 59
+            && int.TryParse(time.Substring(4, 2), out var s) && s is >= 0 and <= 59;
+    }
+
+    public static bool IsMachineSource(RealMixRequest request, AdditionalPowderSource source) =>
+        string.Equals(request.OldMixWarehouse, source.Warehouse, StringComparison.OrdinalIgnoreCase);
+}
 
 public static class MixRequestLogic
 {
