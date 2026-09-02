@@ -103,6 +103,22 @@ Der lokale Vorgang wird auf `CONFLICT` beziehungsweise `MANUAL_REVIEW_REQUIRED` 
 - Es gibt keine automatische Endlosschleife; ein erneuter Versuch wird bewusst durch den Bediener gestartet.
 - `TODO`: Oxaion-Sperrabfrage, Fehlerkennung und Benutzerermittlung technisch bestaetigen.
 
+### Eigene Sperren nach Abschluss-/Recovery-Verifikation
+
+Ein von der WebApp selbst fuer eine Ergebnispruefung geoeffneter Oxaion-Beleg darf nach Abschluss der Pruefung nicht offen beziehungsweise gesperrt zurueckbleiben.
+
+Fuer den bestaetigten Mix-Beleg gilt deshalb:
+
+- Nach den schreibenden Positionen wird der Lagerbeleg mit `LB20100J *END` geschlossen.
+- Fuer die Abschlussverifikation darf er erneut rein lesend geoeffnet werden.
+- Nach erfolgreicher `LB20110R *FIRSTLIST`-Verifikation wird derselbe Beleg **nochmals explizit mit `LB20100J *END` geschlossen**.
+- Der allgemeine app-tunnel `/disconnect` ist kein Ersatz fuer dieses explizite fachliche `*END`.
+- `SUCCESS` darf erst gesetzt werden, wenn die Bewegungen vollstaendig verifiziert und der fuer die Verifikation geoeffnete Beleg erfolgreich geschlossen wurde.
+- Der notwendige Close-Cleanup nach bereits persistierter/verifizierter Buchung darf nicht allein deshalb entfallen, weil der Browserrequest zwischenzeitlich abgebrochen wurde.
+- Ist die Buchung bereits vollstaendig verifiziert, aber das abschliessende `*END` kann nicht eindeutig bestaetigt werden, darf nicht erneut gebucht werden. Der Sperrzustand muss manuell geprueft werden; der Vorgang ist nicht als einfacher Buchungsfehler zu behandeln.
+
+Hintergrund: Am 02.09.2026 wurde in STAGING beobachtet, dass der bisherige Prototyp nach erfolgreicher Buchung den zur Abschlussverifikation erneut geoeffneten Beleg nicht mehr explizit mit `*END` schloss. Dadurch blieb der Datensatz in Oxaion gesperrt.
+
 ## Backend <-> Oxaion: HTTP Timeout und Connection Reset
 
 Timeout oder Connection Reset beweisen allein nicht, dass Oxaion den Auftrag nicht verarbeitet hat.
@@ -110,8 +126,8 @@ Timeout oder Connection Reset beweisen allein nicht, dass Oxaion den Auftrag nic
 - Fehler vor zweifelsfreiem Versand: kontrollierter Retry kann gemaess definierter Regel zulaessig sein.
 - Fehler waehrend oder nach moeglichem Versand: Status `UNCERTAIN`; keine erneute Buchung.
 - Das Backend protokolliert Versandbeginn, Abbruchzeitpunkt, Zieloperation, Transaktions-ID und vorhandene Oxaion-Referenzen.
-- Nach Moeglichkeit wird der Ausgang ueber eine fachlich bestaetigte Oxaion-Status- oder Referenzabfrage geklaert.
-- `TODO`: Timeoutwerte und verifizierbare Oxaion-Ergebnisabfrage festlegen.
+- Nach Moeglichkeit wird der Ausgang ueber eine fachlich bestaetigte Status- oder Referenzabfrage geklaert.
+- `TODO`: Timeoutwerte und verifizierbare Oxaion-Ergebnisabfrage fuer weitere Buchungsarten festlegen.
 
 ## HTTP-Fehlercodes
 
