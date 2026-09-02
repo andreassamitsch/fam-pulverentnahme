@@ -42,7 +42,7 @@
     <h2>2 · Nachfüllchargen</h2>
     <div id="additionalSources"></div>
     <div class="actions"><button class="secondary compact" id="addSourceBtn">+ Weitere Nachfüllcharge</button></div>
-    <div class="footerNote">Mindestens eine Nachfüllcharge ist erforderlich. Mehrere Chargen werden im selben Oxaion-Lagerbeleg nacheinander auf dieselbe neue Mix-Charge gebucht.</div>
+    <div class="footerNote">Lagerort, interner Lagerplatzschlüssel und Charge werden ausschließlich aus aktuellen positiven Oxaion-Beständen ausgewählt. Freie Eingabe dieser Schlüssel ist nicht mehr möglich. Bei Lagerorten ohne Lagerplatzorganisation bleibt der Lagerplatz bewusst leer. Die Einfüllmenge kann bis maximal zum angezeigten verfügbaren Bestand eingegeben werden.</div>
   </section>
 
   <section class="card">
@@ -58,6 +58,6 @@
   <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div></section>
   <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
 </main>
-<script src="/app.js?v=20260901-multi-batch"></script>
+<script src="/app.js?v=20260902-source-stock"></script>
 </body>
 </html>
