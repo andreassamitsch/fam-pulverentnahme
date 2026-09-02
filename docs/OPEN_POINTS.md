@@ -9,12 +9,15 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [x] Filterbedingung technisch aus der Selektionsmaske bestaetigt: `LLAWEP.LALABE <> 0`. Der Backend-Prototyp haengt nicht mehr von einem gespeicherten Filter `mit Bestand`, dessen Freigabe oder Filter-ID ab, sondern liest die vollstaendige Lagerortliste und wertet diese Bedingung direkt aus.
 - [x] Artikelunabhaengige Sicht auf den Maschinen-Lagerort im Referenzdatenstrom bestaetigt: die ungefilterte `LB30230R *FIRSTLIST` fuer `EOS1` lieferte 25 Zeilen verschiedener Artikel inklusive Nullbestaenden und `<STOP/>`. Dadurch koennen `Maschine leer`, `anderes Pulver vorhanden` und `mehrere Bestaende` unterschieden werden.
 - [x] Serverseitiger Start der Bestandsabfrage mit leerer Eltern-`SSID` in STAGING live bestaetigt: der vom Backend gestartete Lesefluss ermittelt den aktuellen EOS1-Bestand erfolgreich.
+- [ ] Maschinengetriebene Artikelableitung live bestaetigen: der neue Ablauf startet dieselbe `LB30230R`-Lagerortauskunft ohne vorgegebenen Artikel (`I_TIDF/TIDF` leer) und leitet Artikel/Bezeichnung aus der einzigen positiven Tankposition ab. Der bisherige Referenzdatenstrom zeigt bereits, dass die Liste selbst artikelunabhaengig ist; der leere Artikel im Startkontext ist noch einmal real in STAGING zu pruefen.
 - [x] Mehrere Nachfuellchargen als ein fachlicher Vorgang im Backend/Frontend umgesetzt; Positions-, Verifikations- und Recovery-Logik sind dynamisch. Details siehe `docs/MULTI_BATCH_REPLENISHMENT.md`.
 - [ ] Multi-Batch-Verallgemeinerung fuer Position 3+ real in Oxaion STAGING bestaetigen: mindestens zwei zusaetzliche Nachfuellchargen in einem Vorgang buchen und alle erwarteten LM/LN-Bewegungen pruefen. Position 2 ist bereits praktisch bestaetigt.
 - [x] Nachfuellquellen-Auswahl aus Oxaion technisch bestaetigt: `LB30340R` liefert Lagerorte/Chargen pro Artikel, `LB30430R` liefert exakte interne Lagerplatzschluessel/Chargen/Bestaende; Lagerorttexte werden ueber `US00006J *GETPLAIN` gelesen. Details siehe `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
 - [x] Fehlerursache `LAP1258` fuer den Referenzfall `H04HRL` geklaert: Oxaion erwartet als `PSLAPL` den internen Schluessel `RE1F3`; eine visuell formatierte Eingabe wie `RE1  F 3` darf nicht als Buchungsschluessel verwendet werden.
 - [x] Lagerorte ohne Lagerplatzorganisation technisch erkannt: `LAG1626` ist im Datenstrom bestaetigt. Nur fuer diesen eindeutigen Fall bleibt der Lagerplatz leer und der bestaetigte `LB30230R`-Lagerortbestand wird verwendet.
 - [x] Neue Nachfuellquellen-Auswahl in STAGING live bestaetigt: Oxaion-geführte Lagerort-/Lagerplatz-/Chargenauswahl funktioniert im realen STAGING-Test.
+- [x] Personalpruefung aus realem JET-Datenstrom rekonstruiert: `MN10209J *CHKCMD` (`MA`) -> `US14090J *SEARCH` -> `US14000J *READ`; `PEPENU`, `PESAKZ` und `PENLAE` sind fuer Personalnummer, Kuerzel und Vollname bestaetigt. Details siehe `docs/OXAION_PERSONNEL_LOOKUP.md`.
+- [ ] AJAX-Personalsuche und erneute serverseitige Personalpruefung live in STAGING bestaetigen.
 - [ ] Sperrfreigabe nach erfolgreicher Abschlussverifikation live bestaetigen: am 02.09.2026 blieb der von der App erfolgreich gebuchte Lagerbeleg nach dem erneuten `*OPEN` zur Verifikation gesperrt. Der Backend-Fix sendet nach der finalen `FIRSTLIST`-Pruefung ein zweites explizites `LB20100J *END` und setzt erst danach `SUCCESS`. Im naechsten STAGING-Test pruefen, dass der Beleg unmittelbar danach in Oxaion nicht mehr gesperrt ist.
 - [ ] Konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen identifizieren, insbesondere FA-Materialrueckmeldung und Pulverwechsel/Ruecklagerung
 - [ ] Konkretes Oxaion BDE-/PPS-Programm fuer die spaetere FA-Materialrueckmeldung identifizieren
@@ -27,9 +30,13 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 
 ## Fachliche Entscheidungen
 
-- [ ] Mix-Chargenschema final festlegen, aktuell bevorzugt `MIX-YYMMDD-XX`
-- [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen festlegen
-- [ ] Endgueltige Ziel-/Maschinen-Lagerort- und Lagerplatzlogik festlegen; die Nachfuellquellen-Auswahl selbst ist durch die Oxaion-Bestandsauskuenfte bereits geklaert
+- [x] Mix-Chargenschema fuer neue Mix-Chargen festgelegt: `<Artikel ohne Punkt>MIX_<yyyyMMdd>_<HHmmss>`, z. B. `RP00010MIX_20260902_162312`. Die Nummer wird automatisch erzeugt und nicht frei editiert.
+- [x] Nachfuell-Buchungstext festgelegt: `Pulver nachfuellen <Maschinen-Lagerort>`, dynamisch aus der ausgewaehlten Maschine.
+- [x] Buchungsdatum beim neuen Nachfuellvorgang ist immer das aktuelle Datum und keine Bedienereingabe; `Mix Charge erstellt am` wird aus dem aktuellen Erzeugungszeitpunkt der neuen Mix-Charge gebildet.
+- [x] Artikel und Artikelbezeichnung werden beim Nachfuellen aus dem eindeutigen aktuellen Maschinenbestand abgeleitet und sind keine Bedienereingaben.
+- [x] Der aktuelle Maschinen-Tanklagerort darf nie als Quelllager einer Nachfuellcharge verwendet werden.
+- [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
+- [ ] Maschinenliste/QR-Zuordnung finalisieren. Der aktuelle STAGING-Stand verwendet eine gepflegte Maschinenlager-Whitelist mit `EOS1` und `EOS2`; der spaetere Maschinen-QR soll gegen dieselbe Liste validiert werden.
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
 
 ## Anwendung und Betrieb
