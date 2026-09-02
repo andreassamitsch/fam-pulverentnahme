@@ -116,7 +116,9 @@ async function loadSourcePositions(card,preserveKey=''){
   }finally{sourceLoading--;updateBookState();renderSummary()}
 }
 function applySourcePosition(card){
-  const idx=Number(sourceField(card,'position').value);
+  const raw=sourceField(card,'position').value;
+  if(raw===''){card._selected=null;sourceField(card,'storageBin').value='';sourceField(card,'batch').value='';sourceField(card,'available').value='';updateBookState();renderSummary();return}
+  const idx=Number(raw);
   if(!Number.isInteger(idx)||idx<0||idx>=card._positions.length){card._selected=null;sourceField(card,'storageBin').value='';sourceField(card,'batch').value='';sourceField(card,'available').value='';updateBookState();renderSummary();return}
   const p=card._positions[idx];card._selected=p;
   sourceField(card,'warehouseText').value=p.warehouseText||p.warehouse;
