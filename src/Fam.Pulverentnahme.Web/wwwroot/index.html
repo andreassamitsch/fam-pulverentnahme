@@ -11,7 +11,8 @@
 <body>
 <header><div class="title">FAM Pulver-Mix → oxaion</div><div class="sub">Frontend + ASP.NET Core Backend · STAGING</div></header>
 <main>
-  <div class="notice warn"><b>STAGING:</b> Dieser Prototyp ist auf oxaion Port 11118 / Firma 103 begrenzt. Die Buchung ist trotzdem eine echte STAGING-Lagerbuchung.</div>
+  <div class="notice warn"><b>STAGING:</b> Port 11118 / Firma 103. Buchungen sind echte STAGING-Lagerbuchungen.</div>
+
   <div id="recovery" class="card recovery hidden">
     <h2 id="recoveryTitle">⚠ Offener / unklarer Vorgang</h2>
     <div id="recoveryText"></div>
@@ -22,42 +23,65 @@
     </div>
   </div>
 
-  <section class="card"><h2>Backend</h2><div id="health" class="status neutral">wird geprüft …</div><div class="actions"><button class="secondary" id="healthBtn">Oxaion-Verbindung testen</button></div></section>
-
-  <section class="card"><h2>Mitarbeiter</h2><div class="grid"><label>Personalnummer<input id="personnelNo" value="001234"></label><label>Name<input id="personnelName" value="Max Mustermann"></label></div></section>
-  <section class="card"><h2>Material</h2><div class="grid"><label>Artikel<input id="article" value="RP.00010"></label><label>Bezeichnung<input id="articleText" value="AlSi10Mg"></label></div></section>
+  <section class="card compactCard"><h2>Backend</h2><div id="health" class="status neutral">wird geprüft …</div><div class="actions"><button class="secondary compact" id="healthBtn">Oxaion-Verbindung testen</button></div></section>
 
   <section class="card">
-    <h2>1 · Aktueller Maschinenbestand</h2>
-    <div class="grid3">
-      <label>Maschine / Lagerort<input id="oldMixWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="oldMixWarehouseText" value="EOS 1 -Tank"></label><label>Lagerplatz optional<input id="oldMixStorageBin" readonly></label>
-      <label>Aktuelle Mix-Charge<input id="oldMixBatch" readonly placeholder="wird aus oxaion ermittelt"></label><label>Gesamter Tankbestand kg<input id="oldMixAmountKg" readonly inputmode="decimal" placeholder="wird aus oxaion ermittelt"></label>
+    <h2>1 · Mitarbeiter</h2>
+    <div class="inputBlock">
+      <label class="importantLabel">Personalnummer
+        <input id="personnelNo" class="importantInput" inputmode="numeric" autocomplete="off" placeholder="z. B. 446">
+      </label>
+      <div id="personnelResults" class="lookupResults hidden"></div>
     </div>
-    <div id="stockStatus" class="status neutral">Maschinenbestand noch nicht aus oxaion gelesen.</div>
-    <div class="actions"><button class="secondary compact" id="stockRefreshBtn">Maschinenbestand neu lesen</button></div>
-    <div class="footerNote">Charge und Menge werden aus der vollständigen Oxaion-Lagerortliste ermittelt; berücksichtigt werden nur Bestände ungleich 0. Vor dem Start der Materialbuchung prüft das Backend denselben Maschinenbestand erneut. Die Restmenge wird nicht manuell eingegeben.</div>
+    <div id="personnelSelected" class="systemPanel hidden">
+      <div><span class="systemLabel">Personalnummer</span><b id="personnelSelectedNo"></b></div>
+      <div><span class="systemLabel">Kürzel</span><b id="personnelSelectedCode"></b></div>
+      <div><span class="systemLabel">Name</span><b id="personnelSelectedName"></b></div>
+    </div>
+    <div id="personnelStatus" class="status neutral">Personalnummer eingeben und Treffer aus oxaion bestätigen.</div>
   </section>
 
   <section class="card">
-    <h2>2 · Nachfüllchargen</h2>
+    <h2>2 · Aktueller Maschinenbestand</h2>
+    <div class="inputBlock">
+      <label class="importantLabel">Maschine / Tank-Lagerort
+        <select id="oldMixWarehouse" class="importantInput"><option value="">Maschine auswählen …</option></select>
+      </label>
+    </div>
+    <div id="machineInfo" class="systemPanel hidden">
+      <div><span class="systemLabel">Lagerort</span><b id="oldMixWarehouseInfo"></b></div>
+      <div><span class="systemLabel">Artikel</span><b id="articleInfo"></b></div>
+      <div><span class="systemLabel">Artikelbezeichnung</span><b id="articleTextInfo"></b></div>
+      <div><span class="systemLabel">Aktuelle Mix-Charge</span><b id="oldMixBatchInfo"></b></div>
+      <div><span class="systemLabel">Gesamter Tankbestand</span><b id="oldMixAmountInfo"></b></div>
+    </div>
+    <div id="stockStatus" class="status neutral">Bitte zuerst eine Maschine auswählen.</div>
+    <div class="actions"><button class="secondary compact hidden" id="stockRefreshBtn">Maschinenbestand neu lesen</button></div>
+    <input id="article" type="hidden"><input id="articleText" type="hidden"><input id="oldMixWarehouseText" type="hidden"><input id="oldMixStorageBin" type="hidden"><input id="oldMixBatch" type="hidden"><input id="oldMixAmountKg" type="hidden">
+  </section>
+
+  <section id="sourcesSection" class="card hidden">
+    <h2>3 · Nachfüllchargen</h2>
     <div id="additionalSources"></div>
     <div class="actions"><button class="secondary compact" id="addSourceBtn">+ Weitere Nachfüllcharge</button></div>
-    <div class="footerNote">Lagerort, interner Lagerplatzschlüssel und Charge werden ausschließlich aus aktuellen positiven Oxaion-Beständen ausgewählt. Freie Eingabe dieser Schlüssel ist nicht mehr möglich. Bei Lagerorten ohne Lagerplatzorganisation bleibt der Lagerplatz bewusst leer. Die Einfüllmenge kann bis maximal zum angezeigten verfügbaren Bestand eingegeben werden.</div>
+    <div class="footerNote">Der Maschinen-Tanklagerort wird bewusst nicht als Nachfüllquelle angeboten. Lagerort, Lagerplatz und Charge stammen aus dem aktuellen positiven Oxaion-Bestand.</div>
   </section>
 
-  <section class="card">
-    <h2>3 · Neue Mix-Charge</h2>
-    <div class="grid3">
-      <label>Ziel / Maschine<input id="targetWarehouse" value="EOS1"></label><label>Lagerort-Bezeichnung<input id="targetWarehouseText" value="EOS 1 -Tank"></label><label>Ziel-Lagerplatz optional<input id="targetStorageBin"></label>
-      <label>Neue Mix-Charge<input id="targetBatch"></label><label>Produktionsdatum<input id="productionDate" type="date"></label><label>Buchungsdatum<input id="bookingDate" type="date"></label>
+  <section id="mixSection" class="card hidden">
+    <h2>4 · Neue Mix-Charge</h2>
+    <div class="systemPanel">
+      <div class="wide"><span class="systemLabel">Neue Mix-Charge</span><b id="targetBatchInfo"></b></div>
+      <div><span class="systemLabel">Mix Charge erstellt am</span><b id="mixCreatedAtInfo"></b></div>
+      <div><span class="systemLabel">Ziel</span><b id="targetMachineInfo"></b></div>
+      <div><span class="systemLabel">Buchungstext</span><b id="bookingTextInfo"></b></div>
     </div>
-    <button class="secondary compact" id="newBatchBtn">Neue Testcharge erzeugen</button>
+    <div class="actions"><button class="secondary compact" id="newBatchBtn">Mix-Charge neu erzeugen</button></div>
+    <input id="targetWarehouse" type="hidden"><input id="targetWarehouseText" type="hidden"><input id="targetStorageBin" type="hidden"><input id="targetBatch" type="hidden"><input id="productionDate" type="hidden"><input id="bookingDate" type="hidden"><input id="bookingText" type="hidden">
   </section>
 
-  <section class="card"><h2>Dokumentation</h2><label>Buchungstext<input id="bookingText" value="Pulver nachfüllen EOS1"></label><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach erster Nachfüllcharge *UPD</option><option value="after_position_3_upd">Antwortverlust nach zweiter Nachfüllcharge *UPD</option></select></details></section>
-  <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div></section>
+  <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach erster Nachfüllcharge *UPD</option><option value="after_position_3_upd">Antwortverlust nach zweiter Nachfüllcharge *UPD</option></select></details></section>
   <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
 </main>
-<script src="/app.js?v=20260902-source-stock"></script>
+<script src="/app.js?v=20260902-machine-personnel"></script>
 </body>
 </html>
