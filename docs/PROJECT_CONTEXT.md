@@ -101,6 +101,23 @@ Im letzten Fall erscheint die klare Meldung `Pulverwechsel erforderlich` und die
 
 Die WebApp darf niemals unterschiedliches oder nicht kompatibles Pulver zusammenmischen.
 
+### Auswahl der Nachfuellquellen
+
+Lagerort, Lagerplatz und Charge einer neuen Nachfuellmenge werden nicht mehr frei als Buchungsschluessel eingegeben. Sie werden aus dem aktuellen positiven Oxaion-Bestand zum Pulverartikel ausgewaehlt.
+
+Verbindlich gilt:
+
+- Das Backend ermittelt die Lagerorte mit positivem Artikelbestand aus der bestaetigten Oxaion-Auskunft `Chargen und Lagerorte pro Artikel`.
+- Nach Auswahl eines Lagerortes ermittelt das Backend die dort vorhandenen positiven Lagerplatz-/Chargenpositionen aus `Lagerplaetze pro Artikel und -ort`.
+- Fuer die Buchung wird immer der von Oxaion gelieferte interne Lagerplatzschluessel verwendet. Eine visuell formatierte Lagerplatzdarstellung darf nicht vom Bediener nachgebildet und als `PSLAPL` uebergeben werden.
+- Der Referenzfall `H04HRL / RE1F3 / Charge 84671` bestaetigt, dass `RE1F3` der intern gueltige Buchungsschluessel ist.
+- Meldet Oxaion eindeutig `LAG1626` (`Lagerort hat keine Lagerplatzorganisation`), bleibt der Lagerplatz leer; die Charge und der Bestand werden ueber den bestaetigten Ablauf `Chargen pro Lagerort` ermittelt. Es wird kein Lagerplatz erfunden.
+- Die Einfuellmenge bleibt eine Bedienereingabe, darf jedoch den aktuell verfuegbaren Oxaion-Bestand der gewaehlten Bestandsposition nicht ueberschreiten.
+- Mehrere Nachfuellchargen duerfen in einem Vorgang verwendet werden. Dieselbe exakte Oxaion-Bestandsposition darf innerhalb eines Vorgangs nicht doppelt ausgewaehlt werden.
+- Direkt vor der ersten schreibenden Oxaion-Materialbuchung validiert das Backend jede Nachfuellquelle erneut anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge. Bei Abweichung wird keine Materialbuchung gestartet.
+
+Technische Details und die bestaetigten Oxaion-Programme/Felder stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
+
 Fuer Offline-Betrieb darf ein zuvor bestaetigter lokaler Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Die konkrete maximale Gueligkeitsdauer und der genaue Umfang offline freigegebener Prozessschritte sind noch festzulegen. Nach Reconnect erfolgt vor jeder produktiven Buchung erneut eine serverseitige Validierung.
 
 ## 2. Pulver tauschen
@@ -286,13 +303,12 @@ Die folgenden Punkte sind noch nicht final geklaert und duerfen nicht erfunden w
 - TODO: konkrete Oxaion HTTP-Aufrufe fuer alle Materialbuchungen
 - TODO: konkretes Oxaion BDE-/PPS-Programm beziehungsweise Programme
 - TODO: Buchungsschluessel fuer Maschinenlager -> Pulverlager
-- TODO: Buchungsschluessel fuer Pulverlager -> Maschine
+- TODO: Buchungsschluessel Pulverlager -> Maschine
 - TODO: eventuell benoetigte Chargenumbuchungen
-- TODO: genaue Oxaion-Abfrage des aktuellen Maschinenbestands
 - TODO: genaue Oxaion-Abfrage der Stammdatensperre
 - TODO: technische Ermittlung des sperrenden Benutzers
 - TODO: finales Mix-Chargenschema
-- TODO: endgueltige Lagerort-/Lagerplatzlogik
+- TODO: endgueltige Ziel-/Maschinen-Lagerort- und Lagerplatzlogik ausserhalb der bestaetigten Nachfuellquellen-Auswahl
 - TODO: genaue Benutzer-Authentifizierung der WebApp
 - TODO: endgueltiger produktiver Server fuer die WebApp
 - TODO: maximale Offline-Gueligkeitsdauer eines Maschinenzustands
