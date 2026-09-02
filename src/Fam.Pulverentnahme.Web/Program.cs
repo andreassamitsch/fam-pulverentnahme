@@ -9,6 +9,7 @@ builder.Services.AddHttpClient(nameof(OxaionClient));
 builder.Services.AddSingleton<JsonTransactionStore>();
 builder.Services.AddSingleton<OxaionClient>();
 builder.Services.AddSingleton<MachineStockService>();
+builder.Services.AddSingleton<SourceStockService>();
 builder.Services.AddSingleton<MixBookingService>();
 
 var app = builder.Build();
@@ -71,17 +72,56 @@ app.MapGet("/api/machine-stock", async (
     }
 });
 
-app.MapPost("/api/mix", async (
-    RealMixRequest request,
-    MixBookingService service,
-    MachineStockService machineStock,
+app.MapGet("/api/source-stock/warehouses", async (
+    string article,
+    SourceStockService service,
     CancellationToken ct) =>
 {
     try
     {
-        // Idempotency has priority over a fresh stock check. If the same clientOperationId
-        // already exists, return the stored transaction instead of interpreting today's
-        // machine state as a reason to create or reject a second ERP operation.
+        return Results.Ok(await service.ReadWarehousesAsync(article, ct));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+app.MapGet("/api/source-stock/positions", async (
+    string article,
+    string warehouse,
+    SourceStockService service,
+    CancellationToken ct) =>
+{
+    try
+    {
+        return Results.Ok(await service.ReadPositionsAsync(article, warehouse, ct));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+app.MapPost("/api/mix", async (
+    RealMixRequest request,
+    MixBookingService service,
+    MachineStockService machineStock,
+    SourceStockService sourceStock,
+    CancellationToken ct) =>
+{
+    try
+    {
+        // Idempotency has priority over any fresh stock check. If the same clientOperationId
+        // already exists, return the stored transaction instead of creating a second ERP operation.
         var existing = await service.GetAsync(request.ClientOperationId, ct);
         if (existing is not null)
             return TransactionResult(existing);
@@ -100,8 +140,8 @@ app.MapPost("/api/mix", async (
                 return Results.BadRequest(new { error = "A retry of a rejected operation must use the same booking data, including all replenishment batches. Start a normal new operation if booking data must change." });
         }
 
-        // Safety gate before any write-capable Oxaion material-booking call.
-        // Re-read the positive machine stock and require the request to still match exactly.
+        // Safety gate 1: current machine stock. This is read-only and happens before any
+        // write-capable Oxaion material-booking call.
         MachineStockResult stock;
         try
         {
@@ -143,6 +183,39 @@ app.MapPost("/api/mix", async (
                 stage = "MACHINE_STOCK_VALIDATION",
                 message = $"Der Maschinenbestand hat sich seit der Anzeige geändert. Aktuell: Charge {current.Batch}, {current.QuantityKg:0.###} kg. Angefordert: Charge {request.OldMixBatch}, {request.OldMixAmountKg:0.###} kg. Es wurde keine Materialbuchung gestartet.",
                 machineStock = stock
+            }, statusCode: StatusCodes.Status409Conflict);
+        }
+
+        // Safety gate 2: every replenishment source must still be an exact positive Oxaion
+        // stock position (article + warehouse + internal storage-bin key + batch) and the
+        // requested amount must still be available. No booking call has started yet.
+        SourceStockValidationResult sourceValidation;
+        try
+        {
+            sourceValidation = await sourceStock.ValidateSourcesAsync(
+                request.Article,
+                MixRequestLogic.Sources(request),
+                ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Results.Json(new
+            {
+                status = "SOURCE_STOCK_UNAVAILABLE",
+                stage = "SOURCE_STOCK_VALIDATION",
+                message = "Die Nachfüllbestände konnten vor der Buchung nicht sicher aus oxaion gelesen werden. Es wurde keine Materialbuchung gestartet.",
+                technicalMessage = ex.Message
+            }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        if (!sourceValidation.IsValid)
+        {
+            return Results.Json(new
+            {
+                status = "CONFLICT",
+                stage = "SOURCE_STOCK_VALIDATION",
+                message = sourceValidation.Message + " Es wurde keine Materialbuchung gestartet.",
+                sourceStock = sourceValidation.CurrentPositions
             }, statusCode: StatusCodes.Status409Conflict);
         }
 

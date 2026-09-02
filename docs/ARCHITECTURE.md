@@ -39,6 +39,7 @@ Optional, ausschliesslich fuer die WebApp:
 - kontrollierte Synchronisation nach Wiederherstellung der Backend-Verbindung
 - kontrollierte PWA-Aktualisierung ohne Datenverlust und ohne erzwungenen Reload waehrend kritischer Vorgaenge
 - keine Oxaion-Zugangsdaten, Buchungsschluessel oder vertrauenswuerdige Buchungslogik im Frontend
+- Nachfuellquellen werden nicht als freie Lagerort-/Lagerplatz-/Chargenschluessel eingegeben, sondern aus den vom Backend gelieferten aktuellen Oxaion-Bestandspositionen ausgewaehlt
 
 Der Browser-/Geraetespeicher ist nur ein Zwischenpuffer. Er ist nicht die fachlich fuehrende Datenhaltung.
 
@@ -77,7 +78,10 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
 - fuer den STAGING-Nachfuellprototyp: lesender Endpunkt `GET /api/machine-stock`, der die im JET-Datenstrom bestaetigte Auflistung `Chargen pro Lagerort` kapselt; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
 - der Maschinenbestand ist nicht von einem gespeicherten Oxaion-Filter abhaengig: das Backend liest die vollstaendige `LB30230R`-Liste des Lagerorts und wertet direkt die bestaetigte Bedingung `LLAWEP.LALABE != 0` aus
+- lesende Nachfuellquellen-Endpunkte `GET /api/source-stock/warehouses` und `GET /api/source-stock/positions`; sie kapseln die bestaetigten Oxaion-Auskuenfte `LB30340R` und `LB30430R`
+- fuer Lagerorte ohne Lagerplatzorganisation wird ausschliesslich bei eindeutigem Oxaion-Code `LAG1626` auf den bestaetigten `LB30230R`-Lagerortbestand zurueckgegriffen; der Lagerplatz bleibt leer
 - vor einem neuen Mix-Buchungsversuch: erneute Bestandsabfrage und Vergleich von Lagerort, Artikel, Charge und kompletter Maschinenmenge mit dem vom Frontend vorbereiteten Request; bei Abweichung keine schreibende Materialbuchung starten
+- zusaetzlich vor einem neuen Mix-Buchungsversuch: jede Nachfuellquelle anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge erneut aus Oxaion lesen; bei Abweichung oder unzureichendem Bestand keine schreibende Materialbuchung starten
 
 Dasselbe `clientOperationId` darf nicht zu mehreren wirksamen Oxaion-Buchungen fuehren. Wiederholtes Senden derselben Outbox-Nachricht muss serverseitig idempotent behandelt werden.
 
@@ -115,9 +119,11 @@ Im aktuellen STAGING-Nachfuellprototyp wird die ungefilterte `LB30230R`-Lagerort
 
 Bei genau einem positiven `KGM`-Bestand des erwarteten Artikels werden alte Mix-Charge und gesamte Restmenge im Frontend nur angezeigt und nicht manuell eingegeben. Kein Bestand ungleich 0 wird als leerer Maschinen-Lagerort erkannt. Ein positiver Bestand eines anderen Artikels erzwingt Pulverwechsel; mehrere Bestaende ungleich 0, negative Bestaende oder unerwartete Mengeneinheiten sperren den Nachfuellvorgang.
 
-Das Backend liest denselben Zustand vor dem Start einer neuen schreibenden Materialbuchung nochmals und blockiert erkannte Abweichungen. Eine atomare Sperr-/Reservierungsstrategie zwischen letzter Bestandspruefung und erster schreibender Buchung ist weiterhin offen.
+Die Nachfuellquellen werden online ebenfalls aus Oxaion bestimmt. `LB30340R` liefert Lagerorte/Chargen zum Artikel, `LB30430R` liefert den exakten internen Lagerplatzschluessel, Charge und Lagerplatzbestand. Die WebApp verwendet diese Werte als Auswahl und nicht als editierbare Buchungsschluessel. Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
 
-Offline darf ein zuvor serverseitig bestaetigter Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Insbesondere benoetigt er einen Abfragezeitpunkt und muss innerhalb einer noch festzulegenden maximalen Gueligkeitsdauer liegen.
+Das Backend liest sowohl Maschinenbestand als auch alle ausgewaehlten Nachfuellbestandspositionen unmittelbar vor dem Start einer neuen schreibenden Materialbuchung nochmals und blockiert erkannte Abweichungen. Eine atomare Sperr-/Reservierungsstrategie zwischen letzter Bestandspruefung und erster schreibender Buchung ist weiterhin offen.
+
+Offline darf ein zuvor serverseitig bestaetigter Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Insbesondere benoetigt er einen Abfragezeitpunkt und muss innerhalb einer noch festzulegenden maximalen Gueligkeitsdauer liegen. Die aktuelle Auswahl einer Nachfuellquelle aus Oxaion ist ein Online-Schritt; eine produktive Buchung wird offline nicht aus einem veralteten Quellenbestand freigegeben.
 
 Nach Wiederherstellung der Verbindung wird der aktuelle serverseitige Zustand erneut validiert. Ein Konflikt wird nicht automatisch aufgeloest oder ueberschrieben.
 
@@ -153,5 +159,4 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Keine direkten ERP-Buchungen per SQL.
 - Bei unklarem Buchungsergebnis bleibt der Vorgang offen beziehungsweise wird zur manuellen Pruefung markiert; er wird nicht blind wiederholt.
 - Offline erfasste Daten sind keine bestaetigten ERP-Buchungen.
-- Der serverseitige Start des neuen `US30600J`-Bestandslesevorgangs mit leerer Eltern-`SSID` ist im STAGING noch live zu bestaetigen; solange diese rein lesende Abfrage nicht sicher funktioniert, darf keine darauf angewiesene Materialbuchung gestartet werden.
 - Authentifizierung, weitere konkrete Oxaion-Aufrufe, Datenmodelle und noch offene Offline-Grenzen sind in `docs/OPEN_POINTS.md` als offen gefuehrt.

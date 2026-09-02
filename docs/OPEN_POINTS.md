@@ -11,6 +11,10 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [x] Serverseitiger Start der Bestandsabfrage mit leerer Eltern-`SSID` in STAGING live bestaetigt: der vom Backend gestartete Lesefluss ermittelt den aktuellen EOS1-Bestand erfolgreich.
 - [x] Mehrere Nachfuellchargen als ein fachlicher Vorgang im Backend/Frontend umgesetzt; Positions-, Verifikations- und Recovery-Logik sind dynamisch. Details siehe `docs/MULTI_BATCH_REPLENISHMENT.md`.
 - [ ] Multi-Batch-Verallgemeinerung fuer Position 3+ real in Oxaion STAGING bestaetigen: mindestens zwei zusaetzliche Nachfuellchargen in einem Vorgang buchen und alle erwarteten LM/LN-Bewegungen pruefen. Position 2 ist bereits praktisch bestaetigt.
+- [x] Nachfuellquellen-Auswahl aus Oxaion technisch bestaetigt: `LB30340R` liefert Lagerorte/Chargen pro Artikel, `LB30430R` liefert exakte interne Lagerplatzschluessel/Chargen/Bestaende; Lagerorttexte werden ueber `US00006J *GETPLAIN` gelesen. Details siehe `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
+- [x] Fehlerursache `LAP1258` fuer den Referenzfall `H04HRL` geklaert: Oxaion erwartet als `PSLAPL` den internen Schluessel `RE1F3`; eine visuell formatierte Eingabe wie `RE1  F 3` darf nicht als Buchungsschluessel verwendet werden.
+- [x] Lagerorte ohne Lagerplatzorganisation technisch erkannt: `LAG1626` ist im Datenstrom bestaetigt. Nur fuer diesen eindeutigen Fall bleibt der Lagerplatz leer und der bestaetigte `LB30230R`-Lagerortbestand wird verwendet.
+- [ ] Neue Nachfuellquellen-Auswahl in STAGING live bestaetigen: Dropdown fuer `RP.00010`, Auswahl `H04HRL / RE1F3 / 84671`, anschliessend Buchung mit dem von Oxaion gelieferten internen Lagerplatzschluessel.
 - [ ] Konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen identifizieren, insbesondere FA-Materialrueckmeldung und Pulverwechsel/Ruecklagerung
 - [ ] Konkretes Oxaion BDE-/PPS-Programm fuer die spaetere FA-Materialrueckmeldung identifizieren
 - [ ] Oxaion Buchungsschluessel Maschinenlager -> Pulverlager fuer den Pulverwechsel ermitteln
@@ -24,7 +28,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 
 - [ ] Mix-Chargenschema final festlegen, aktuell bevorzugt `MIX-YYMMDD-XX`
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen festlegen
-- [ ] Endgueltige Lagerort-/Lagerplatzlogik festlegen
+- [ ] Endgueltige Ziel-/Maschinen-Lagerort- und Lagerplatzlogik festlegen; die Nachfuellquellen-Auswahl selbst ist durch die Oxaion-Bestandsauskuenfte bereits geklaert
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
 
 ## Anwendung und Betrieb
@@ -36,7 +40,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach weiterer Analyse der Oxaion-Schnittstelle festlegen
 - [ ] Datenschutz-, Berechtigungs- und Aufbewahrungskonzept fuer Protokolldaten festlegen
-- [ ] Concurrency-/Sperrstrategie fuer den Zeitraum zwischen erfolgreicher Maschinenbestands-Revalidierung und erster schreibender Oxaion-Materialbuchung festlegen; die aktuelle STAGING-Pruefung blockiert erkannte Aenderungen, ist aber noch keine atomare Reservierung
+- [ ] Concurrency-/Sperrstrategie fuer den Zeitraum zwischen erfolgreicher Maschinen-/Quellbestands-Revalidierung und erster schreibender Oxaion-Materialbuchung festlegen; die aktuelle STAGING-Pruefung blockiert erkannte Aenderungen, ist aber noch keine atomare Reservierung
 
 ## PWA, Offline und Synchronisation
 
