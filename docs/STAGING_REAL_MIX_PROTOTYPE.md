@@ -10,7 +10,8 @@ Dieser Stand bildet den bereits praktisch getesteten Oxaion-Vorgang als testbare
 4. zusaetzliche Pulver-/Liefercharge auf dieselbe neue Mix-Charge buchen;
 5. beide Quellen in einem Oxaion-Lagerbeleg dokumentieren;
 6. Personalnummer/Name in den vorhandenen Oxaion-Freitextfeldern dokumentieren;
-7. nach Abschluss die vier erwarteten LM/LN-Bewegungen erneut aus Oxaion lesen und verifizieren.
+7. nach Abschluss die erwarteten LM/LN-Bewegungen erneut aus Oxaion lesen und verifizieren;
+8. den fuer diese Abschlussverifikation erneut geoeffneten Oxaion-Beleg explizit wieder mit `LB20100J *END` schliessen, bevor `SUCCESS` gesetzt wird.
 
 Es handelt sich bewusst um einen **STAGING-Prototyp** fuer Firma `103` und Port `11118`.
 
@@ -64,7 +65,7 @@ Nur `UNIQUE` gibt den aktuellen Nachfuellablauf frei. Alte Mix-Charge und gesamt
 
 Unmittelbar vor dem Senden liest das Frontend den Bestand erneut. Das Backend fuehrt vor dem Start der schreibenden Materialbuchung nochmals eine eigene Bestandsabfrage durch und vergleicht Lagerort, Artikel, Charge und Menge mit dem Request. Bei einer Abweichung antwortet es mit `CONFLICT` / `MACHINE_STOCK_VALIDATION`; es wird kein Lagerbelegkopf angelegt und keine Materialbuchung gestartet.
 
-Noch live zu bestaetigen ist der serverseitige Einstieg in die Lesetransaktion: Der aufgezeichnete interaktive `US30600J`-Aufruf enthielt eine Elternbildschirm-`SSID`, waehrend das Backend bei diesem rein lesenden Start `SSID` leer sendet und eine neue `SSID` in der Antwort verlangt. Bis dieser Punkt in STAGING bestaetigt ist, ist die Programmlogik aus dem Datenstrom technisch nachgewiesen, der Backend-Start aber noch nicht produktiv freigegeben.
+Der serverseitige Einstieg in die Lesetransaktion mit leerer Eltern-`SSID` wurde inzwischen in STAGING live bestaetigt.
 
 ## Bestaetigte Oxaion-Sequenz fuer die Mix-Buchung
 
@@ -88,9 +89,9 @@ Noch live zu bestaetigen ist der serverseitige Einstieg in die Lesetransaktion: 
 
 Dabei sind die Zwischenmeldungen `BWK2601` und `KDI1901` Teil der reproduzierten JET-Validierungsfolge und werden nicht als finaler Buchungsfehler behandelt.
 
-### Position 2: neue Pulvercharge -> dieselbe neue Mix-Charge
+### Position 2 und weitere Nachfuellpositionen
 
-Nach Position 1 wird der persistierte LN-Zielsatz ueber `LB20110R *FIRSTLIST` neu gelesen und dessen `PSBGZT` als Fortsetzungszustand verwendet.
+Nach einer bestaetigten Position wird der persistierte LN-Zielsatz ueber `LB20110R *FIRSTLIST` neu gelesen und dessen `PSBGZT` als Fortsetzungszustand verwendet.
 
 - `LB20115J *NEW`
 - `LB20115J *PUTNEW` mit `LM`
@@ -98,18 +99,21 @@ Nach Position 1 wird der persistierte LN-Zielsatz ueber `LB20110R *FIRSTLIST` ne
 - wenn der erste `*PUTNEW` bereits den final validierten HTTP-Zustand liefert: **kein** zweites `*PUTNEW`
 - `LB20110R *UPD`
 
-Diese Unterscheidung verhindert `AKT1504: Datensatz bereits vorhanden`.
+Diese Unterscheidung verhindert `AKT1504: Datensatz bereits vorhanden`. Mehrere Nachfuellchargen und die dynamische Positions-/Recovery-Logik sind in `docs/MULTI_BATCH_REPLENISHMENT.md` beschrieben.
 
-### Abschluss
+### Abschluss und Sperrfreigabe
 
-- `LB20100J *END`
-- Beleg erneut oeffnen
+- `LB20100J *END` nach den schreibenden Positionen
+- Beleg fuer die Abschlussverifikation erneut mit `LB20100J *OPEN` oeffnen
 - `LB20110R *FIRSTLIST`
-- exakt vier erwartete Bewegungen pruefen:
-  - Pos. 1 `LM` alte Mix-Charge
-  - Pos. 1 `LN` neue Mix-Charge
-  - Pos. 2 `LM` neue Pulvercharge
-  - Pos. 2 `LN` neue Mix-Charge
+- alle fuer den Vorgang erwarteten LM/LN-Bewegungen exakt pruefen
+- **anschliessend den fuer die Verifikation erneut geoeffneten Beleg nochmals explizit mit `LB20100J *END` schliessen**
+- erst nach erfolgreichem zweiten `*END` Status `SUCCESS` setzen
+- danach wird die app-tunnel Session wie bisher mit `/disconnect` beendet
+
+Am 02.09.2026 wurde im STAGING beobachtet, dass eine erfolgreiche App-Buchung den Lagerbeleg nach der Abschlussverifikation gesperrt liess. Ursache im Backend war, dass der Beleg fuer die rein lesende Abschlussverifikation erneut geoeffnet, danach aber kein zweites `LB20100J *END` mehr gesendet wurde. Der allgemeine app-tunnel `/disconnect` wird deshalb nicht als Ersatz fuer das fachlich bestaetigte `*END` verwendet.
+
+Der zweite `*END` wird als notwendiger Cleanup nach bereits vollstaendig gebuchter und verifizierter Transaktion behandelt. Schlaegt dieser Close fehl, darf die App nicht `SUCCESS` melden; die Buchung ist dann zwar bereits verifiziert, der Sperrzustand muss aber manuell geprueft werden. Der Close wird nicht durch einen zwischenzeitlichen Browser-Abbruchtoken abgebrochen.
 
 `<STOP/>` innerhalb einer Tabellenantwort ist ein normaler Tabellenabschluss und kein Buchungsfehler, wenn die erwarteten Zeilen vorhanden sind.
 
@@ -131,8 +135,8 @@ Bei einem unklaren Transportfehler Backend -> Oxaion:
 - kein automatischer Blind-Retry;
 - `POST /api/mix/{clientOperationId}/reconcile` oeffnet den bekannten Lagerbeleg erneut;
 - kein Bestand gebucht -> Position 1 kontrolliert neu aufbauen;
-- nur Position 1 vorhanden -> nur Position 2 fortsetzen;
-- alle vier Bewegungen vorhanden -> nichts erneut buchen, nur Abschluss/Verifikation;
+- nur ein vollstaendiger Positions-Prefix vorhanden -> ab der ersten fehlenden Position fortsetzen;
+- alle erwarteten Bewegungen vorhanden -> nichts erneut buchen, nur Abschluss/Verifikation und explizites Schliessen;
 - anderer Zustand -> `MANUAL_REVIEW_REQUIRED`.
 
 Beim blossen Oeffnen oder Neuladen der PWA wird kein schreibendes Reconcile automatisch ausgeloest. Bei einem vorhandenen lokalen Vorgang wird nur der gespeicherte Backend-Status gelesen. Ein Oxaion-Reconcile erfolgt erst nach bewusster Bedieneraktion und nur, wenn eine bestaetigte Oxaion-Belegnummer vorhanden ist.
@@ -200,7 +204,6 @@ http://<IP-DES-WEBSERVERS>:5080
 
 ## Noch nicht Teil dieses Prototyps
 
-- live bestaetigter Backend-Start der `US30600J`-Lesetransaktion mit leerer Eltern-`SSID`;
 - atomare Reservierung/Sperrung zwischen Bestands-Revalidierung und erster Materialbuchung;
 - FA-QR-Scan und FA-Materialrueckmeldung;
 - finale Authentifizierung der WebApp-Benutzer;
