@@ -361,8 +361,29 @@ public sealed class MixBookingService
         tx.LastMovements = analysis.Rows.ToList();
         if (analysis.Status != "COMPLETE") throw new InvalidOperationException("Final verification failed: " + analysis.Message);
 
+        // OPEN for the read-only final verification can hold the Oxaion material document lock.
+        // The app-tunnel disconnect is not used as a substitute for the proven LB20100J *END.
+        // Cleanup must not be cancelled just because the browser request was aborted after the
+        // booking was already fully persisted and verified.
+        try
+        {
+            var verificationEnd = await session.CallAsync(
+                "LB20100J",
+                "*END",
+                Dict(("KOBGNR", tx.DocumentNo!), ("KEYTYPE", "LKOPF")),
+                CancellationToken.None);
+            OxaionSession.AssertNoFcod(verificationEnd);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new InvalidOperationException(
+                $"Oxaion document {tx.DocumentNo} was fully booked and verified, but the final verification view could not be closed safely. Do not rebook; check the Oxaion lock manually.",
+                ex);
+        }
+
+        await SaveEventAsync(tx, "VERIFICATION_CLOSED", $"Oxaion document {tx.DocumentNo} explicitly closed after final verification.", CancellationToken.None);
         tx.Status = TransactionStatuses.Success;
-        await SaveEventAsync(tx, "SUCCESS", $"Oxaion document {tx.DocumentNo} verified with exactly {expectedMovements} expected LM/LN movements across {TotalPositions(tx.Request)} positions.", ct);
+        await SaveEventAsync(tx, "SUCCESS", $"Oxaion document {tx.DocumentNo} verified with exactly {expectedMovements} expected LM/LN movements across {TotalPositions(tx.Request)} positions and explicitly closed.", CancellationToken.None);
     }
 
     private Dictionary<string, string> ApplyPosition(
