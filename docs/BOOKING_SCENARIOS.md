@@ -5,12 +5,12 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 ## Szenario A: Pulver nachfuellen auf vorgesehener Maschine
 
 - **Trigger:** Bediener scannt den Fertigungsauftrags-QR-Code und bestaetigt die vorgeschlagene Maschine.
-- **Pruefungen:** QR-Struktur und Pflichtwerte validieren; Maschinenbestand eindeutig ermitteln; Pulverartikel und Mix-Charge auf Kompatibilitaet pruefen.
-- **Bedieneranzeige:** Fertigungsauftrag, Rohmaterial, vorgesehene und tatsaechliche Maschine sowie ermittelter Bestand; anschliessend Bestaetigung.
-- **Backend-Aktion:** Transaktions-ID erzeugen, Eingaben und Bestand protokollieren, Idempotenz sicherstellen und den freigegebenen Oxaion-Aufruf koordinieren.
-- **Oxaion-Aktion:** Maschinenbestand lesen und nach Bestaetigung ueber die noch zu identifizierende BDE-/PPS-Fachlogik buchen. `TODO`: konkreten Aufruf bestaetigen.
-- **Ergebnisstatus:** `SUCCESS` bei bestaetigter Buchung; sonst passender Fehlerstatus.
-- **Fehlerbehandlung:** Sperre, fachliche Ablehnung und unklarer Verbindungsabbruch werden getrennt behandelt; kein blinder Retry.
+- **Pruefungen:** QR-Struktur und Pflichtwerte validieren; Maschinenbestand eindeutig ermitteln; Pulverartikel und Mix-Charge auf Kompatibilitaet pruefen; jede Nachfuellquelle aus aktuellem positivem Oxaion-Bestand waehlen und Menge gegen verfuegbaren Bestand pruefen.
+- **Bedieneranzeige:** Fertigungsauftrag, Rohmaterial, vorgesehene und tatsaechliche Maschine sowie ermittelter Bestand; fuer jede Nachfuellcharge Oxaion-Lagerort, interner Lagerplatzschluessel soweit vorhanden, Charge, verfuegbarer Bestand und Einfuellmenge; anschliessend Bestaetigung.
+- **Backend-Aktion:** Transaktions-ID erzeugen, Eingaben und Bestand protokollieren, Idempotenz sicherstellen; unmittelbar vor dem ersten schreibenden Oxaion-Aufruf Maschinenbestand und alle Nachfuellquellen erneut validieren.
+- **Oxaion-Aktion:** Maschinenbestand lesen; Nachfuellquellen ueber die bestaetigten Auskuenfte `LB30340R`/`LB30430R` beziehungsweise bei `LAG1626` den bestaetigten `LB30230R`-Lagerortbestand lesen; danach den bestaetigten Mix-/Chargenumbuchungsablauf ausfuehren.
+- **Ergebnisstatus:** `SUCCESS` bei bestaetigter und vollstaendig verifizierter Buchung; sonst passender Fehlerstatus.
+- **Fehlerbehandlung:** Sperre, fachliche Ablehnung, Quellenbestandskonflikt und unklarer Verbindungsabbruch werden getrennt behandelt; kein blinder Retry.
 
 ## Szenario B: Pulver nachfuellen auf kurzfristig geaenderter Maschine
 
@@ -18,7 +18,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Pruefungen:** Alle Pruefungen aus Szenario A; zusaetzlich abweichende Maschine eindeutig erfassen und deren Bestand pruefen.
 - **Bedieneranzeige:** Planmaschine und tatsaechlich verwendete Maschine klar getrennt; Hinweis auf die Abweichung und Bestaetigung.
 - **Backend-Aktion:** Plan- und Ist-Maschine unveraenderbar dem Vorgang zuordnen; keine organisatorische Freigabeentscheidung simulieren.
-- **Oxaion-Aktion:** Bestand und Buchung beziehen sich auf die tatsaechlich verwendete Maschine. `TODO`: konkrete Schnittstellen und Parameter bestaetigen.
+- **Oxaion-Aktion:** Bestand und Buchung beziehen sich auf die tatsaechlich verwendete Maschine. `TODO`: Schnittstelle fuer die spaetere FA-Materialrueckmeldung bestaetigen.
 - **Ergebnisstatus:** `SUCCESS` bei bestaetigter Buchung auf die Ist-Maschine.
 - **Fehlerbehandlung:** Ohne erfolgreichen Maschinenscan stoppen; inkompatibler Bestand fuehrt in Szenario E.
 
@@ -28,19 +28,19 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Pruefungen:** Sicherstellen, dass das Ergebnis eindeutig ist und kein Abfragefehler als Leerbestand interpretiert wird.
 - **Bedieneranzeige:** `Maschine leer - Nachfuellen zulaessig` und die Daten der geplanten Befuellung.
 - **Backend-Aktion:** Ergebnis protokollieren und nach Bedienerbestaetigung den Nachfuellvorgang starten.
-- **Oxaion-Aktion:** Bestaetigten Bestand liefern und anschliessend die freigegebene Befuellungsbuchung ausfuehren. `TODO`: konkrete Logik klaeren.
+- **Oxaion-Aktion:** Bestaetigten Bestand liefern und anschliessend die freigegebene Befuellungsbuchung ausfuehren. `TODO`: konkreten Leer-Maschinen-Ablauf fuer alle Faelle klaeren.
 - **Ergebnisstatus:** Nach Bestandspruefung weiter in `VALIDATING`; abschliessend `SUCCESS` oder spezifischer Fehlerstatus.
 - **Fehlerbehandlung:** Nicht eindeutige oder widerspruechliche Antwort wird als Szenario K behandelt.
 
 ## Szenario D: Gewaehlte Maschine enthaelt bereits passendes Pulver
 
 - **Trigger:** Bestandsabfrage liefert einen eindeutigen Pulverartikel mit kompatibler Mix-Charge.
-- **Pruefungen:** Artikel, Charge, Mix-Charge und zulaessige Kompatibilitaet anhand noch festzulegender fachlicher Regeln pruefen.
-- **Bedieneranzeige:** Vorhandenes Pulver und Systemmenge sowie `Passendes Pulver - Nachfuellen zulaessig`.
-- **Backend-Aktion:** Pruefergebnis und Quelldaten protokollieren; erst nach Bestaetigung buchen.
-- **Oxaion-Aktion:** Bestand lesen und die freigegebene Nachfuellbuchung ausfuehren. `TODO`: Kompatibilitaetsregeln und Aufruf bestaetigen.
-- **Ergebnisstatus:** `SUCCESS` bei bestaetigter Buchung.
-- **Fehlerbehandlung:** Nicht bestaetigte Kompatibilitaet gilt nicht als passend; der Vorgang wird gestoppt oder in Szenario E uebergeben.
+- **Pruefungen:** Artikel, Charge, Mix-Charge und zulaessige Kompatibilitaet pruefen; Nachfuellquellen muessen als aktuelle Oxaion-Bestandspositionen gewaehlt sein. Lagerort/Lagerplatz/Charge duerfen nicht als frei nachgebildete Buchungsschluessel verwendet werden.
+- **Bedieneranzeige:** Vorhandenes Pulver und Systemmenge sowie `Passendes Pulver - Nachfuellen zulaessig`; fuer jede neue Quelle nur die von Oxaion gelieferten Auswahlwerte und die editierbare Einfuellmenge.
+- **Backend-Aktion:** Pruefergebnis und Quelldaten protokollieren; direkt vor der Buchung aktuellen Tankbestand und jede ausgewaehlte Quellenposition erneut lesen.
+- **Oxaion-Aktion:** Bestand lesen und die bestaetigte Nachfuell-/Mixbuchung ausfuehren.
+- **Ergebnisstatus:** `SUCCESS` bei vollstaendig bestaetigter LM/LN-Verifikation.
+- **Fehlerbehandlung:** Nicht bestaetigte Kompatibilitaet gilt nicht als passend; geaenderte oder unzureichende Nachfuellquelle fuehrt ohne Materialbuchung in Szenario O.
 
 ## Szenario E: Gewaehlte Maschine enthaelt falsches Pulver
 
@@ -78,7 +78,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Pruefungen:** Antwort sicher der Transaktions-ID zuordnen und technische Fehler von fachlicher Ablehnung trennen.
 - **Bedieneranzeige:** Verstaendliche, moeglichst konkrete Ablehnungsursache und erforderliche Massnahme; keine Zugangsdaten oder internen Secrets anzeigen.
 - **Backend-Aktion:** Request-Referenz, bereinigte Antwort und fachlichen Fehler protokollieren.
-- **Oxaion-Aktion:** Keine erfolgreiche Buchung; liefert fachlichen Fehlercode beziehungsweise Meldung gemaess der noch zu untersuchenden Schnittstelle.
+- **Oxaion-Aktion:** Keine erfolgreiche Buchung; liefert fachlichen Fehlercode beziehungsweise Meldung.
 - **Ergebnisstatus:** `REJECTED`.
 - **Fehlerbehandlung:** Kein automatischer Retry ohne fachliche Korrektur; nach Korrektur bewusster neuer Versuch mit nachvollziehbarer Zuordnung.
 
@@ -98,7 +98,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Pruefungen:** Transaktions-ID, Versandzeitpunkt und vorhandene Oxaion-Referenzen auswerten; Ergebnis nach Moeglichkeit ueber eine bestaetigte Statusabfrage klaeren.
 - **Bedieneranzeige:** `Buchungsergebnis unklar - nicht erneut buchen` mit Transaktions-ID und Eskalationsmassnahme.
 - **Backend-Aktion:** Status `UNCERTAIN` setzen, weitere automatische Buchungsversuche blockieren und manuelle Pruefung vorbereiten.
-- **Oxaion-Aktion:** Moeglicherweise erfolgt; `TODO`: belastbare Ergebnis-/Statusabfrage identifizieren.
+- **Oxaion-Aktion:** Moeglicherweise erfolgt; fuer den getesteten Mix-Beleg existiert eine lesende Ergebnispruefung, fuer andere Buchungsarten weiterhin `TODO`.
 - **Ergebnisstatus:** `UNCERTAIN`, spaeter gegebenenfalls `SUCCESS`, `REJECTED` oder `MANUAL_REVIEW_REQUIRED` nach Klaerung.
 - **Fehlerbehandlung:** Kein automatischer Retry; Abgleich mit Oxaion und dokumentierte manuelle Entscheidung.
 
@@ -109,7 +109,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Bedieneranzeige:** `Maschinenbestand nicht eindeutig. Vorgang wurde gestoppt.` Dazu gefundene, unkritische Kontextdaten und konkrete Massnahme zur Klaerung.
 - **Backend-Aktion:** Vorgang ohne Buchung stoppen, Rohantwort datenschutzgerecht protokollieren und manuelle Pruefung markieren.
 - **Oxaion-Aktion:** Nur Bestandsabfrage; keine Entnahme-, Ruecklagerungs- oder Befuellungsbuchung.
-- **Ergebnisstatus:** `MANUAL_REVIEW_REQUIRED` oder ein bei Implementierung festgelegter eindeutiger Validierungsstatus.
+- **Ergebnisstatus:** `MANUAL_REVIEW_REQUIRED` oder ein eindeutiger Validierungsstatus.
 - **Fehlerbehandlung:** Bestand in Oxaion und physische Situation klaeren; danach bewussten neuen Vorgang starten oder den bestehenden nach definierter Regel fortsetzen.
 
 ## Szenario L: Smartphone verliert Verbindung zum Backend / Offline-Erfassung
@@ -121,13 +121,13 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Backend-Aktion:** Keine, solange das Backend nicht erreichbar ist.
 - **Oxaion-Aktion:** Keine produktive Buchung durch die PWA im Offline-Zustand.
 - **Ergebnisstatus:** Lokaler Sync-Status `LOCAL_DRAFT` oder `PENDING_SYNC`; kein serverseitiges `SUCCESS`.
-- **Fehlerbehandlung:** Ist der lokale Maschinenzustand nicht eindeutig oder aelter als die noch festzulegende maximale Gueligkeitsdauer, keine sichere Freigabe vortaeuschen. Meldung: `Der aktuelle Maschinenzustand kann offline nicht sicher geprueft werden. Vorgang derzeit nicht freigegeben.`
+- **Fehlerbehandlung:** Ist der lokale Maschinenzustand nicht eindeutig oder aelter als die noch festzulegende maximale Gueligkeitsdauer, keine sichere Freigabe vortaeuschen. Die Auswahl produktiver Nachfuellquellen wird vor dem Buchen online erneut aus Oxaion validiert.
 - **Offen:** Welche konkreten Schritte je Prozess offline bis `PENDING_SYNC` vorbereitet werden duerfen und wie lange ein Maschinenzustand als gueltig gilt, steht in `docs/OPEN_POINTS.md`.
 
 ## Szenario M: Verbindung wiederhergestellt / Outbox-Synchronisation
 
 - **Trigger:** Das Backend ist nach einer Offline-Phase wieder erreichbar oder die App wird mit offenen `PENDING_SYNC`-Vorgaengen gestartet.
-- **Pruefungen:** Jeden Outbox-Eintrag mit unveraenderter `clientOperationId` uebertragen; serverseitig Idempotenz pruefen; aktuellen Maschinen- und sonstigen fachlichen Zustand erneut aus der fuehrenden Quelle validieren.
+- **Pruefungen:** Jeden Outbox-Eintrag mit unveraenderter `clientOperationId` uebertragen; serverseitig Idempotenz pruefen; aktuellen Maschinenzustand und alle Nachfuellquellen erneut aus der fuehrenden Quelle validieren.
 - **Bedieneranzeige:** `Synchronisation laeuft` und anschliessend getrennte Anzeige von lokalem Sync-Status und serverseitigem Buchungsstatus.
 - **Backend-Aktion:** Eine bereits bekannte `clientOperationId` dem bestehenden Vorgang zuordnen und keine zweite wirksame Buchung erzeugen. Unbekannte ID genau einmal als neuen serverseitigen Vorgang anlegen. Vor produktiver Oxaion-Buchung aktuelle fachliche Daten erneut pruefen.
 - **Oxaion-Aktion:** Nur nach erfolgreicher serverseitiger Revalidierung und nach den normalen Buchungsregeln.
@@ -144,3 +144,13 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Oxaion-Aktion:** Keine.
 - **Ergebnisstatus:** Aktueller Vorgang behaelt seinen Zustand; Update wird erst in einem sicheren Zustand aktiviert.
 - **Fehlerbehandlung:** IndexedDB-Schemamigrationen muessen `PENDING_SYNC`-Daten erhalten. Kann Kompatibilitaet nicht garantiert werden, Update nicht mitten im Vorgang erzwingen und klare administrative Meldung ausgeben.
+
+## Szenario O: Nachfuellquelle geaendert oder nicht mehr gueltig
+
+- **Trigger:** Eine zuvor ausgewaehlte Oxaion-Bestandsposition ist vor der Buchung nicht mehr vorhanden, nicht mehr eindeutig, hat weniger Bestand als angefordert oder stimmt bei Lagerort/Lagerplatz/Charge nicht mehr mit dem vorbereiteten Vorgang ueberein.
+- **Pruefungen:** Exakte Kombination aus Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge erneut lesen. Dieselbe exakte Quellenposition darf in einem Vorgang nicht doppelt vorkommen.
+- **Bedieneranzeige:** `Nachfuellbestand geaendert - nichts gebucht` mit aktueller unkritischer Bestandsinformation und Aufforderung, die Quelle neu aus Oxaion auszuwaehlen.
+- **Backend-Aktion:** Status/Antwort `CONFLICT` in Stage `SOURCE_STOCK_VALIDATION`; keine `LB20100J`-/`LB20115J`-Buchungsfolge starten.
+- **Oxaion-Aktion:** Ausschliesslich lesende Bestandsabfragen `LB30340R`, `LB30430R` beziehungsweise bei bestaetigtem `LAG1626` `LB30230R`; keine Materialbuchung.
+- **Ergebnisstatus:** Sicherer Vor-Buchungs-Konflikt, kein unklarer ERP-Ausgang.
+- **Fehlerbehandlung:** Aktuelle Quelle erneut aus Oxaion auswaehlen und danach einen normalen Buchungsversuch mit den aktualisierten Daten starten. Kein blindes Weitersenden der alten Lagerplatzdarstellung.
