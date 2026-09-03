@@ -54,26 +54,30 @@ async function readOneNfcTag(){
 async function startNfcPersonnelScan(){
   if(nfcScanning)return;
   if(typeof active!=='undefined'&&active){setNfcStatus('Während eines offenen Buchungsvorgangs kann der Mitarbeiter nicht gewechselt werden.','bad');return}
-  if(!window.isSecureContext){setNfcStatus('Web NFC benötigt HTTPS. Die PWA muss auf dem Smartphone über eine HTTPS-Adresse geöffnet werden.','bad');return}
-  if(!('NDEFReader' in window)){setNfcStatus('Web NFC wird von diesem Browser nicht unterstützt. Bitte Android mit einem Web-NFC-fähigen Browser verwenden.','bad');return}
+  if(!window.isSecureContext){setNfcStatus('NFC benötigt HTTPS. Bitte notfalls unten mit Personalnummer und Passwort anmelden.','bad');return}
+  if(!('NDEFReader' in window)){setNfcStatus('Dieser Browser unterstützt Web NFC nicht. Bitte unten mit Personalnummer und Passwort anmelden.','bad');return}
   await unlockNfcAudio();
   const button=document.getElementById('nfcScanBtn');nfcScanning=true;button.disabled=true;setNfcStatus('NFC wird gestartet …','neutral');
   try{
     const event=await readOneNfcTag(),serialNumber=String(event.serialNumber||'').trim();
     if(!serialNumber)throw new Error('Der NFC-Chip liefert keine Seriennummer/UID. Eine sichere RFID-Zuordnung ist nicht möglich.');
-    setNfcStatus(`Chip gelesen (${serialNumber}). Mitarbeiter wird über Syncos und oxaion geprüft …`,'neutral');
+    setNfcStatus('Chip erkannt. Mitarbeiter wird geprüft …','neutral');
     const response=await api('/api/personnel/nfc',{method:'POST',body:JSON.stringify({serialNumber})});
     if(!response.ok)throw new Error(response.body?.message||response.body?.detail||response.body?.error||'RFID-Zuordnung konnte nicht gelesen werden.');
     const person=response.body;if(!person?.personnelNo||!person?.fullName)throw new Error('Backend hat keine eindeutige Mitarbeiterzuordnung geliefert.');
-    choosePersonnel({personnelNo:person.personnelNo,fullName:person.fullName});
-    setNfcStatus(`✓ NFC/RFID ${person.rfid} → ${person.personnelNo} - ${person.fullName}`,'ok');
-  }catch(error){setNfcStatus('⛔ '+nfcErrorMessage(error),'bad')}finally{nfcScanning=false;button.disabled=Boolean(typeof active!=='undefined'&&active)}
+    if(typeof window.acceptAuthenticatedNfcPersonnel==='function')window.acceptAuthenticatedNfcPersonnel(person);
+    else choosePersonnel({personnelNo:person.personnelNo,fullName:person.fullName});
+    setNfcStatus(`✓ Angemeldet: ${person.personnelNo} - ${person.fullName}`,'ok');
+  }catch(error){setNfcStatus('⛔ '+nfcErrorMessage(error),'bad')}finally{
+    nfcScanning=false;button.disabled=Boolean(typeof active!=='undefined'&&active);
+    if(typeof window.refreshWorkerFlow==='function')window.refreshWorkerFlow();
+  }
 }
 function initNfcPersonnel(){
   const button=document.getElementById('nfcScanBtn');if(!button)return;
   button.addEventListener('click',()=>startNfcPersonnelScan().catch(error=>setNfcStatus('⛔ '+nfcErrorMessage(error),'bad')));
-  if(!window.isSecureContext)setNfcStatus('NFC-Test noch nicht möglich: Web NFC benötigt HTTPS. Manuelle Personalsuche bleibt verfügbar.','neutral');
-  else if(!('NDEFReader' in window))setNfcStatus('Dieser Browser bietet kein Web NFC. Manuelle Personalsuche bleibt verfügbar.','neutral');
-  else setNfcStatus('NFC bereit. Button drücken und anschließend Personalchip an das Smartphone halten.','neutral');
+  if(!window.isSecureContext)setNfcStatus('NFC benötigt HTTPS. Fallback: Personalnummer + Passwort.','neutral');
+  else if(!('NDEFReader' in window))setNfcStatus('Web NFC nicht verfügbar. Fallback: Personalnummer + Passwort.','neutral');
+  else setNfcStatus('NFC bereit. Chip zur Anmeldung lesen.','neutral');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initNfcPersonnel);else initNfcPersonnel();
