@@ -97,6 +97,7 @@ Fuer den aktuellen STAGING-Nachfuellprozess gilt verbindlich:
 - Artikelnummer und Artikelbezeichnung sind Systeminformationen und nicht editierbar.
 - Auf einem Maschinentank wird fuer diesen Prozess genau ein positiver Pulverbestand erwartet. Mehrere positive Bestandspositionen sind nicht eindeutig und sperren die Buchung.
 - Die aktuelle Mix-Charge und die komplette Tankmenge werden ebenfalls aus Oxaion uebernommen und nicht manuell eingegeben.
+- Nach der Artikelableitung werden die Sachmerkmale `EFA01` und `EFA02` als zweigeteiltes Farbfeld dargestellt, damit der Mitarbeiter die passende Charge physisch leichter erkennt. Diese Farben sind eine Suchhilfe und keine Buchungswahrheit.
 
 Bis der spaetere FA-/Leerbefuellungsablauf umgesetzt ist, kann ein komplett leerer Tank in diesem Nachfuellprozess keinen Artikel liefern und wird deshalb nicht automatisch freigegeben.
 
@@ -123,6 +124,7 @@ Verbindlich gilt:
 
 - Die Artikelnummer aus dem Chargen-QR muss dem aus dem Maschinentank abgeleiteten Artikel entsprechen.
 - Das Backend beziehungsweise die PWA nutzt die bestaetigte Oxaion-Auskunft `Chargen und Lagerorte pro Artikel`, um positive Quell-Lagerorte des Artikels zu bestimmen.
+- Sobald der Tankartikel bekannt ist, darf die PWA die bekannten positiven Lagerorte und gegebenenfalls Lagerplaetze mit passendem Pulver als reine Such-/Weghilfe anzeigen. Diese Anzeige ersetzt niemals den Scan der tatsaechlich entnommenen Charge.
 - Der aktuell gescannte Maschinentank darf nicht als Nachfuellquelle angeboten oder vom Backend akzeptiert werden.
 - Fuer die moeglichen Lagerorte werden die dort vorhandenen positiven Lagerplatz-/Chargenpositionen aus `Lagerplaetze pro Artikel und -ort` gelesen.
 - Es werden nur Positionen mit der exakt gescannten Charge beruecksichtigt.
@@ -132,29 +134,68 @@ Verbindlich gilt:
 - Der Referenzfall `H04HRL / RE1F3 / Charge 84671` bestaetigt, dass `RE1F3` der intern gueltige Buchungsschluessel ist.
 - Meldet Oxaion eindeutig `LAG1626` (`Lagerort hat keine Lagerplatzorganisation`), bleibt der Lagerplatz leer; die Charge und der Bestand werden ueber den bestaetigten Ablauf `Chargen pro Lagerort` ermittelt. Es wird kein Lagerplatz erfunden.
 - Die Einfuellmenge bleibt eine Bedienereingabe, darf jedoch den aktuell verfuegbaren Oxaion-Bestand der bestaetigten Bestandsposition nicht ueberschreiten.
+- Eine Einfuellmenge wird niemals vorbelegt. Der Mitarbeiter muss die tatsaechlich verwendete Menge bewusst eingeben.
+- Im gefuehrten Mitarbeiterablauf wird eine weitere Charge erst freigegeben, wenn die vorherige Charge inklusive Entnahmeort und Menge vollstaendig ist.
 - Mehrere Nachfuellchargen duerfen in einem Vorgang verwendet werden. Dieselbe exakte Oxaion-Bestandsposition darf innerhalb eines Vorgangs nicht doppelt ausgewaehlt werden.
 - Direkt vor der ersten schreibenden Oxaion-Materialbuchung validiert das Backend jede Nachfuellquelle erneut anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge. Bei Abweichung wird keine Materialbuchung gestartet.
 
-Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md` und `docs/QR_CODE_WORKFLOW.md`.
+Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`, `docs/QR_CODE_WORKFLOW.md` und `docs/WORKER_GUIDED_UI.md`.
 
-### Mitarbeiter
+### Mitarbeiter-Anmeldung
 
-Die Personalnummer ist die einzige manuelle Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
+Fuer eine produktive Materialbuchung muss der handelnde Mitarbeiter in einer serverseitigen Personal-Session angemeldet sein.
 
-Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt bei der manuellen Suche eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet.
+Verbindlicher aktueller Ablauf:
 
-Zusaetzlich ist die NFC-Personalidentifikation im aktuellen Android-STAGING-Test bestaetigt:
-
+- **NFC ist der bevorzugte Loginweg.**
 - Web NFC liest den vorhandenen Personalchip.
 - Reader-Trennzeichen wie `:`, `-` oder Leerzeichen werden aus der RFID-Darstellung entfernt.
 - `ITSUSER.RFID` in Syncos wird als alphanumerischer String behandelt; es findet keine Dezimal-, Hex- oder Byte-Reihenfolgen-Konvertierung statt.
 - Syncos `ObjectKey` liefert die zehnstellig mit fuehrenden Nullen gespeicherte Personalnummer.
 - Danach wird dieselbe Personalnummer ueber den bestaetigten exakten Oxaion-`IPENU`-Ablauf geprueft.
-- Erst nach erfolgreicher Syncos- und Oxaion-Pruefung wird der Mitarbeiter automatisch ausgewaehlt.
+- Erst nach erfolgreicher Syncos- und Oxaion-Pruefung setzt das Backend die Personal-Session.
 - Bei physischer NFC-Erkennung erzeugt die PWA unmittelbar einen kurzen Ton ueber die Browser-WebAudio-API. Dieser Ton bestaetigt nur die Chiperkennung, nicht bereits die erfolgreiche Personalzuordnung.
-- Die manuelle AJAX-Personalsuche bleibt als Fallback bestehen.
 
-Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit der Browserauswahl. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md` und `docs/NFC_PERSONNEL_LOOKUP.md`.
+Fallback ohne NFC:
+
+- Personalnummer ohne fuehrende Nullen eingeben.
+- Die AJAX-Suche behandelt die Eingabe als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`.
+- Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA`; `PESAKZ` und `PENLAE` werden nicht als Namensquelle verwendet.
+- Bediener waehlt den Mitarbeiter bewusst aus und gibt danach sein vorhandenes SYNCOS-Passwort ein.
+- Die Passwortpruefung erfolgt ausschliesslich serverseitig nach der dokumentierten, durch Testvektoren bestaetigten Legacy-Logik.
+- Bei erfolgreicher Passwortpruefung wird dieselbe Backend-Session gesetzt wie beim NFC-Login.
+
+Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die angemeldete Personalnummer zusaetzlich erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht `PEPENU` und `PEPENA` mit dem Buchungsvorgang. Die Session ersetzt diese fachliche Sicherheitspruefung nicht.
+
+Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md`, `docs/NFC_PERSONNEL_LOOKUP.md` und `docs/PERSONNEL_AUTHENTICATION.md`.
+
+### Mitarbeitergefuehrte Oberflaeche und Dev-Infos
+
+Die PWA hat eine gemeinsame Oberflaeche fuer Produktion und Entwicklung.
+
+Verbindlich:
+
+- `Dev-Infos` ist standardmaessig ausgeschaltet.
+- Im Mitarbeitermodus werden nur Informationen angezeigt, die fuer den sicheren aktuellen Ablauf erforderlich oder als Suchhilfe sinnvoll sind.
+- Der jeweils naechste Schritt wird deutlich hervorgehoben; noch nicht zulaessige Schritte werden optisch zurueckgenommen und ihre Aktionen deaktiviert.
+- Typische Hervorhebungen sind NFC-Anmeldung, Tankscan, ggf. Entnahmeort-Auswahl, Mengeneingabe und Buchungsbutton.
+- Backend-Health, Roh-JSON, interne Mix-Daten und Fehler-Simulationen sind Dev-Informationen.
+- Fachlich notwendige Recovery-/Fehlermassnahmen duerfen nicht als Dev-Info verborgen werden.
+- Der Schalter `Dev-Infos` veraendert ausschliesslich die Sichtbarkeit und niemals Authentifizierung, Backend-Pruefungen, Oxaion-Buchungen, Idempotenz oder Recovery-Regeln.
+
+Der verbindliche Mitarbeiterablauf ist:
+
+1. per NFC anmelden, notfalls Personalnummer + Passwort
+2. Maschinentank scannen
+3. Farbfeld und bekannte passende Lagerorte/Lagerplaetze als Suchhilfe verwenden
+4. Nachfuellcharge scannen
+5. ggf. tatsaechlichen Entnahmeort bestaetigen
+6. Menge bewusst eingeben
+7. bei Bedarf weitere Charge nach demselben Schema erfassen
+8. buchen
+9. eindeutige Erfolgs- oder Fehlermeldung mit konkreter Handlungsanweisung erhalten
+
+Details stehen in `docs/WORKER_GUIDED_UI.md`.
 
 ### Neue Mix-Charge und Buchungsdaten
 
@@ -176,6 +217,7 @@ Die Nummer wird automatisch aus dem abgeleiteten Artikel und dem aktuellen Erste
 - Das Buchungsdatum ist beim neuen Nachfuellvorgang immer das aktuelle Datum und wird nicht angezeigt beziehungsweise nicht manuell eingegeben.
 - Ziel der neuen Mix-Charge ist immer der gescannte Maschinentank; ein zweites Ziel-Lagerortfeld gibt es im Nachfuellprozess nicht.
 - Der Buchungstext ist nicht frei editierbar und lautet dynamisch `Pulver nachfuellen <Maschinen-Lagerort>`, zum Beispiel `Pulver nachfuellen EOS2`.
+- Im Mitarbeitermodus werden diese internen Systemdaten nicht unnoetig in den Vordergrund gestellt; ueber `Dev-Infos` bleiben sie fuer Entwicklung und Diagnose sichtbar.
 
 Weitere UI-Regeln stehen in `docs/REPLENISHMENT_INPUT_RULES.md`.
 
@@ -361,13 +403,19 @@ Die Oberflaeche soll fuer Produktionsmitarbeiter moeglichst einfach sein. Die be
 
 Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, NFC, Oxaion und dem vorhandenen Maschinentankbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind. Nicht editierbare Systeminformationen werden optisch klar von wichtigen Eingabefeldern getrennt.
 
+Der aktuelle Mitarbeitermodus ist schrittgefuehrt und blendet nicht benoetigte technische Informationen standardmaessig aus. `Dev-Infos` kann dieselben technischen Informationen fuer Entwicklung und Diagnose auf derselben Seite sichtbar machen, ohne die fachliche Logik zu veraendern.
+
 Fuer den aktuellen Nachfuellablauf bedeutet das insbesondere:
 
-- Mitarbeiter per NFC oder alternativ manueller Personalnummer identifizieren.
+- Mitarbeiter bevorzugt per NFC anmelden; ohne NFC Personalnummer und SYNCOS-Passwort verwenden.
 - Maschinentank physisch per QR scannen.
+- Artikel-Erkennungsfarben und bekannte passende Lagerorte/Lagerplaetze als Suchhilfe anzeigen.
 - Nachfuellcharge physisch per QR scannen.
 - Lagerort/Lagerplatz aus Oxaion automatisch ermitteln; nur bei Mehrdeutigkeit den tatsaechlichen Entnahmeort bestaetigen lassen.
-- Menge als notwendige Bedienereingabe erfassen.
+- Menge als leere, bewusst auszufuellende Bedienereingabe erfassen.
+- weitere Charge erst nach vollstaendiger vorheriger Charge erfassen.
+- Buchung starten.
+- Erfolg oder Fehler gross und eindeutig mit konkreter Massnahme anzeigen.
 
 Offline-, Sync- und Buchungsstatus muessen fuer den Bediener klar und eindeutig sichtbar sein. `Lokal gespeichert` darf niemals wie `erfolgreich gebucht` aussehen.
 
@@ -380,7 +428,7 @@ Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Ins
 - genaue Oxaion-Abfrage der Stammdatensperre und technische Ermittlung des sperrenden Benutzers
 - verbindliche Zuordnung der Produktionsmaschinen-ID aus dem Fertigungsauftrag, z. B. `EP-M650-1`, zum tatsaechlichen Maschinentank/Oxaion-Lagerort und Verhalten bei kurzfristiger Maschinenumplanung
 - digitaler Online-Beauftragungsprozess fuer Tanknachfuellung und Tankwechsel; bis zur Entscheidung gilt der bestehende organisatorische Uebergangsprozess
-- genaue Benutzer-Authentifizierung der WebApp
-- endgueltiger produktiver Server
+- endgueltiger produktiver Server und sichere produktive Bereitstellung von Laufzeit-Secrets
+- produktive HTTPS-/Rolloutdetails der Mitarbeiter-Session
 - maximale Offline-Gueligkeitsdauer und konkrete offline zulaessige Prozessschritte
 - IndexedDB-Schema, Migrationsstrategie und Frontend-/API-Kompatibilitaet bei PWA-Updates
