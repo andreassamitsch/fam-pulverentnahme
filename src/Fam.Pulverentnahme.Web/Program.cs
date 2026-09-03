@@ -15,13 +15,18 @@ builder.Services.AddSingleton<MachineTankService>();
 builder.Services.AddSingleton<SourceStockService>();
 builder.Services.AddSingleton<PersonnelService>();
 builder.Services.AddSingleton<RfidPersonnelService>();
+builder.Services.AddPersonnelAuthentication(builder.Configuration);
 builder.Services.AddSingleton<MixBookingService>();
 
 var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UsePersonnelAuthentication();
 
-app.MapGet("/api/health", (IOptions<OxaionOptions> options, IOptions<SyncosOptions> syncos) => Results.Ok(new
+app.MapGet("/api/health", (
+    IOptions<OxaionOptions> options,
+    IOptions<SyncosOptions> syncos,
+    PersonnelAuthenticationService auth) => Results.Ok(new
 {
     ok = true,
     environment = options.Value.StagingOnly ? "STAGING" : "UNRESTRICTED",
@@ -29,7 +34,8 @@ app.MapGet("/api/health", (IOptions<OxaionOptions> options, IOptions<SyncosOptio
     firm = options.Value.Firm,
     user = options.Value.User,
     passwordConfigured = !string.IsNullOrWhiteSpace(options.Value.Password),
-    syncosConfigured = !string.IsNullOrWhiteSpace(syncos.Value.ConnectionString)
+    syncosConfigured = !string.IsNullOrWhiteSpace(syncos.Value.ConnectionString),
+    personnelAuthenticationConfigured = auth.IsConfigured
 }));
 
 app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
@@ -45,9 +51,16 @@ app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken c
             ["KOBGNR"] = "",
             ["KEYTYPE"] = "C_LKOPF"
         }, ct);
-        var input = new Dictionary<string, string>(load.Dta, StringComparer.Ordinal) { ["KEYTYPE"] = "C_LKOPF" };
+        var input = new Dictionary<string, string>(load.Dta, StringComparer.Ordinal)
+        {
+            ["KEYTYPE"] = "C_LKOPF"
+        };
         await session.CallAsync("LB20100J", "*NEW", input, ct);
-        return Results.Ok(new { ok = true, message = "Oxaion connect + LB20100J smoke test successful. No booking persisted." });
+        return Results.Ok(new
+        {
+            ok = true,
+            message = "Oxaion connect + LB20100J smoke test successful. No booking persisted."
+        });
     }
     catch (Exception ex)
     {
@@ -64,7 +77,10 @@ app.MapGet("/api/machines", async (MachineTankService service, CancellationToken
     }
 });
 
-app.MapGet("/api/machines/{warehouse}/stock", async (string warehouse, MachineTankService service, CancellationToken ct) =>
+app.MapGet("/api/machines/{warehouse}/stock", async (
+    string warehouse,
+    MachineTankService service,
+    CancellationToken ct) =>
 {
     try { return Results.Ok(await service.ReadStockAsync(warehouse, ct)); }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
@@ -74,8 +90,7 @@ app.MapGet("/api/machines/{warehouse}/stock", async (string warehouse, MachineTa
     }
 });
 
-// Kept for diagnostics/backward compatibility. The current replenishment UI uses /api/machines/{warehouse}/stock
-// so the article comes from the selected machine instead of a browser input.
+// Diagnostics/backward compatibility. The worker flow uses /api/machines/{warehouse}/stock.
 app.MapGet("/api/machine-stock", async (
     string warehouse,
     string article,
@@ -99,7 +114,16 @@ app.MapGet("/api/personnel/search", async (string q, PersonnelService service, C
     }
 });
 
-app.MapPost("/api/personnel/nfc", async (NfcPersonnelRequest request, RfidPersonnelService service, CancellationToken ct) =>
+app.MapPersonnelAuthentication();
+
+// Preferred worker login: the RFID assignment is read from Syncos and the resulting personnel
+// identity is revalidated exactly in Oxaion. Only after both checks succeed is the same backend
+// personnel session set that is used by the password fallback.
+app.MapPost("/api/personnel/nfc", async (
+    NfcPersonnelRequest request,
+    RfidPersonnelService service,
+    HttpContext http,
+    CancellationToken ct) =>
 {
     try
     {
@@ -112,6 +136,9 @@ app.MapPost("/api/personnel/nfc", async (NfcPersonnelRequest request, RfidPerson
                 message = "Der gelesene NFC-Chip ist in Syncos keiner aktiven sichtbaren Person zugeordnet."
             }, statusCode: StatusCodes.Status404NotFound);
         }
+
+        http.Session.SetString(PersonnelAuthenticationSession.PersonnelNo, result.PersonnelNo);
+        http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, result.FullName);
         return Results.Ok(result);
     }
     catch (ArgumentException ex)
@@ -139,7 +166,11 @@ app.MapGet("/api/source-stock/warehouses", async (
     {
         var rows = await service.ReadWarehousesAsync(article, ct);
         if (!string.IsNullOrWhiteSpace(excludeWarehouse))
-            rows = rows.Where(x => !string.Equals(x.Warehouse, excludeWarehouse.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = rows.Where(x => !string.Equals(
+                    x.Warehouse,
+                    excludeWarehouse.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
         return Results.Ok(rows);
     }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
@@ -167,7 +198,7 @@ app.MapPost("/api/mix", async (
 {
     try
     {
-        // Idempotency has priority over all fresh lookups.
+        // Idempotency has priority inside an authenticated request.
         var existing = await service.GetAsync(request.ClientOperationId, ct);
         if (existing is not null) return TransactionResult(existing);
 
@@ -178,10 +209,15 @@ app.MapPost("/api/mix", async (
                 return Results.BadRequest(new { error = "A retry must use a new clientOperationId." });
 
             var rejected = await service.GetAsync(request.RetryOfClientOperationId!, ct);
-            if (rejected is null) return Results.BadRequest(new { error = "The referenced rejected operation was not found." });
-            if (!IsConfirmedRejected(rejected)) return Results.BadRequest(new { error = "Only a confirmed REJECTED operation may be retried as a new operation." });
+            if (rejected is null)
+                return Results.BadRequest(new { error = "The referenced rejected operation was not found." });
+            if (!IsConfirmedRejected(rejected))
+                return Results.BadRequest(new { error = "Only a confirmed REJECTED operation may be retried as a new operation." });
             if (!MixRequestLogic.SameBookingData(rejected.Request, request))
-                return Results.BadRequest(new { error = "A retry of a rejected operation must use the same booking data, including all replenishment batches. Start a normal new operation if booking data must change." });
+                return Results.BadRequest(new
+                {
+                    error = "A retry of a rejected operation must use the same booking data, including all replenishment batches. Start a normal new operation if booking data must change."
+                });
         }
         else
         {
@@ -195,7 +231,10 @@ app.MapPost("/api/mix", async (
             if (!string.Equals(request.BookingText, ReplenishmentRules.BookingText(request.OldMixWarehouse), StringComparison.Ordinal))
                 return Results.BadRequest(new { error = "Buchungstext stimmt nicht mit der ausgewählten Maschine überein." });
             if (!ReplenishmentRules.IsValidGeneratedMixBatch(request.Article, request.TargetBatch, request.ProductionDate))
-                return Results.BadRequest(new { error = "Neue Mix-Charge entspricht nicht dem festgelegten Schema Artikel-ohne-Punkt + MIX_ + yyyyMMdd_HHmmss." });
+                return Results.BadRequest(new
+                {
+                    error = "Neue Mix-Charge entspricht nicht dem festgelegten Schema Artikel-ohne-Punkt + MIX_ + yyyyMMdd_HHmmss."
+                });
         }
 
         if (!machineTanks.IsAllowed(request.OldMixWarehouse))
@@ -205,7 +244,7 @@ app.MapPost("/api/mix", async (
         if (MixRequestLogic.Sources(request).Any(s => ReplenishmentRules.IsMachineSource(request, s)))
             return Results.BadRequest(new { error = "Der Maschinen-Tanklagerort darf nicht als Nachfüllquelle verwendet werden." });
 
-        // Personnel is Oxaion master data, not free text. Re-read it before any write-capable call.
+        // Personnel remains Oxaion master data. Re-read immediately before write-capable calls.
         PersonnelOption? employee;
         try { employee = await personnel.ReadExactAsync(request.PersonnelNo, ct); }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -218,6 +257,7 @@ app.MapPost("/api/mix", async (
                 technicalMessage = ex.Message
             }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
+
         if (employee is null || !string.Equals(employee.FullName, request.PersonnelName, StringComparison.Ordinal))
         {
             return Results.Json(new
@@ -228,7 +268,7 @@ app.MapPost("/api/mix", async (
             }, statusCode: StatusCodes.Status409Conflict);
         }
 
-        // Safety gate 1: derive/re-read article, batch and full tank quantity from the selected machine.
+        // Safety gate 1: current tank stock.
         MachineStockResult stock;
         try { stock = await machineTanks.ReadStockAsync(request.OldMixWarehouse, ct); }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -243,7 +283,15 @@ app.MapPost("/api/mix", async (
         }
 
         if (stock.Status != MachineStockStatuses.Unique || stock.Rows.Count != 1)
-            return Results.Json(new { status = "CONFLICT", stage = "MACHINE_STOCK_VALIDATION", message = stock.Message + " Es wurde keine Materialbuchung gestartet.", machineStock = stock }, statusCode: StatusCodes.Status409Conflict);
+        {
+            return Results.Json(new
+            {
+                status = "CONFLICT",
+                stage = "MACHINE_STOCK_VALIDATION",
+                message = stock.Message + " Es wurde keine Materialbuchung gestartet.",
+                machineStock = stock
+            }, statusCode: StatusCodes.Status409Conflict);
+        }
 
         var current = stock.Rows[0];
         if (!StockMatchesRequest(current, request))
@@ -256,12 +304,25 @@ app.MapPost("/api/mix", async (
                 machineStock = stock
             }, statusCode: StatusCodes.Status409Conflict);
         }
-        if (!string.IsNullOrWhiteSpace(current.ArticleText) && !string.Equals(current.ArticleText, request.ArticleText, StringComparison.Ordinal))
-            return Results.BadRequest(new { error = "Artikelbezeichnung stimmt nicht mit dem aus oxaion gelesenen Maschinenbestand überein." });
 
-        // Safety gate 2: exact replenishment positions and available quantities.
+        if (!string.IsNullOrWhiteSpace(current.ArticleText) &&
+            !string.Equals(current.ArticleText, request.ArticleText, StringComparison.Ordinal))
+        {
+            return Results.BadRequest(new
+            {
+                error = "Artikelbezeichnung stimmt nicht mit dem aus oxaion gelesenen Maschinenbestand überein."
+            });
+        }
+
+        // Safety gate 2: exact source positions and available quantities.
         SourceStockValidationResult sourceValidation;
-        try { sourceValidation = await sourceStock.ValidateSourcesAsync(request.Article, MixRequestLogic.Sources(request), ct); }
+        try
+        {
+            sourceValidation = await sourceStock.ValidateSourcesAsync(
+                request.Article,
+                MixRequestLogic.Sources(request),
+                ct);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Results.Json(new
@@ -272,16 +333,31 @@ app.MapPost("/api/mix", async (
                 technicalMessage = ex.Message
             }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
+
         if (!sourceValidation.IsValid)
-            return Results.Json(new { status = "CONFLICT", stage = "SOURCE_STOCK_VALIDATION", message = sourceValidation.Message + " Es wurde keine Materialbuchung gestartet.", sourceStock = sourceValidation.CurrentPositions }, statusCode: StatusCodes.Status409Conflict);
+        {
+            return Results.Json(new
+            {
+                status = "CONFLICT",
+                stage = "SOURCE_STOCK_VALIDATION",
+                message = sourceValidation.Message + " Es wurde keine Materialbuchung gestartet.",
+                sourceStock = sourceValidation.CurrentPositions
+            }, statusCode: StatusCodes.Status409Conflict);
+        }
 
         var tx = await service.ExecuteAsync(request, ct);
         return TransactionResult(tx);
     }
-    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
-});
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+}).AddEndpointFilter<PersonnelBookingAuthorizationFilter>();
 
-app.MapGet("/api/mix/{clientOperationId}", async (string clientOperationId, MixBookingService service, CancellationToken ct) =>
+app.MapGet("/api/mix/{clientOperationId}", async (
+    string clientOperationId,
+    MixBookingService service,
+    CancellationToken ct) =>
 {
     var tx = await service.GetAsync(clientOperationId, ct);
     if (tx is null) return Results.NotFound();
@@ -289,7 +365,10 @@ app.MapGet("/api/mix/{clientOperationId}", async (string clientOperationId, MixB
     return Results.Ok(tx.ToResponse());
 });
 
-app.MapPost("/api/mix/{clientOperationId}/reconcile", async (string clientOperationId, MixBookingService service, CancellationToken ct) =>
+app.MapPost("/api/mix/{clientOperationId}/reconcile", async (
+    string clientOperationId,
+    MixBookingService service,
+    CancellationToken ct) =>
 {
     var existing = await service.GetAsync(clientOperationId, ct);
     if (existing is null) return Results.NotFound();
@@ -309,14 +388,18 @@ app.MapPost("/api/mix/{clientOperationId}/reconcile", async (string clientOperat
             _ => Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status409Conflict)
         };
     }
-    catch (KeyNotFoundException) { return Results.NotFound(); }
+    catch (KeyNotFoundException)
+    {
+        return Results.NotFound();
+    }
 });
 
 static IResult TransactionResult(MixTransaction tx) => tx.Status switch
 {
     TransactionStatuses.Success => Results.Ok(tx.ToResponse()),
     TransactionStatuses.Rejected => Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status422UnprocessableEntity),
-    TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired => Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status409Conflict),
+    TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired =>
+        Results.Json(tx.ToResponse(), statusCode: StatusCodes.Status409Conflict),
     _ => Results.Accepted($"/api/mix/{tx.ClientOperationId}", tx.ToResponse())
 };
 
