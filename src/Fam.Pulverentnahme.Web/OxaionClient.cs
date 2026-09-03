@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Extensions.Options;
 
@@ -44,16 +45,24 @@ public sealed class OxaionClient
         var url = $"{_options.ServerUrl.TrimEnd('/')}/app-tunnel/connect?{BuildQuery(query)}";
 
         string raw;
+        int statusCode;
+        string? contentType;
         try
         {
-            raw = await client.GetStringAsync(url, ct);
+            using var response = await client.GetAsync(url, ct);
+            statusCode = (int)response.StatusCode;
+            contentType = response.Content.Headers.ContentType?.ToString();
+            raw = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+                throw new OxaionTransportException($"Oxaion HTTP {statusCode} during CONNECT.");
         }
+        catch (OxaionTransportException) { throw; }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             throw new OxaionTransportException("Could not connect to oxaion.", ex);
         }
 
-        var xml = ParseXml(raw);
+        var xml = ParseXml(raw, "CONNECT", statusCode, contentType);
         var error = xml.Descendants("ERROR").FirstOrDefault();
         if (error is not null)
             throw new InvalidOperationException($"Oxaion connect error: {error.Value.Trim()}");
@@ -84,10 +93,37 @@ public sealed class OxaionClient
     private static string BuildQuery(IEnumerable<KeyValuePair<string, string>> values) =>
         string.Join("&", values.Select(x => $"{Uri.EscapeDataString(x.Key)}={Uri.EscapeDataString(x.Value)}"));
 
-    internal static XDocument ParseXml(string raw)
+    internal static XDocument ParseXml(string raw, string context = "response", int? statusCode = null, string? contentType = null)
     {
-        try { return XDocument.Parse(raw, LoadOptions.PreserveWhitespace); }
-        catch (Exception ex) { throw new InvalidOperationException("Oxaion response was not valid XML.", ex); }
+        try
+        {
+            return XDocument.Parse(raw, LoadOptions.PreserveWhitespace);
+        }
+        catch (XmlException ex)
+        {
+            var http = statusCode.HasValue ? $"HTTP {statusCode.Value}; " : "";
+            var type = string.IsNullOrWhiteSpace(contentType) ? "" : $"Content-Type {contentType}; ";
+            throw new InvalidOperationException(
+                $"Oxaion {context} response was not valid XML ({http}{type}{DescribePayload(raw)}; XML parser line {ex.LineNumber}, position {ex.LinePosition}).",
+                ex);
+        }
+    }
+
+    private static string DescribePayload(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "empty response";
+
+        var trimmed = raw.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+        var kind = trimmed.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+                   trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase)
+            ? "HTML response"
+            : trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal)
+                ? "JSON-like response"
+                : trimmed.StartsWith("<", StringComparison.Ordinal)
+                    ? "malformed XML response"
+                    : "plain-text or binary-looking response";
+
+        return $"{kind}, {raw.Length} chars";
     }
 }
 
@@ -130,13 +166,17 @@ public sealed class OxaionSession : IAsyncDisposable
         }
 
         string raw;
+        int statusCode;
+        string? contentType;
         try
         {
             using var body = new FormUrlEncodedContent(form);
             using var response = await _client.PostAsync($"{_serverUrl}/app-tunnel/call", body, ct);
+            statusCode = (int)response.StatusCode;
+            contentType = response.Content.Headers.ContentType?.ToString();
             raw = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
-                throw new OxaionTransportException($"Oxaion HTTP {(int)response.StatusCode} during {program} {action}.");
+                throw new OxaionTransportException($"Oxaion HTTP {statusCode} during {program} {action}.");
         }
         catch (OxaionTransportException) { throw; }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -144,7 +184,7 @@ public sealed class OxaionSession : IAsyncDisposable
             throw new OxaionTransportException($"Transport error during {program} {action}; booking outcome may be uncertain.", ex);
         }
 
-        var xml = OxaionClient.ParseXml(raw);
+        var xml = OxaionClient.ParseXml(raw, $"{program} {action}", statusCode, contentType);
         var error = xml.Descendants("ERROR").FirstOrDefault();
         if (error is not null)
             throw new InvalidOperationException($"Oxaion ERROR during {program} {action}: {error.Value.Trim()}");
