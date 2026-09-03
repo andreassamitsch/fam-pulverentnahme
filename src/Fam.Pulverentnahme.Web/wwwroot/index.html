@@ -7,6 +7,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/qr-scanner.css?v=20260903-qr-workflow">
   <title>FAM Pulver-Mix STAGING</title>
 </head>
 <body>
@@ -45,12 +46,14 @@
   </section>
 
   <section class="card">
-    <h2>2 · Aktueller Maschinenbestand</h2>
-    <div class="inputBlock">
-      <label class="importantLabel">Maschine / Tank-Lagerort
-        <select id="oldMixWarehouse" class="importantInput"><option value="">Maschine auswählen …</option></select>
-      </label>
+    <h2>2 · Maschinentank</h2>
+    <div class="actions">
+      <button class="primary" id="machineScanBtn" type="button">Maschinentank QR scannen</button>
     </div>
+    <div class="systemPanel">
+      <div class="wide"><span class="systemLabel">Gescannter Maschinentank</span><b id="machineScanValue">Noch nicht gescannt</b></div>
+    </div>
+    <input id="oldMixWarehouse" type="hidden">
     <div id="machineInfo" class="systemPanel hidden">
       <div><span class="systemLabel">Lagerort</span><b id="oldMixWarehouseInfo"></b></div>
       <div><span class="systemLabel">Artikel</span><b id="articleInfo"></b></div>
@@ -58,16 +61,17 @@
       <div><span class="systemLabel">Aktuelle Mix-Charge</span><b id="oldMixBatchInfo"></b></div>
       <div><span class="systemLabel">Gesamter Tankbestand</span><b id="oldMixAmountInfo"></b></div>
     </div>
-    <div id="stockStatus" class="status neutral">Bitte zuerst eine Maschine auswählen.</div>
-    <div class="actions"><button class="secondary compact hidden" id="stockRefreshBtn">Maschinenbestand neu lesen</button></div>
+    <div id="stockStatus" class="status neutral">Bitte Maschinentank per QR scannen.</div>
+    <div class="actions"><button class="secondary compact hidden" id="stockRefreshBtn">Tankbestand neu lesen</button></div>
     <input id="article" type="hidden"><input id="articleText" type="hidden"><input id="oldMixWarehouseText" type="hidden"><input id="oldMixStorageBin" type="hidden"><input id="oldMixBatch" type="hidden"><input id="oldMixAmountKg" type="hidden">
   </section>
 
   <section id="sourcesSection" class="card hidden">
     <h2>3 · Nachfüllchargen</h2>
+    <div id="sourceScanStatus" class="status neutral">Chargen-QR scannen. Lagerort und ggf. Lagerplatz werden aus oxaion ermittelt.</div>
+    <div class="actions"><button class="primary" id="addSourceBtn" type="button">Chargen QR scannen</button></div>
     <div id="additionalSources"></div>
-    <div class="actions"><button class="secondary compact" id="addSourceBtn">+ Weitere Nachfüllcharge</button></div>
-    <div class="footerNote">Der Maschinen-Tanklagerort wird bewusst nicht als Nachfüllquelle angeboten. Lagerort, Lagerplatz und Charge stammen aus dem aktuellen positiven Oxaion-Bestand.</div>
+    <div class="footerNote">Chargen-QR: <b>Artikel+++Charge</b>. Bei genau einem Oxaion-Bestandsort wird dieser automatisch gewählt. Bei mehreren Treffern muss der tatsächliche Entnahmeort bestätigt werden. Der Maschinentank selbst ist keine zulässige Quelle.</div>
   </section>
 
   <section id="mixSection" class="card hidden">
@@ -85,8 +89,23 @@
   <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach erster Nachfüllcharge *UPD</option><option value="after_position_3_upd">Antwortverlust nach zweiter Nachfüllcharge *UPD</option></select></details></section>
   <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
 </main>
-<script src="/app.js?v=20260903-nfc-personnel"></script>
-<script src="/nfc.js?v=20260903-nfc-personnel"></script>
-<script src="/submit.js?v=20260902-machine-personnel"></script>
+
+<div id="qrScannerModal" class="qrModal hidden" role="dialog" aria-modal="true" aria-labelledby="qrScannerTitle">
+  <div class="qrDialog">
+    <div class="qrHeader"><div><h2 id="qrScannerTitle">QR-Code scannen</h2><div id="qrScannerHelp" class="qrHelp"></div></div><button id="qrScannerClose" class="qrClose" type="button" aria-label="Scanner schließen">×</button></div>
+    <div class="qrCamera">
+      <video id="qrScannerVideo" playsinline muted autoplay></video>
+      <canvas id="qrScannerCanvas" class="hidden"></canvas>
+      <div id="qrScanLaser" class="qrLaser hidden"></div>
+      <div class="qrZoom"><button id="qrZoomIn" type="button" disabled>+</button><button id="qrZoomOut" type="button" disabled>−</button></div>
+    </div>
+    <div id="qrScannerStatus" class="status neutral">Kamera wird gestartet …</div>
+  </div>
+</div>
+
+<script src="/qr-scanner.js?v=20260903-qr-workflow"></script>
+<script src="/app.js?v=20260903-qr-workflow"></script>
+<script src="/nfc.js?v=20260903-nfc-tone"></script>
+<script src="/submit.js?v=20260903-qr-workflow"></script>
 </body>
 </html>
