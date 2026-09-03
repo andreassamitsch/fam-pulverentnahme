@@ -191,7 +191,7 @@ public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
             return Results.Json(new
             {
                 status = "AUTH_REQUIRED",
-                stage = "PERSONNEL_AUTHENTICATION",
+                stage = "PERSONNEL_VALIDATION",
                 message = "Bitte Mitarbeiter mit Personalnummer und Passwort anmelden. Es wurde keine Materialbuchung gestartet."
             }, statusCode: StatusCodes.Status401Unauthorized);
         }
@@ -202,7 +202,7 @@ public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
             return Results.Json(new
             {
                 status = "AUTH_CONFLICT",
-                stage = "PERSONNEL_AUTHENTICATION",
+                stage = "PERSONNEL_VALIDATION",
                 message = "Der angemeldete Mitarbeiter stimmt nicht mit dem Buchungsvorgang überein. Bitte erneut anmelden. Es wurde keine Materialbuchung gestartet."
             }, statusCode: StatusCodes.Status403Forbidden);
         }
@@ -319,8 +319,7 @@ public static class PersonnelAuthenticationExtensions
                 return Results.Json(new
                 {
                     status = "AUTH_UNAVAILABLE",
-                    message = "Mitarbeiter-Anmeldung kann derzeit nicht sicher geprüft werden.",
-                    technicalMessage = ex.Message
+                    message = "Mitarbeiter-Anmeldung kann derzeit nicht sicher geprüft werden."
                 }, statusCode: StatusCodes.Status503ServiceUnavailable);
             }
         }).RequireRateLimiting(LoginRateLimitPolicy);
