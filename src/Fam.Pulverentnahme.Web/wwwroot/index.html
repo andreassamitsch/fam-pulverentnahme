@@ -28,6 +28,10 @@
 
   <section class="card">
     <h2>1 · Mitarbeiter</h2>
+    <div class="actions">
+      <button class="primary" id="nfcScanBtn" type="button">NFC-Chip lesen</button>
+    </div>
+    <div id="nfcStatus" class="status neutral">NFC-Chip kann alternativ zur manuellen Personalnummer verwendet werden.</div>
     <div class="inputBlock">
       <label class="importantLabel">Personalnummer
         <input id="personnelNo" class="importantInput" inputmode="numeric" autocomplete="off" placeholder="z. B. 446">
@@ -81,7 +85,7 @@
   <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach erster Nachfüllcharge *UPD</option><option value="after_position_3_upd">Antwortverlust nach zweiter Nachfüllcharge *UPD</option></select></details></section>
   <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
 </main>
-<script src="/app.js?v=20260903-pepena"></script>
+<script src="/app.js?v=20260903-nfc-personnel"></script>
 <script src="/submit.js?v=20260902-machine-personnel"></script>
 </body>
 </html>
