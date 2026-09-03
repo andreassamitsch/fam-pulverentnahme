@@ -168,4 +168,17 @@ public sealed class PersonnelLookupTests
         Assert.Equal("PERSONNEL-SSID", fields["SSID"]);
         Assert.Equal("0000000450", fields["IPENU"]);
     }
+
+    [Fact]
+    public void ToleratesOnlyKnownNonXmlSaveCurrentParseFailure()
+    {
+        Assert.True(PersonnelService.IsToleratedSaveCurrentNonXmlResponse(
+            new InvalidOperationException("Oxaion response was not valid XML.")));
+
+        Assert.False(PersonnelService.IsToleratedSaveCurrentNonXmlResponse(
+            new InvalidOperationException("Oxaion ERROR during US14001 *SAVCURSET: rejected")));
+
+        Assert.False(PersonnelService.IsToleratedSaveCurrentNonXmlResponse(
+            new OxaionTransportException("Oxaion HTTP 500 during US14001 *SAVCURSET.")));
+    }
 }
