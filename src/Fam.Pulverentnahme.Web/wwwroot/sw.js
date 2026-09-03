@@ -1,11 +1,12 @@
-const CACHE='fam-pulver-staging-v11-qr-workflow';
+const CACHE='fam-pulver-staging-v12-explicit-scan-colors';
 const ASSETS=[
   '/',
   '/index.html',
-  '/styles.css',
-  '/qr-scanner.css?v=20260903-qr-workflow',
-  '/qr-scanner.js?v=20260903-qr-workflow',
+  '/styles.css?v=20260903-recognition-colors',
+  '/qr-scanner.css?v=20260903-explicit-scan',
+  '/qr-scanner.js?v=20260903-explicit-scan',
   '/app.js?v=20260903-qr-workflow',
+  '/article-colors.js?v=20260903-recognition-colors',
   '/nfc.js?v=20260903-nfc-tone',
   '/submit.js?v=20260903-qr-workflow',
   '/manifest.webmanifest',
