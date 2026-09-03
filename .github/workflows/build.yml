@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/staging-real-mix-prototype
+      - feature/replenishment-ux-machine-personnel
   pull_request:
     branches:
       - main
