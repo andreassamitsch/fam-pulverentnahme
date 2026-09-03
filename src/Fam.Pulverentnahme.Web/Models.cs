@@ -9,6 +9,11 @@ public sealed class OxaionOptions
     public bool StagingOnly { get; set; } = true;
 }
 
+public sealed class SyncosOptions
+{
+    public string ConnectionString { get; set; } = "";
+}
+
 public sealed class PrototypeOptions
 {
     public bool EnableFailureSimulation { get; set; } = true;
