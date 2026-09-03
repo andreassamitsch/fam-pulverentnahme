@@ -6,60 +6,80 @@
   <meta name="theme-color" content="#15324a">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=20260903-recognition-colors">
+  <link rel="stylesheet" href="/styles.css?v=20260903-guided-worker">
+  <link rel="stylesheet" href="/worker-ui.css?v=20260903-guided-worker">
   <link rel="stylesheet" href="/qr-scanner.css?v=20260903-explicit-scan">
-  <title>FAM Pulver-Mix STAGING</title>
+  <title>FAM Pulverentnahme</title>
 </head>
 <body>
-<header><div class="title">FAM Pulver-Mix → oxaion</div><div class="sub">Frontend + ASP.NET Core Backend · STAGING</div></header>
+<header>
+  <div class="workerHeader">
+    <div><div class="title">FAM Pulverentnahme</div><div class="sub devOnly">Frontend + ASP.NET Core Backend · STAGING</div></div>
+    <label class="devSwitch"><input id="devModeToggle" type="checkbox"> Dev-Infos</label>
+  </div>
+</header>
+<div id="workerNextInstruction" class="workerNext">Bitte anmelden.</div>
 <main>
-  <div class="notice warn"><b>STAGING:</b> Port 11118 / Firma 103. Buchungen sind echte STAGING-Lagerbuchungen.</div>
+  <div class="notice warn devOnly"><b>STAGING:</b> Port 11118 / Firma 103. Buchungen sind echte STAGING-Lagerbuchungen.</div>
 
   <div id="recovery" class="card recovery hidden">
     <h2 id="recoveryTitle">⚠ Offener / unklarer Vorgang</h2>
     <div id="recoveryText"></div>
     <div class="actions">
       <button class="primary" id="reconcileBtn">Status in oxaion prüfen</button>
-      <button class="primary hidden" id="retryRejectedBtn">Nach Behebung mit gleichen Daten erneut versuchen</button>
-      <button class="secondary" id="clearLocalBtn">Nur lokale Anzeige zurücksetzen</button>
+      <button class="primary hidden" id="retryRejectedBtn">Nach Behebung erneut versuchen</button>
+      <button class="secondary devOnly" id="clearLocalBtn">Nur lokale Anzeige zurücksetzen</button>
     </div>
   </div>
 
-  <section class="card compactCard"><h2>Backend</h2><div id="health" class="status neutral">wird geprüft …</div><div class="actions"><button class="secondary compact" id="healthBtn">Oxaion-Verbindung testen</button></div></section>
-
-  <section class="card">
-    <h2>1 · Mitarbeiter</h2>
-    <div class="actions">
-      <button class="primary" id="nfcScanBtn" type="button">NFC-Chip lesen</button>
-    </div>
-    <div id="nfcStatus" class="status neutral">NFC-Chip kann alternativ zur manuellen Personalnummer verwendet werden.</div>
-    <div class="inputBlock">
-      <label class="importantLabel">Personalnummer
-        <input id="personnelNo" class="importantInput" inputmode="numeric" autocomplete="off" placeholder="z. B. 446">
-      </label>
-      <div id="personnelResults" class="lookupResults hidden"></div>
-    </div>
-    <div id="personnelSelected" class="systemPanel hidden">
-      <div class="wide"><span class="systemLabel">Mitarbeiter</span><b id="personnelSelectedText"></b></div>
-    </div>
-    <div id="personnelStatus" class="status neutral">Personalnummer eingeben und Treffer aus oxaion bestätigen.</div>
+  <section class="card compactCard devOnly">
+    <h2>Backend</h2>
+    <div id="health" class="status neutral">wird geprüft …</div>
+    <div class="actions"><button class="secondary compact" id="healthBtn">Oxaion-Verbindung testen</button></div>
   </section>
 
-  <section class="card">
-    <h2>2 · Maschinentank</h2>
-    <div class="actions">
-      <button class="primary" id="machineScanBtn" type="button">Maschinentank QR scannen</button>
+  <section id="loginStep" class="card stepCard">
+    <h2>1 · Anmelden</h2>
+    <div class="actions"><button class="primary" id="nfcScanBtn" type="button">Mit NFC anmelden</button></div>
+    <div id="nfcStatus" class="status neutral">Personalchip zur Anmeldung verwenden.</div>
+
+    <div id="personnelSelected" class="systemPanel hidden">
+      <div class="wide loginSuccessBar"><div><span class="systemLabel">Angemeldeter Mitarbeiter</span><b id="personnelSelectedText"></b></div><button class="secondary compact hidden" id="personnelLogoutBtn" type="button">Abmelden</button></div>
     </div>
+
+    <details id="manualLoginFallback" class="manualFallback">
+      <summary>Ohne NFC anmelden</summary>
+      <div class="inputBlock">
+        <label class="importantLabel">Personalnummer
+          <input id="personnelNo" class="importantInput" inputmode="numeric" autocomplete="off" placeholder="z. B. 446">
+        </label>
+        <div id="personnelResults" class="lookupResults hidden"></div>
+      </div>
+      <div id="personnelLogin" class="inputBlock hidden">
+        <label class="importantLabel">Passwort
+          <input id="personnelPassword" class="importantInput" type="password" maxlength="18" autocomplete="current-password" autocapitalize="none" spellcheck="false" placeholder="Passwort">
+        </label>
+        <div class="actions"><button class="primary compact" id="personnelLoginBtn" type="button">Anmelden</button></div>
+        <div class="footerNote devOnly">Passwort wird nur zum Backend übertragen und nicht im Buchungsvorgang oder in IndexedDB gespeichert.</div>
+      </div>
+    </details>
+    <div id="personnelStatus" class="status neutral">NFC verwenden oder ohne NFC anmelden.</div>
+  </section>
+
+  <section id="machineStep" class="card stepCard lockedStep">
+    <h2>2 · Maschinentank scannen</h2>
+    <div class="actions"><button class="primary" id="machineScanBtn" type="button" disabled>Maschinentank scannen</button></div>
     <div class="systemPanel">
-      <div class="wide"><span class="systemLabel">Gescannter Maschinentank</span><b id="machineScanValue">Noch nicht gescannt</b></div>
+      <div class="wide workerKeep"><span class="systemLabel">Maschinentank</span><b id="machineScanValue">Noch nicht gescannt</b></div>
     </div>
     <input id="oldMixWarehouse" type="hidden">
+
     <div id="machineInfo" class="systemPanel hidden">
-      <div><span class="systemLabel">Lagerort</span><b id="oldMixWarehouseInfo"></b></div>
-      <div><span class="systemLabel">Artikel</span><b id="articleInfo"></b></div>
-      <div><span class="systemLabel">Artikelbezeichnung</span><b id="articleTextInfo"></b></div>
+      <div class="wide workerKeep workerArticle">
+        <div class="workerArticleText"><span id="articleInfo" class="articleNo"></span><span id="articleTextInfo" class="articleName"></span></div>
+      </div>
       <div id="articleRecognitionPanel" class="wide recognitionColorPanel hidden">
-        <div id="articleRecognitionSwatch" class="recognitionColorSwatch" aria-hidden="true">
+        <div id="articleRecognitionSwatch" class="recognitionColorSwatch" aria-label="Erkennungsfarben des Pulvers">
           <span id="articleRecognitionColor1"></span><span id="articleRecognitionColor2"></span>
         </div>
         <div class="recognitionColorInfo">
@@ -68,27 +88,35 @@
           <div id="articleRecognitionStatus" class="recognitionColorStatus"></div>
         </div>
       </div>
-      <div><span class="systemLabel">Aktuelle Mix-Charge</span><b id="oldMixBatchInfo"></b></div>
-      <div><span class="systemLabel">Gesamter Tankbestand</span><b id="oldMixAmountInfo"></b></div>
+      <div class="devOnly"><span class="systemLabel">Lagerort</span><b id="oldMixWarehouseInfo"></b></div>
+      <div class="devOnly"><span class="systemLabel">Aktuelle Mix-Charge</span><b id="oldMixBatchInfo"></b></div>
+      <div class="devOnly"><span class="systemLabel">Gesamter Tankbestand</span><b id="oldMixAmountInfo"></b></div>
     </div>
-    <div id="stockStatus" class="status neutral">Bitte Maschinentank per QR scannen.</div>
-    <div class="actions"><button class="secondary compact hidden" id="stockRefreshBtn">Tankbestand neu lesen</button></div>
+    <div id="stockStatus" class="status neutral">Bitte zuerst anmelden.</div>
+    <div class="actions devOnly"><button class="secondary compact hidden" id="stockRefreshBtn">Tankbestand neu lesen</button></div>
     <input id="article" type="hidden"><input id="articleText" type="hidden"><input id="oldMixWarehouseText" type="hidden"><input id="oldMixStorageBin" type="hidden"><input id="oldMixBatch" type="hidden"><input id="oldMixAmountKg" type="hidden">
   </section>
 
-  <section id="sourcesSection" class="card hidden">
-    <h2>3 · Nachfüllchargen</h2>
-    <div id="sourceScanStatus" class="status neutral">Chargen-QR scannen. Lagerort und ggf. Lagerplatz werden aus oxaion ermittelt.</div>
-    <div class="actions"><button class="primary" id="addSourceBtn" type="button">Chargen QR scannen</button></div>
+  <section id="sourcesSection" class="card stepCard lockedStep hidden">
+    <h2>3 · Nachfüllcharge</h2>
+
+    <div id="matchingLocationsPanel" class="matchingLocations hidden">
+      <h3>Passendes Pulver findest du hier</h3>
+      <div id="matchingLocationsStatus" class="locationStatus"></div>
+      <div id="matchingLocationsList" class="locationList"></div>
+    </div>
+
+    <div id="sourceScanStatus" class="status neutral">Chargen-QR scannen. Entnahmeort wird aus oxaion ermittelt.</div>
+    <div class="actions"><button class="primary" id="addSourceBtn" type="button" disabled>Nachfüllcharge scannen</button></div>
     <div id="additionalSources"></div>
-    <div class="footerNote">Chargen-QR: <b>Artikel+++Charge</b>. Bei genau einem Oxaion-Bestandsort wird dieser automatisch gewählt. Bei mehreren Treffern muss der tatsächliche Entnahmeort bestätigt werden. Der Maschinentank selbst ist keine zulässige Quelle.</div>
+    <div class="footerNote devOnly">Chargen-QR: <b>Artikel+++Charge</b>. Bei genau einer Oxaion-Bestandsposition wird diese automatisch gewählt; bei mehreren muss der tatsächliche Entnahmeort bestätigt werden. Der Maschinentank ist keine zulässige Quelle.</div>
   </section>
 
-  <section id="mixSection" class="card hidden">
-    <h2>4 · Neue Mix-Charge</h2>
+  <section id="mixSection" class="card hidden devOnly">
+    <h2>System · Neue Mix-Charge</h2>
     <div class="systemPanel">
       <div class="wide"><span class="systemLabel">Neue Mix-Charge</span><b id="targetBatchInfo"></b></div>
-      <div><span class="systemLabel">Mix Charge erstellt am</span><b id="mixCreatedAtInfo"></b></div>
+      <div><span class="systemLabel">Erstellt am</span><b id="mixCreatedAtInfo"></b></div>
       <div><span class="systemLabel">Ziel</span><b id="targetMachineInfo"></b></div>
       <div><span class="systemLabel">Buchungstext</span><b id="bookingTextInfo"></b></div>
     </div>
@@ -96,8 +124,21 @@
     <input id="targetWarehouse" type="hidden"><input id="targetWarehouseText" type="hidden"><input id="targetStorageBin" type="hidden"><input id="targetBatch" type="hidden"><input id="productionDate" type="hidden"><input id="bookingDate" type="hidden"><input id="bookingText" type="hidden">
   </section>
 
-  <section class="card"><h2>Prüfung</h2><div id="summary" class="summary"></div><div class="actions"><button class="primary" id="bookBtn" disabled>Echte STAGING-Buchung starten</button></div><details><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach erster Nachfüllcharge *UPD</option><option value="after_position_3_upd">Antwortverlust nach zweiter Nachfüllcharge *UPD</option></select></details></section>
-  <section id="result" class="card hidden"><div id="resultTitle" class="resultTitle"></div><div id="documentNo" class="docNo"></div><pre id="resultJson"></pre></section>
+  <section id="bookingStep" class="card stepCard lockedStep">
+    <h2>4 · Buchen</h2>
+    <div id="workerBookSummary" class="workerBookSummary">Noch keine Nachfüllcharge vollständig erfasst.</div>
+    <div id="summary" class="summary devOnly"></div>
+    <div class="actions"><button class="primary" id="bookBtn" disabled>Buchung starten</button></div>
+    <details class="devOnly"><summary>Fehlerbehandlung testen</summary><select id="simulateFailure"><option value="">Keine Störung</option><option value="after_pos1_upd">Antwortverlust nach Position 1 *UPD</option><option value="after_pos2_upd">Antwortverlust nach erster Nachfüllcharge *UPD</option><option value="after_position_3_upd">Antwortverlust nach zweiter Nachfüllcharge *UPD</option></select></details>
+  </section>
+
+  <section id="result" class="card hidden">
+    <div id="resultTitle" class="resultTitle"></div>
+    <div id="workerResultMessage" class="workerResultMessage"></div>
+    <div id="workerResultAction" class="workerResultAction"></div>
+    <div id="documentNo" class="docNo devOnly"></div>
+    <pre id="resultJson" class="devOnly"></pre>
+  </section>
 </main>
 
 <div id="qrScannerModal" class="qrModal hidden" role="dialog" aria-modal="true" aria-labelledby="qrScannerTitle">
@@ -115,9 +156,11 @@
 </div>
 
 <script src="/qr-scanner.js?v=20260903-explicit-scan"></script>
-<script src="/app.js?v=20260903-qr-workflow"></script>
+<script src="/app.js?v=20260903-guided-worker"></script>
 <script src="/article-colors.js?v=20260903-recognition-colors"></script>
-<script src="/nfc.js?v=20260903-nfc-tone"></script>
-<script src="/submit.js?v=20260903-qr-workflow"></script>
+<script src="/personnel-auth.js?v=20260903-guided-worker"></script>
+<script src="/nfc.js?v=20260903-guided-worker"></script>
+<script src="/submit.js?v=20260903-guided-worker"></script>
+<script src="/worker-ui.js?v=20260903-guided-worker"></script>
 </body>
 </html>
