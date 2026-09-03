@@ -1,6 +1,5 @@
 using System.Data;
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
@@ -12,7 +11,6 @@ public sealed class PersonnelAuthenticationOptions
 {
     public bool Enabled { get; set; } = true;
     public string ConnectionString { get; set; } = "";
-    public string PasswordLookupSql { get; set; } = "";
     public int SessionMinutes { get; set; } = 480;
 }
 
@@ -67,8 +65,7 @@ public static class SyncosLegacyPasswordCodec
             var transformed = (byte)(password[i] ^ PositionKey[i]);
 
             // Controlled lower-case tests proved that XOR results in the C1 control range are
-            // persisted as '?' (0x3F), while values >= 0xA0 remain byte-identical. This matches
-            // the observed legacy character conversion and is part of the verified vectors.
+            // persisted as '?' (0x3F), while values >= 0xA0 remain byte-identical.
             result[i] = transformed is >= 0x80 and <= 0x9F ? (byte)0x3F : transformed;
         }
 
@@ -81,9 +78,16 @@ public static class SyncosLegacyPasswordCodec
 
 public sealed class PersonnelCredentialStore
 {
-    private static readonly Regex ForbiddenSql = new(
-        @"\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE)\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    // Confirmed existing STAGING lookup used elsewhere for RFID/personnel assignment.
+    // Keep this query in code so the application has one reviewed, read-only credential path.
+    private const string PasswordLookupSql = """
+        SELECT t0.PASSWORD
+          FROM syncos_stg_102.ITSDEV.ITSUSER t0
+         WHERE t0.ClassID = 47
+           AND t0.IsEnabled = -1
+           AND t0.IsVisible = -1
+           AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
+        """;
 
     private readonly PersonnelAuthenticationOptions _options;
 
@@ -94,32 +98,26 @@ public sealed class PersonnelCredentialStore
 
     public bool IsConfigured =>
         _options.Enabled &&
-        !string.IsNullOrWhiteSpace(_options.ConnectionString) &&
-        !string.IsNullOrWhiteSpace(_options.PasswordLookupSql);
+        !string.IsNullOrWhiteSpace(_options.ConnectionString);
 
     public async Task<string?> ReadStoredPasswordAsync(string personnelNo, CancellationToken ct)
     {
         EnsureConfigured();
-        var sql = _options.PasswordLookupSql.Trim();
-        ValidateReadOnlySql(sql);
-
-        // Current confirmed reference mapping: personnel 446 -> OBJECTKEY 0000000446.
-        // The lookup query remains deployment configuration so no unconfirmed table is invented.
-        var objectKey = PersonnelService.ToOxaionPersonnelNumber(personnelNo);
+        var normalized = PersonnelService.NormalizeInput(personnelNo);
 
         await using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandType = CommandType.Text;
-        command.CommandText = sql;
-        command.Parameters.Add(new SqlParameter("@ObjectKey", SqlDbType.NVarChar, 64) { Value = objectKey });
+        command.CommandText = PasswordLookupSql;
+        command.Parameters.Add(new SqlParameter("@PersonnelNo", SqlDbType.NVarChar, 10) { Value = normalized });
 
         await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleResult, ct);
         if (!await reader.ReadAsync(ct)) return null;
 
         var first = reader.IsDBNull(0) ? null : reader.GetValue(0)?.ToString()?.Trim();
         if (await reader.ReadAsync(ct))
-            throw new InvalidOperationException("Credential lookup returned more than one row for the personnel OBJECTKEY.");
+            throw new InvalidOperationException("SYNCOS credential lookup returned more than one active visible user for the personnel number suffix.");
 
         return first;
     }
@@ -128,17 +126,7 @@ public sealed class PersonnelCredentialStore
     {
         if (!IsConfigured)
             throw new InvalidOperationException(
-                "Personnel authentication is not configured. Configure PersonnelAuthentication__ConnectionString and PersonnelAuthentication__PasswordLookupSql at runtime.");
-    }
-
-    private static void ValidateReadOnlySql(string sql)
-    {
-        if (!sql.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Personnel password lookup must be a read-only SELECT statement.");
-        if (!sql.Contains("@ObjectKey", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Personnel password lookup must contain the @ObjectKey parameter.");
-        if (ForbiddenSql.IsMatch(sql))
-            throw new InvalidOperationException("Personnel password lookup contains a non-read-only SQL keyword.");
+                "Personnel authentication is not configured. Configure PersonnelAuthentication__ConnectionString at runtime.");
     }
 }
 
@@ -163,7 +151,7 @@ public sealed class PersonnelAuthenticationService
         // Validate the legacy transform input before any database access.
         _ = SyncosLegacyPasswordCodec.EncodeVerifiedAlphanumeric(password);
 
-        // Personnel identity stays authoritative in Oxaion. The credential database is used only
+        // Personnel identity stays authoritative in Oxaion. The SYNCOS database is used only
         // to validate the password for the already selected personnel number.
         var person = await _personnel.ReadExactAsync(normalized, ct);
         if (person is null) return null;
@@ -232,6 +220,10 @@ public static class PersonnelAuthenticationExtensions
             options.Cookie.HttpOnly = true;
             options.Cookie.IsEssential = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
+
+            // STAGING must remain testable over plain HTTP in the internal network. With
+            // SameAsRequest the cookie works over HTTP during testing and automatically gets the
+            // Secure flag when the app is later served via HTTPS.
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.IdleTimeout = TimeSpan.FromMinutes(sessionMinutes);
         });
@@ -272,7 +264,8 @@ public static class PersonnelAuthenticationExtensions
                 authenticated = !string.IsNullOrWhiteSpace(no) && !string.IsNullOrWhiteSpace(name),
                 personnelNo = no,
                 fullName = name,
-                authenticationConfigured = auth.IsConfigured
+                authenticationConfigured = auth.IsConfigured,
+                https = http.Request.IsHttps
             });
         });
 
@@ -301,7 +294,8 @@ public static class PersonnelAuthenticationExtensions
                 {
                     authenticated = true,
                     personnelNo = person.PersonnelNo,
-                    fullName = person.FullName
+                    fullName = person.FullName,
+                    https = http.Request.IsHttps
                 });
             }
             catch (ArgumentException)
