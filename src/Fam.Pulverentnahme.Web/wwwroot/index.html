@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#15324a">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/qr-scanner.css?v=20260903-qr-workflow">
+  <link rel="stylesheet" href="/styles.css?v=20260903-recognition-colors">
+  <link rel="stylesheet" href="/qr-scanner.css?v=20260903-explicit-scan">
   <title>FAM Pulver-Mix STAGING</title>
 </head>
 <body>
@@ -58,6 +58,16 @@
       <div><span class="systemLabel">Lagerort</span><b id="oldMixWarehouseInfo"></b></div>
       <div><span class="systemLabel">Artikel</span><b id="articleInfo"></b></div>
       <div><span class="systemLabel">Artikelbezeichnung</span><b id="articleTextInfo"></b></div>
+      <div id="articleRecognitionPanel" class="wide recognitionColorPanel hidden">
+        <div id="articleRecognitionSwatch" class="recognitionColorSwatch" aria-hidden="true">
+          <span id="articleRecognitionColor1"></span><span id="articleRecognitionColor2"></span>
+        </div>
+        <div class="recognitionColorInfo">
+          <span class="systemLabel">Erkennungsfarben EFA01 / EFA02</span>
+          <b id="articleRecognitionText">Noch nicht geladen</b>
+          <div id="articleRecognitionStatus" class="recognitionColorStatus"></div>
+        </div>
+      </div>
       <div><span class="systemLabel">Aktuelle Mix-Charge</span><b id="oldMixBatchInfo"></b></div>
       <div><span class="systemLabel">Gesamter Tankbestand</span><b id="oldMixAmountInfo"></b></div>
     </div>
@@ -100,11 +110,13 @@
       <div class="qrZoom"><button id="qrZoomIn" type="button" disabled>+</button><button id="qrZoomOut" type="button" disabled>−</button></div>
     </div>
     <div id="qrScannerStatus" class="status neutral">Kamera wird gestartet …</div>
+    <div class="qrScanActions"><button id="qrScannerScanButton" class="primary" type="button" disabled>Scannen</button></div>
   </div>
 </div>
 
-<script src="/qr-scanner.js?v=20260903-qr-workflow"></script>
+<script src="/qr-scanner.js?v=20260903-explicit-scan"></script>
 <script src="/app.js?v=20260903-qr-workflow"></script>
+<script src="/article-colors.js?v=20260903-recognition-colors"></script>
 <script src="/nfc.js?v=20260903-nfc-tone"></script>
 <script src="/submit.js?v=20260903-qr-workflow"></script>
 </body>
