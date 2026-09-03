@@ -24,28 +24,29 @@ $plainPassword = $credential.GetNetworkCredential().Password
 $syncosConnectionString = $env:Syncos__ConnectionString
 if ([string]::IsNullOrWhiteSpace($syncosConnectionString)) {
     Write-Host ""
-    Write-Host "Fuer NFC-Personalzuordnung wird eine SQL-Verbindung zu Syncos STAGING benoetigt." -ForegroundColor Cyan
+    Write-Host "Fuer NFC und den manuellen Passwort-Fallback wird eine SQL-Verbindung zu Syncos STAGING benoetigt." -ForegroundColor Cyan
     Write-Host "Bitte den vollstaendigen SQL-Connection-String eingeben/einfuegen. Die Eingabe wird nicht angezeigt." -ForegroundColor DarkGray
     $secureSyncos = Read-Host "SYNCOS STAGING SQL connection string" -AsSecureString
     $syncosCredential = New-Object System.Management.Automation.PSCredential("syncos", $secureSyncos)
     $syncosConnectionString = $syncosCredential.GetNetworkCredential().Password
 }
 if ([string]::IsNullOrWhiteSpace($syncosConnectionString)) {
-    throw "Syncos SQL connection string must not be empty for NFC personnel lookup."
+    throw "Syncos SQL connection string must not be empty for personnel authentication."
 }
 
 try {
     $env:Oxaion__User = $oxaionUser
     $env:Oxaion__Password = $plainPassword
     $env:Syncos__ConnectionString = $syncosConnectionString
+    $env:PersonnelAuthentication__ConnectionString = $syncosConnectionString
 
     Write-Host ""
     Write-Host "FAM Pulverentnahme STAGING - self contained" -ForegroundColor Cyan
     Write-Host "Keine lokale .NET-Installation erforderlich." -ForegroundColor DarkGray
     Write-Host "Oxaion: http://oxapp.cnc-domain.fuchshofer:11118 / Firma 103 / User $oxaionUser" -ForegroundColor DarkGray
-    Write-Host "Syncos RFID-Lookup: konfiguriert" -ForegroundColor DarkGray
+    Write-Host "Syncos RFID + Passwortpruefung: konfiguriert" -ForegroundColor DarkGray
     Write-Host "WebApp lokal: http://localhost:$Port" -ForegroundColor Green
-    Write-Host "Android/PWA mit Web NFC: HTTPS ist erforderlich." -ForegroundColor Yellow
+    Write-Host "Android/PWA mit Web NFC: HTTPS ist erforderlich. Manueller Login kann in STAGING auch ueber HTTP getestet werden." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Beenden mit STRG+C." -ForegroundColor DarkGray
     Write-Host ""
@@ -56,6 +57,7 @@ finally {
     Remove-Item Env:Oxaion__User -ErrorAction SilentlyContinue
     Remove-Item Env:Oxaion__Password -ErrorAction SilentlyContinue
     Remove-Item Env:Syncos__ConnectionString -ErrorAction SilentlyContinue
+    Remove-Item Env:PersonnelAuthentication__ConnectionString -ErrorAction SilentlyContinue
     $plainPassword = $null
     $syncosConnectionString = $null
     $oxaionUser = $null
