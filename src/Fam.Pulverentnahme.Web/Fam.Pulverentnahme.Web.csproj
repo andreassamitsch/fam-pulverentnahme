@@ -6,6 +6,9 @@
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Fam.Pulverentnahme.Web.Tests" />
   </ItemGroup>
 </Project>
