@@ -1,14 +1,17 @@
-const CACHE='fam-pulver-staging-v12-explicit-scan-colors';
+const CACHE='fam-pulver-staging-v13-guided-worker';
 const ASSETS=[
   '/',
   '/index.html',
-  '/styles.css?v=20260903-recognition-colors',
+  '/styles.css?v=20260903-guided-worker',
+  '/worker-ui.css?v=20260903-guided-worker',
   '/qr-scanner.css?v=20260903-explicit-scan',
   '/qr-scanner.js?v=20260903-explicit-scan',
-  '/app.js?v=20260903-qr-workflow',
+  '/app.js?v=20260903-guided-worker',
   '/article-colors.js?v=20260903-recognition-colors',
-  '/nfc.js?v=20260903-nfc-tone',
-  '/submit.js?v=20260903-qr-workflow',
+  '/personnel-auth.js?v=20260903-guided-worker',
+  '/nfc.js?v=20260903-guided-worker',
+  '/submit.js?v=20260903-guided-worker',
+  '/worker-ui.js?v=20260903-guided-worker',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
   '/icons/icon-192.svg',
@@ -25,7 +28,8 @@ self.addEventListener('activate',e=>{
 });
 
 self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET'||e.request.url.includes('/api/'))return;
+  if(e.request.method==='GET'&&e.request.url.includes('/api/'))return;
+  if(e.request.method!=='GET')return;
   if(e.request.mode==='navigate'){
     e.respondWith(fetch(e.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(c=>c.put('/',copy));return response}).catch(()=>caches.match(e.request).then(r=>r||caches.match('/'))));
     return;
