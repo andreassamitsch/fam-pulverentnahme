@@ -1,9 +1,9 @@
-const CACHE='fam-pulver-staging-v8-pr8-pwa';
+const CACHE='fam-pulver-staging-v9-pepena';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css',
-  '/app.js?v=20260902-machine-personnel',
+  '/app.js?v=20260903-pepena',
   '/submit.js?v=20260902-machine-personnel',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
