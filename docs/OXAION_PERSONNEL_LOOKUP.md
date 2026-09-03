@@ -37,6 +37,20 @@ PEPENU: Oxaion-Personalnummer
 PEPENA: vollstaendiger Name
 ```
 
+### Technische Zuordnung des gelesenen Personalsatzes
+
+Eine Antwort von `US14000J *READ` kann mehrere `DTA`-Kontexte enthalten. Deshalb darf die WebApp nicht einfach den ersten `DTA`-Block als Mitarbeiterdatensatz interpretieren.
+
+Verbindlich gilt:
+
+- Der zuvor aus der Trefferliste erwartete `PEPENU`-Wert bleibt die Referenz fuer den anschliessenden `US14000J *READ`.
+- Aus der `READ`-Antwort darf nur ein `DTA` verwendet werden, dessen normalisierte `PEPENU` exakt dieser erwarteten Personalnummer entspricht.
+- Der Mitarbeitername wird aus diesem Datensatz ausschliesslich aus `PEPENA` gelesen.
+- `PESAKZ` und `PENLAE` werden weder fuer die Anzeige noch als Namens-Fallback verwendet.
+- Liefert die Antwort keinen passenden oder mehrere widerspruechliche Datensaetze fuer dieselbe `PEPENU`, wird der Mitarbeiter nicht angezeigt beziehungsweise vor der Buchung nicht bestaetigt. Es wird nicht geraten.
+
+Diese Regel gilt sowohl fuer die AJAX-Treffer als auch fuer die erneute exakte Personalpruefung unmittelbar vor der Materialbuchung.
+
 ## Bestaetigter exakter Oxaion-Filter nach PEPENU
 
 Der Mitschnitt vom 03.09.2026 bestaetigt fuer die exakte Personalnummer `450` folgende Folge nach dem Aufbau der Personalliste:
