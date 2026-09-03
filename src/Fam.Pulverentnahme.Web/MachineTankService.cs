@@ -103,13 +103,31 @@ public sealed class MachineTankService
         if (string.IsNullOrWhiteSpace(current.Article))
             return new MachineStockResult(MachineStockStatuses.InvalidStock, warehouse, "", $"Der positive Maschinenbestand auf {warehouse} enthält keinen eindeutigen Artikel.", DateTimeOffset.UtcNow, nonZero);
 
+        ArticleRecognitionColorsResult recognitionColors;
+        try
+        {
+            recognitionColors = await ArticleRecognitionColorLookup.ReadAsync(session, current.Article, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // EFA01/EFA02 are a visual recognition aid. A lookup problem must be visible to the
+            // operator but must not convert an otherwise valid machine stock into a booking result.
+            recognitionColors = new ArticleRecognitionColorsResult(
+                ArticleRecognitionColorStatuses.Unavailable,
+                current.Article,
+                null,
+                null,
+                $"Erkennungsfarben EFA01/EFA02 konnten nicht aus oxaion gelesen werden: {ex.Message}");
+        }
+
         return new MachineStockResult(
             MachineStockStatuses.Unique,
             warehouse,
             current.Article,
             $"Eindeutiger Oxaion-Maschinenbestand: {current.Article} ({current.ArticleText}), Charge {current.Batch}, {current.QuantityKg:0.###} kg.",
             DateTimeOffset.UtcNow,
-            nonZero);
+            nonZero,
+            recognitionColors);
     }
 
     private async Task<string> ResolveWarehouseTextAsync(OxaionSession session, string warehouse, CancellationToken ct)
