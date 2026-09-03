@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<OxaionOptions>(builder.Configuration.GetSection("Oxaion"));
+builder.Services.Configure<SyncosOptions>(builder.Configuration.GetSection("Syncos"));
 builder.Services.Configure<PrototypeOptions>(builder.Configuration.GetSection("Prototype"));
 builder.Services.Configure<MachineTankOptions>(builder.Configuration.GetSection("MachineTanks"));
 builder.Services.AddHttpClient(nameof(OxaionClient));
@@ -13,20 +14,22 @@ builder.Services.AddSingleton<MachineStockService>();
 builder.Services.AddSingleton<MachineTankService>();
 builder.Services.AddSingleton<SourceStockService>();
 builder.Services.AddSingleton<PersonnelService>();
+builder.Services.AddSingleton<RfidPersonnelService>();
 builder.Services.AddSingleton<MixBookingService>();
 
 var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/health", (IOptions<OxaionOptions> options) => Results.Ok(new
+app.MapGet("/api/health", (IOptions<OxaionOptions> options, IOptions<SyncosOptions> syncos) => Results.Ok(new
 {
     ok = true,
     environment = options.Value.StagingOnly ? "STAGING" : "UNRESTRICTED",
     serverUrl = options.Value.ServerUrl,
     firm = options.Value.Firm,
     user = options.Value.User,
-    passwordConfigured = !string.IsNullOrWhiteSpace(options.Value.Password)
+    passwordConfigured = !string.IsNullOrWhiteSpace(options.Value.Password),
+    syncosConfigured = !string.IsNullOrWhiteSpace(syncos.Value.ConnectionString)
 }));
 
 app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
@@ -93,6 +96,36 @@ app.MapGet("/api/personnel/search", async (string q, PersonnelService service, C
     catch (Exception ex) when (ex is not OperationCanceledException)
     {
         return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+app.MapPost("/api/personnel/nfc", async (NfcPersonnelRequest request, RfidPersonnelService service, CancellationToken ct) =>
+{
+    try
+    {
+        var result = await service.ResolveAsync(request.SerialNumber, ct);
+        if (result is null)
+        {
+            return Results.Json(new
+            {
+                status = "RFID_NOT_FOUND",
+                message = "Der gelesene NFC-Chip ist in Syncos keiner aktiven sichtbaren Person zugeordnet."
+            }, statusCode: StatusCodes.Status404NotFound);
+        }
+        return Results.Ok(result);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { status = "RFID_INVALID", message = ex.Message });
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException)
+    {
+        return Results.Json(new
+        {
+            status = "RFID_LOOKUP_UNAVAILABLE",
+            message = "NFC-Chip wurde gelesen, die Mitarbeiterzuordnung konnte aber nicht sicher bestätigt werden.",
+            technicalMessage = ex.Message
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 });
 
@@ -299,3 +332,5 @@ static bool IsConfirmedRejected(MixTransaction tx) =>
 
 app.MapFallbackToFile("index.html");
 app.Run();
+
+public sealed record NfcPersonnelRequest(string SerialNumber);
