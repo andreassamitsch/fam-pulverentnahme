@@ -69,4 +69,26 @@ public sealed class PersonnelLookupTests
         Assert.NotNull(person);
         Assert.Equal("Andreas Samitsch", person!.FullName);
     }
+
+    [Theory]
+    [InlineData("0000000450", "45", true)]
+    [InlineData("0000000451", "45", true)]
+    [InlineData("0000000452", "45", true)]
+    [InlineData("0000000453", "45", true)]
+    [InlineData("0000000245", "45", false)]
+    [InlineData("0000000345", "45", false)]
+    [InlineData("0000001450", "450", false)]
+    public void PersonnelPrefixMatchesOnlyAtStartOfNormalizedPepenu(string oxaionPersonnelNo, string prefix, bool expected)
+    {
+        Assert.Equal(expected, PersonnelService.MatchesPersonnelPrefix(oxaionPersonnelNo, prefix));
+    }
+
+    [Theory]
+    [InlineData("450", "0000000450")]
+    [InlineData("45", "0000000045")]
+    [InlineData("0000000450", "0000000450")]
+    public void BuildsTenDigitExactOxaionPersonnelNumber(string input, string expected)
+    {
+        Assert.Equal(expected, PersonnelService.ToOxaionPersonnelNumber(input));
+    }
 }
