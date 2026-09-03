@@ -10,7 +10,8 @@ async function submitPreparedReplenishment(){
   if(!ok){alert('Nachfüllchargen bzw. Entnahmeorte erneut prüfen.');return}
   let r;
   try{r=values();validate(r)}catch(e){alert(e.message);return}
-  const msg=`ECHTE STAGING-BUCHUNG?\n\nMaschinentank: ${r.oldMixWarehouse}\nArtikel: ${r.article} ${r.articleText}\nTank: ${r.oldMixBatch} · ${r.oldMixAmountKg.toFixed(3)} kg\n\nNachfüllchargen:\n${sourceConfirm(r)}\n\nNeue Mix-Charge: ${r.targetBatch}\nBuchungstext: ${r.bookingText}\n\nMitarbeiter: ${r.personnelNo} - ${r.personnelName}`;
-  if(confirm(msg))await sendRequest(r);
+  const workerMsg=`BUCHUNG STARTEN?\n\nMaschinentank: ${r.oldMixWarehouse}\nPulver: ${r.article} ${r.articleText}\n\nNachfüllchargen:\n${sourceConfirm(r)}\n\nMitarbeiter: ${r.personnelNo} - ${r.personnelName}`;
+  const devMsg=`ECHTE STAGING-BUCHUNG?\n\nMaschinentank: ${r.oldMixWarehouse}\nArtikel: ${r.article} ${r.articleText}\nTank: ${r.oldMixBatch} · ${r.oldMixAmountKg.toFixed(3)} kg\n\nNachfüllchargen:\n${sourceConfirm(r)}\n\nNeue Mix-Charge: ${r.targetBatch}\nBuchungstext: ${r.bookingText}\n\nMitarbeiter: ${r.personnelNo} - ${r.personnelName}`;
+  if(confirm(document.body.classList.contains('dev-mode')?devMsg:workerMsg))await sendRequest(r);
 }
 $('bookBtn').onclick=submitPreparedReplenishment;
