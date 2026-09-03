@@ -10,7 +10,7 @@ async function submitPreparedReplenishment(){
   if(!ok){alert('Nachfüllquellen erneut prüfen.');return}
   let r;
   try{r=values();validate(r)}catch(e){alert(e.message);return}
-  const msg=`ECHTE STAGING-BUCHUNG?\n\nMaschine: ${r.oldMixWarehouse}\nArtikel: ${r.article} ${r.articleText}\nTank: ${r.oldMixBatch} · ${r.oldMixAmountKg.toFixed(3)} kg\n\nNachfüllchargen:\n${sourceConfirm(r)}\n\nNeue Mix-Charge: ${r.targetBatch}\nBuchungstext: ${r.bookingText}\n\nMitarbeiter: ${r.personnelNo} · ${selectedPersonnel.code} · ${r.personnelName}`;
+  const msg=`ECHTE STAGING-BUCHUNG?\n\nMaschine: ${r.oldMixWarehouse}\nArtikel: ${r.article} ${r.articleText}\nTank: ${r.oldMixBatch} · ${r.oldMixAmountKg.toFixed(3)} kg\n\nNachfüllchargen:\n${sourceConfirm(r)}\n\nNeue Mix-Charge: ${r.targetBatch}\nBuchungstext: ${r.bookingText}\n\nMitarbeiter: ${r.personnelNo} · ${r.personnelName}`;
   if(confirm(msg))await sendRequest(r);
 }
 
