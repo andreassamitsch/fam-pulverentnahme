@@ -1,10 +1,11 @@
-const CACHE='fam-pulver-staging-v9-pepena';
+const CACHE='fam-pulver-staging-v10-personnel-auth';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css',
-  '/app.js?v=20260903-pepena',
-  '/submit.js?v=20260902-machine-personnel',
+  '/app.js?v=20260903-personnel-auth',
+  '/personnel-auth.js?v=20260903-personnel-auth',
+  '/submit.js?v=20260903-personnel-auth',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
   '/icons/icon-192.svg',
