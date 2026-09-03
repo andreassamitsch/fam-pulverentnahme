@@ -9,6 +9,7 @@ Die vorhandene manuelle Oxaion-Personalsuche bleibt bestehen. Zusätzlich kann d
 ```text
 Android PWA / Web NFC
   -> NDEFReadingEvent.serialNumber (Chip-UID)
+  -> Trennzeichen entfernen, RFID als alphanumerischen String behandeln
   -> POST /api/personnel/nfc
   -> ASP.NET Core Backend
   -> Syncos STAGING SQL: RFID -> ObjectKey
@@ -31,7 +32,7 @@ RFID      ObjectKey    Name  Description       IsEnabled  IsVisible
 
 Verbindliche Zuordnung für diesen Ablauf:
 
-- `RFID`: numerische Chip-/RFID-ID in Syncos.
+- `RFID`: alphanumerische Chip-/RFID-ID in Syncos. Der Wert kann neben Ziffern auch Buchstaben wie `A-F` enthalten und darf nicht numerisch oder als Hex-Zahl interpretiert werden.
 - `ObjectKey`: zehnstellig mit führenden Nullen gespeicherte Personalnummer.
 - Beispiel: `0000000446` wird für Oxaion zu `446` normalisiert.
 - `Name` und `Description` aus Syncos sind nur Diagnose-/Kontextfelder. Sie ersetzen nicht den kanonischen Oxaion-Namen `PEPENA`.
@@ -52,21 +53,31 @@ WHERE t0.ClassID = 47
 ORDER BY t0.ObjectKey
 ```
 
-`@rfid` wird parametrisiert übergeben. Es gibt keine SQL-Stringverkettung mit Chipwerten.
+`@rfid` wird parametrisiert als String übergeben. Es gibt keine SQL-Stringverkettung mit Chipwerten.
 
-## NFC-UID und RFID-Zahl
+## NFC-Seriennummer und Syncos-RFID
 
-Web NFC liefert die Chip-Seriennummer/UID als Hex-Bytes, üblicherweise durch `:` getrennt. Das Backend interpretiert diese Bytes in derselben Reihenfolge als Hex-Zahl und verwendet deren Dezimaldarstellung für den Vergleich mit `ITSUSER.RFID`.
+Die vom NFC-Reader beziehungsweise von Web NFC gelesene Seriennummer wird nicht als Zahl und nicht als Hex-Zahl umgerechnet.
 
-Regressionstest:
+Reader dürfen zwischen den Gruppen Trennzeichen darstellen. Für den Syncos-Vergleich entfernt das Backend ausschließlich die üblichen Trennzeichen `:`, `-` und Leerzeichen und normalisiert Buchstaben auf Großschreibung. Die Reihenfolge und der alphanumerische Inhalt bleiben unverändert.
+
+Beispiele:
 
 ```text
-03:3C:DD:52 -> 0x033CDD52 -> 54320466
+54:32:04:66 -> 54320466
+54-32-04-66 -> 54320466
+A1:B2:C3:D4 -> A1B2C3D4
 ```
 
-Für API-/Diagnosetests akzeptiert das Backend zusätzlich bereits dezimal übergebene RFID-Werte.
+Insbesondere gilt ausdrücklich:
 
-Die reale UID-Darstellung der vorhandenen FAM-Personalchips ist im nächsten Android-STAGING-Test zu bestätigen. Es wird keine alternative Byte-Reihenfolge geraten. Falls der gelesene Web-NFC-Wert nicht zur Syncos-RFID passt, wird die konkrete UID angezeigt und die Zuordnung bleibt gesperrt, bis die tatsächliche Kodierung geklärt ist.
+- keine Dezimalkonvertierung;
+- keine Hex-Konvertierung;
+- keine Byte-Reihenfolgenumkehr;
+- keine Interpretation von `A-F` als Hex-Ziffern;
+- `A-F` bleiben normale Bestandteile der Syncos-RFID.
+
+Damit wird exakt derselbe alphanumerische RFID-Wert gegen `ITSUSER.RFID` geprüft, den Syncos speichert, lediglich ohne die vom Reader eingefügten Trenner.
 
 ## Sicherheitskette
 
@@ -108,7 +119,8 @@ Das STAGING-Startskript fragt den Connection-String verdeckt ab, falls die Umgeb
 ## Noch live zu bestätigen
 
 - vorhandene FAM-Personalchips sind auf dem eingesetzten Android-/Browser-Setup über Web NFC lesbar;
-- gelieferte `serialNumber` wird in der erwarteten Byte-Reihenfolge zur Syncos-Spalte `RFID` abgebildet;
-- Beispiel `RFID 54320466 -> ObjectKey 0000000446 -> Oxaion 446` funktioniert Ende-zu-Ende;
+- die vom Reader gelesene Seriennummer ergibt nach ausschließlichem Entfernen der Trenner exakt den in `ITSUSER.RFID` gespeicherten alphanumerischen Wert;
+- Beispiel `54:32:04:66 -> RFID 54320466 -> ObjectKey 0000000446 -> Oxaion 446` funktioniert Ende-zu-Ende;
+- ein realer RFID-Wert mit Buchstaben `A-F` funktioniert ohne Umrechnung Ende-zu-Ende;
 - automatische Auswahl im Frontend ersetzt korrekt eine eventuell vorherige manuelle Auswahl;
 - Verhalten bei unbekannter RFID, doppelter RFID, deaktiviertem/unsichtbarem Datensatz, SQL-Ausfall und Oxaion-Prüffehler ist im STAGING nachvollziehbar.
