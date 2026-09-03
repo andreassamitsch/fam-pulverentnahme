@@ -25,7 +25,7 @@ Artikel und Artikelbezeichnung sind reine Systeminformationen und nicht editierb
 
 ### Mitarbeiter
 
-Die Personalnummer wird ohne fuehrende Nullen eingegeben. Name und Kuerzel werden aus Oxaion gelesen; eine freie Namenseingabe gibt es nicht. Details siehe `docs/OXAION_PERSONNEL_LOOKUP.md`.
+Die Personalnummer wird ohne fuehrende Nullen eingegeben. Die WebApp liest Personalnummer und vollstaendigen Namen aus Oxaion und zeigt ausschliesslich `PEPENU - PEPENA`, zum Beispiel `446 - Andreas Samitsch`. Eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da es nicht fuer jeden Mitarbeiter gepflegt ist. Details siehe `docs/OXAION_PERSONNEL_LOOKUP.md`.
 
 ### Nachfuellquellen
 
@@ -64,6 +64,6 @@ Editierbare Pflichtfelder werden optisch deutlich von automatisch aus Oxaion bez
 
 ## Backend-Sicherheitsregeln
 
-Vor einer neuen Materialbuchung bestaetigt das Backend weiterhin Maschinenbestand, Mitarbeiter und jede Nachfuellquelle erneut. Zusaetzlich werden Ziel=Maschine, Ausschluss des Maschinenlagers als Quelle, dynamischer Buchungstext, aktuelles Buchungs-/Erstellungsdatum und Mix-Chargenschema serverseitig geprueft. Bei Abweichungen wird keine schreibende Oxaion-Materialbuchung gestartet.
+Vor einer neuen Materialbuchung bestaetigt das Backend weiterhin Maschinenbestand, Mitarbeiter und jede Nachfuellquelle erneut. Bei der Mitarbeiterpruefung werden `PEPENU` und `PEPENA` erneut aus Oxaion gelesen und gegen die Browserauswahl geprueft. Zusaetzlich werden Ziel=Maschine, Ausschluss des Maschinenlagers als Quelle, dynamischer Buchungstext, aktuelles Buchungs-/Erstellungsdatum und Mix-Chargenschema serverseitig geprueft. Bei Abweichungen wird keine schreibende Oxaion-Materialbuchung gestartet.
 
 Ein bewusster neuer Versuch nach einem historisch eindeutig `REJECTED` Vorgang behaelt dagegen gemaess bestehender Idempotenzentscheidung exakt die alten Buchungsdaten; er wird nicht stillschweigend auf das neue Namens-/Datumsformat umgeschrieben.
