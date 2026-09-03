@@ -10,8 +10,9 @@ Am 03.09.2026 wurde fuer die Pulverentnahme-PWA verbindlich entschieden:
 - Das Frontend kennt weder den Legacy-Schluessel noch den gespeicherten `PASSWORD`-Wert.
 - Passwort, transformierter Passwortwert und Datenbank-Credential duerfen weder in `IndexedDB`, im `clientOperationId`-Vorgang, im Transaktionslog noch in Git gespeichert werden.
 - Eine neue Anmeldung ist ein Online-Schritt. Bei abgelaufener Session gibt es keinen Offline-Bypass; der Bediener muss sich nach Wiederherstellung der Backend-Verbindung erneut anmelden.
+- Fuer die aktuelle STAGING-/Testphase muss die WebApp inklusive Mitarbeiter-Login auch ueber normales HTTP im internen Netz testbar sein. HTTP wird deshalb im Backend nicht blockiert. Fuer den Produktivbetrieb bleibt HTTPS verbindlich.
 
-Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unveraendert bestehen. Oxaion bleibt fuer die Identitaet des Mitarbeiters fuehrend; die separate Credential-Datenbank wird nur zur Passwortpruefung gelesen.
+Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unveraendert bestehen. Oxaion bleibt fuer die Identitaet des Mitarbeiters fuehrend; die SYNCOS-Datenbank wird nur zur Passwortpruefung gelesen.
 
 ## Ablauf
 
@@ -19,11 +20,11 @@ Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unvera
 2. Backend sucht den Mitarbeiter wie bisher ueber die bestaetigte Oxaion-Personallogik.
 3. Bediener waehlt bewusst den Treffer `PEPENU - PEPENA`.
 4. PWA zeigt das Passwortfeld.
-5. `POST /api/personnel/login` sendet Personalnummer und Passwort ueber HTTPS an das Backend.
+5. `POST /api/personnel/login` sendet Personalnummer und Passwort an das Backend. In STAGING darf dies fuer Tests auch ueber HTTP erfolgen; produktiv muss die Verbindung ueber HTTPS laufen.
 6. Backend liest den Mitarbeiter erneut exakt aus Oxaion.
-7. Backend bildet aus der normalisierten Personalnummer den aktuell verwendeten Credential-Schluessel zehnstellig mit fuehrenden Nullen, z. B. `446 -> 0000000446`.
-8. Backend liest den gespeicherten `PASSWORD`-Wert ueber eine parametrisierte, ausschliesslich lesende SQL-Abfrage mit `@ObjectKey`.
-9. Backend transformiert das eingegebene Passwort mit der am 03.09.2026 rekonstruierten SYNCOS-Legacy-Logik und vergleicht die Bytes zeitkonstant mit dem gespeicherten Wert.
+7. Backend liest den aktiven und sichtbaren SYNCOS-Benutzer zur Personalnummer aus `syncos_stg_102.ITSDEV.ITSUSER`.
+8. Der Lookup verwendet die bekannte Zuordnung ueber den Suffix des `OBJECTKEY`, z. B. Personalnummer `446` -> `OBJECTKEY LIKE '%446'`.
+9. Backend transformiert das eingegebene Passwort mit der am 03.09.2026 rekonstruierten SYNCOS-Legacy-Logik und vergleicht die Bytes zeitkonstant mit `ITSUSER.PASSWORD`.
 10. Bei Erfolg wird eine serverseitige Session angelegt. Im Browser liegt nur die HTTP-Session-Cookie-Referenz; das Passwort wird verworfen.
 11. `POST /api/mix` akzeptiert neue Buchungen nur, wenn die Session vorhanden ist und Personalnummer sowie Name exakt mit dem Buchungsvorgang uebereinstimmen.
 12. Direkt vor der Materialbuchung bleibt zusaetzlich die bereits bestehende erneute Oxaion-Pruefung von `PEPENU` und `PEPENA` aktiv.
@@ -77,35 +78,56 @@ Die WebApp akzeptiert fuer diese Legacy-Pruefung derzeit nur:
 
 Diese Grenze ist absichtlich enger als eine erfundene Verallgemeinerung. Sonderzeichen und Positionen ab 19 sind noch nicht durch kontrollierte Testvektoren bestaetigt.
 
-## Credential-Datenbank
+## Bestaetigte Credential-Abfrage
 
-Die PWA darf keine Datenbankverbindung besitzen. Der Zugriff erfolgt ausschliesslich im Backend und ausschliesslich lesend.
+Die bereits fuer die RFID-Zuordnung verwendete SYNCOS-Abfrage ist bestaetigt und wird nicht als frei konfigurierbare SQL-Anweisung behandelt:
 
-Der konkrete SYNCOS-Tabellen-/Schemaname ist im Repository noch nicht bestaetigt und wird deshalb nicht hart codiert oder erfunden. Die Implementierung erwartet zur Laufzeit:
+```sql
+SELECT t0.RFID,
+       t0.ObjectKey,
+       t0.Name,
+       t0.Description,
+       t0.PASSWORD,
+       t0.IsEnabled,
+       t0.IsVisible
+  FROM syncos_stg_102.ITSDEV.ITSUSER t0
+ WHERE t0.ClassID = 47
+   AND t0.IsEnabled = -1
+   AND t0.IsVisible = -1
+   AND t0.OBJECTKEY LIKE '%446'
+```
+
+Die Backend-Implementierung verwendet dieselben bestaetigten Bedingungen, liest fuer die Passwortpruefung aber nur die benoetigte Spalte `PASSWORD` und setzt die Personalnummer als SQL-Parameter ein:
+
+```sql
+SELECT t0.PASSWORD
+  FROM syncos_stg_102.ITSDEV.ITSUSER t0
+ WHERE t0.ClassID = 47
+   AND t0.IsEnabled = -1
+   AND t0.IsVisible = -1
+   AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
+```
+
+Damit ist keine `PasswordLookupSql`-Laufzeitkonfiguration mehr vorgesehen.
+
+Verbindliche Sicherheitsregeln:
+
+- ausschliesslich `SELECT`;
+- Personalnummer wird parametriert uebergeben;
+- nur `ClassID = 47`;
+- nur `IsEnabled = -1`;
+- nur `IsVisible = -1`;
+- kein Treffer -> Anmeldung abgelehnt;
+- mehr als ein Treffer -> Anmeldung abgelehnt, da die Zuordnung nicht eindeutig ist;
+- keine Schreiboperation an `ITSUSER`.
+
+Nur der Datenbank-Connection-String bleibt Laufzeitkonfiguration:
 
 ```text
 PersonnelAuthentication__ConnectionString
-PersonnelAuthentication__PasswordLookupSql
 ```
 
-Die SQL-Abfrage muss:
-
-- mit `SELECT` beginnen;
-- den Parameter `@ObjectKey` verwenden;
-- genau den gespeicherten `PASSWORD`-Wert als erste Spalte liefern;
-- fuer einen Benutzer hoechstens eine Zeile liefern;
-- produktiv nur aktive Benutzer zulassen, sobald Tabelle und Aktivkennzeichen technisch bestaetigt sind.
-
-Beispiel als Schablone, **nicht** als bestaetigter Tabellenname:
-
-```sql
-SELECT PASSWORD
-FROM <BESTAETIGTES_SCHEMA>.<BESTAETIGTE_TABELLE>
-WHERE OBJECTKEY = @ObjectKey
-  AND ISENABLED = -1
-```
-
-Die Connection-String-Zugangsdaten sind Secrets und duerfen nicht in `appsettings.json` im Repository eingetragen werden. Sie werden ueber die sichere IIS-/Laufzeitkonfiguration bereitgestellt.
+Zugangsdaten im Connection String sind Secrets und duerfen nicht in Git gespeichert werden.
 
 ## OBJECTKEY-Zuordnung
 
@@ -117,13 +139,25 @@ NAME      = ANSA
 PASSWORD  = 7ECF2EE5714D
 ```
 
-beobachtet. Die aktuelle STAGING-Implementierung bildet deshalb die Oxaion-Personalnummer wie folgt ab:
+beobachtet.
 
-```text
-PEPENU 446 -> OBJECTKEY 0000000446
-```
+Die bereits vorhandene RFID-Abfrage verwendet die Personalnummer als `OBJECTKEY`-Suffix. Dieses Verhalten wird fuer die Passwortanmeldung uebernommen. Mehrdeutige Suffix-Treffer werden nicht toleriert.
 
-Vor Produktivfreigabe ist diese Zuordnung noch an mehreren realen Mitarbeitern zu bestaetigen. Ein Tabellenname oder eine alternative Benutzerzuordnung wird nicht angenommen.
+## HTTP in der Testphase
+
+Fuer den aktuellen STAGING-Betrieb darf die WebApp im internen Netz ueber HTTP aufgerufen und der Login getestet werden.
+
+Technisch gilt:
+
+- der Login-Endpunkt erzwingt aktuell in STAGING kein HTTPS;
+- das Session-Cookie verwendet `CookieSecurePolicy.SameAsRequest`;
+- bei HTTP funktioniert die Session ohne `Secure`-Flag;
+- bei HTTPS wird das Cookie automatisch mit `Secure` ausgeliefert;
+- die Bedienoberflaeche kennzeichnet eine erfolgreiche Anmeldung ueber HTTP als `HTTP-Testbetrieb`.
+
+Wichtig fuer die Abgrenzung: Browser behandeln Service Worker und installierbare PWA-Funktionen als Secure-Context-Funktionen. Deshalb kann ueber eine normale HTTP-Adresse im LAN die WebApp und die Login-/Buchungslogik getestet werden, aber nicht zwingend der komplette installierte PWA-/Offline-Lebenszyklus. Fuer diesen Teil wird spaeter HTTPS benoetigt.
+
+Fuer den Produktivbetrieb ist HTTP fuer Passwortanmeldungen nicht freigegeben. Vor Produktivsetzung muss HTTPS am IIS/Reverse Proxy aktiv sein.
 
 ## Session und Fehlverhalten
 
@@ -131,7 +165,7 @@ Vor Produktivfreigabe ist diese Zuordnung noch an mehreren realen Mitarbeitern z
 - Login-Endpunkt ist aktuell pro Client-IP auf 10 Versuche pro Minute begrenzt.
 - Falsche Personalnummer und falsches Passwort liefern dieselbe Bedienermeldung.
 - Ein fehlender oder nicht eindeutiger Credential-Datensatz fuehrt nicht zu einer Freigabe.
-- Ist die Credential-Datenbank nicht erreichbar oder nicht konfiguriert, wird keine Anmeldung bestaetigt.
+- Ist die SYNCOS-Datenbank nicht erreichbar oder der Connection String nicht konfiguriert, wird keine Anmeldung bestaetigt.
 - Stimmt der angemeldete Mitarbeiter beim Buchungsaufruf nicht exakt mit `PersonnelNo` und `PersonnelName` des Vorgangs ueberein, wird vor jeder Materialbuchung mit `AUTH_CONFLICT` gestoppt.
 - Nach App-/Server-Neustart kann eine erneute Anmeldung erforderlich sein. Das ist sicherer als eine lokal gespeicherte Passwort- oder Authentifizierungsumgehung.
 
@@ -145,7 +179,8 @@ Daraus folgen verbindlich:
 - kein Legacy-Schluessel im JavaScript;
 - keine Ausgabe des gespeicherten Passwortwerts an das Frontend;
 - keine Passwortprotokollierung;
-- HTTPS fuer die PWA und den Login;
+- HTTP nur fuer den bewusst begrenzten STAGING-/Testbetrieb im internen Netz;
+- HTTPS fuer den Produktivbetrieb;
 - zeitkonstanter Vergleich der transformierten Bytes;
 - keine Verwendung dieser Transformation fuer neue eigene Passwortspeicher der WebApp.
 
