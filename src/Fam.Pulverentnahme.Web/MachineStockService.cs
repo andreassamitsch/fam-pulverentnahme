@@ -29,7 +29,8 @@ public sealed record MachineStockResult(
     string Article,
     string Message,
     DateTimeOffset ReadAt,
-    IReadOnlyList<MachineStockRow> Rows);
+    IReadOnlyList<MachineStockRow> Rows,
+    ArticleRecognitionColorsResult? RecognitionColors = null);
 
 public sealed class MachineStockConflictException(string message) : Exception(message);
 
