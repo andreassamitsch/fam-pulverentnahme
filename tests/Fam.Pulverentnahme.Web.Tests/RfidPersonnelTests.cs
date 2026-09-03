@@ -6,12 +6,15 @@ namespace Fam.Pulverentnahme.Web.Tests;
 public sealed class RfidPersonnelTests
 {
     [Theory]
-    [InlineData("03:3C:DD:52", "54320466")]
-    [InlineData("03-3c-dd-52", "54320466")]
+    [InlineData("54:32:04:66", "54320466")]
+    [InlineData("54-32-04-66", "54320466")]
+    [InlineData("54 32 04 66", "54320466")]
     [InlineData("54320466", "54320466")]
-    public void ConvertsWebNfcSerialToSyncosRfid(string serialNumber, string expected)
+    [InlineData("A1:B2:C3:D4", "A1B2C3D4")]
+    [InlineData("a1-b2-c3-d4", "A1B2C3D4")]
+    public void NormalizesWebNfcSerialToSyncosRfidString(string serialNumber, string expected)
     {
-        Assert.Equal(expected, RfidPersonnelService.SerialNumberToRfid(serialNumber));
+        Assert.Equal(expected, RfidPersonnelService.NormalizeSerialNumber(serialNumber));
     }
 
     [Fact]
