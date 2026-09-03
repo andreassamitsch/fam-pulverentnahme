@@ -1,11 +1,13 @@
-const CACHE='fam-pulver-staging-v10-nfc-personnel';
+const CACHE='fam-pulver-staging-v11-qr-workflow';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css',
-  '/app.js?v=20260903-nfc-personnel',
-  '/nfc.js?v=20260903-nfc-personnel',
-  '/submit.js?v=20260902-machine-personnel',
+  '/qr-scanner.css?v=20260903-qr-workflow',
+  '/qr-scanner.js?v=20260903-qr-workflow',
+  '/app.js?v=20260903-qr-workflow',
+  '/nfc.js?v=20260903-nfc-tone',
+  '/submit.js?v=20260903-qr-workflow',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
   '/icons/icon-192.svg',
