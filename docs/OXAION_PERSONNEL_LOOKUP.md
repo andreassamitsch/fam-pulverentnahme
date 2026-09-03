@@ -6,6 +6,8 @@ Der lesende Ablauf wurde am 02.09.2026 aus einem realen JET-Datenstrom rekonstru
 
 Ein weiterer realer JET-Mitschnitt vom 03.09.2026 bestaetigt die feldbezogene Oxaion-Filterung fuer eine exakte Personalnummer. Damit wird die freie Suche nicht mehr als ausreichende fachliche Personalpruefung behandelt.
 
+Der Live-Test der WebApp am 03.09.2026 hat ausserdem gezeigt, dass `US14001 *SAVCURSET` ueber den app-tunnel trotz angefordertem `responseFormat=xml` mit erfolgreichem HTTP-Status eine nicht als XML parsebare Antwort liefern kann. Fuer genau diesen Schritt darf deshalb ein reiner XML-Parsefehler nach erfolgreichem HTTP-Aufruf toleriert werden. Transport-/HTTP-Fehler werden weiterhin als Fehler behandelt. Die nachfolgenden Schritte `GETSLTV`, `GETSLTATR`, `CHKSLTV` mit `IPENU`, `FIRSTLIST` sowie die abschliessende eindeutige Pruefung von `PEPENU` und `PEPENA` bleiben zwingend; dadurch wird die fachliche Personalpruefung nicht abgeschwaecht.
+
 ## Warum die freie Suche allein nicht ausreicht
 
 `US14090J *SEARCH` ist eine freie Suche ueber die dargestellten Listenspalten. Dadurch kann eine Eingabe wie `450` auch einen Mitarbeiter liefern, bei dem `450` beispielsweise nur in der Kostenstelle vorkommt.
@@ -65,6 +67,13 @@ Der Mitschnitt vom 03.09.2026 bestaetigt fuer die exakte Personalnummer `450` fo
 8. `US14000J *READ` fuer den eindeutig gefilterten Personalsatz
 
 Der bestaetigte Filter lieferte fuer `IPENU=0000000450` genau `PEPENU=0000000450`. Dieser feldbezogene Ablauf wird fuer die erneute exakte Personalpruefung unmittelbar vor einer Materialbuchung verwendet.
+
+Technischer Sonderfall fuer den WebApp-Aufruf von Schritt 2:
+
+- `SAVCURSET` muss transportseitig erfolgreich sein; HTTP-/Transportfehler werden nicht ignoriert.
+- Liefert nur die Inhaltsinterpretation danach den bekannten Fehler `Oxaion response was not valid XML.`, darf mit Schritt 3 fortgesetzt werden.
+- Fuer alle nachfolgenden Schritte wird weiterhin eine gueltige, fachlich auswertbare Oxaion-Antwort verlangt.
+- `SUCCESS` der Personalpruefung entsteht erst nach exakt passendem `PEPENU` und `PEPENA`; der tolerierte `SAVCURSET`-Parsefehler allein bestaetigt keinen Mitarbeiter.
 
 ## Feldbedeutung fuer die WebApp
 
