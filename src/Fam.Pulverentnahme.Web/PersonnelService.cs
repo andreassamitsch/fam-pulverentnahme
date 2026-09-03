@@ -48,6 +48,8 @@ public sealed class PersonnelService
         // result limit so cost-center/name matches cannot consume our ten returned slots.
         var seeds = ParseSearchSeeds(search.Xml)
             .Where(seed => MatchesPersonnelPrefix(Get(seed.Fields, "PEPENU"), query))
+            .GroupBy(seed => NormalizeOxaionNumber(Get(seed.Fields, "PEPENU")), StringComparer.Ordinal)
+            .Select(group => group.First())
             .Take(MaxResults)
             .ToList();
         if (seeds.Count == 0) return [];
@@ -171,9 +173,16 @@ public sealed class PersonnelService
         var result = new List<PersonnelOption>();
         foreach (var seed in seeds)
         {
+            var expectedPersonnelNo = NormalizeOxaionNumber(Get(seed.Fields, "PEPENU"));
+            if (string.IsNullOrWhiteSpace(expectedPersonnelNo)) continue;
+
             var read = await session.CallAsync("US14000J", "*READ", seed.Fields, ct);
             OxaionSession.AssertNoFcod(read);
-            var option = ParsePersonnel(read.Xml);
+
+            // A READ response can contain more than one DTA context. Never take the first DTA
+            // blindly. Only the DTA whose PEPENU matches the requested personnel record may be
+            // used, and the displayed/validated name comes exclusively from PEPENA.
+            var option = ParsePersonnel(read.Xml, expectedPersonnelNo);
             if (option is null) continue;
             if (!result.Any(x => string.Equals(x.PersonnelNo, option.PersonnelNo, StringComparison.Ordinal)))
                 result.Add(option);
@@ -203,15 +212,30 @@ public sealed class PersonnelService
         return result;
     }
 
-    internal static PersonnelOption? ParsePersonnel(XDocument xml)
+    internal static PersonnelOption? ParsePersonnel(XDocument xml, string? expectedPersonnelNo = null)
     {
-        var dta = xml.Descendants("DTA").FirstOrDefault();
-        if (dta is null) return null;
-        string V(string name) => dta.Element(name)?.Value.Trim() ?? "";
-        var no = NormalizeOxaionNumber(V("PEPENU"));
-        var fullName = V("PEPENA");
-        if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(fullName)) return null;
-        return new PersonnelOption(no, fullName);
+        var expected = string.IsNullOrWhiteSpace(expectedPersonnelNo)
+            ? ""
+            : NormalizeOxaionNumber(expectedPersonnelNo);
+
+        var matches = new List<PersonnelOption>();
+        foreach (var dta in xml.Descendants("DTA"))
+        {
+            string V(string name) => dta.Element(name)?.Value.Trim() ?? "";
+            var no = NormalizeOxaionNumber(V("PEPENU"));
+            var fullName = V("PEPENA");
+            if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(fullName)) continue;
+            if (expected.Length > 0 && !string.Equals(no, expected, StringComparison.Ordinal)) continue;
+
+            var option = new PersonnelOption(no, fullName);
+            if (!matches.Any(x =>
+                    string.Equals(x.PersonnelNo, option.PersonnelNo, StringComparison.Ordinal) &&
+                    string.Equals(x.FullName, option.FullName, StringComparison.Ordinal)))
+                matches.Add(option);
+        }
+
+        // Ambiguous responses are rejected instead of guessing which name belongs to the person.
+        return matches.Count == 1 ? matches[0] : null;
     }
 
     internal static bool MatchesPersonnelPrefix(string oxaionPersonnelNo, string normalizedPrefix)
