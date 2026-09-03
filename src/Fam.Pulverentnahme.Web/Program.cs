@@ -13,20 +13,23 @@ builder.Services.AddSingleton<MachineStockService>();
 builder.Services.AddSingleton<MachineTankService>();
 builder.Services.AddSingleton<SourceStockService>();
 builder.Services.AddSingleton<PersonnelService>();
+builder.Services.AddPersonnelAuthentication(builder.Configuration);
 builder.Services.AddSingleton<MixBookingService>();
 
 var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UsePersonnelAuthentication();
 
-app.MapGet("/api/health", (IOptions<OxaionOptions> options) => Results.Ok(new
+app.MapGet("/api/health", (IOptions<OxaionOptions> options, PersonnelAuthenticationService auth) => Results.Ok(new
 {
     ok = true,
     environment = options.Value.StagingOnly ? "STAGING" : "UNRESTRICTED",
     serverUrl = options.Value.ServerUrl,
     firm = options.Value.Firm,
     user = options.Value.User,
-    passwordConfigured = !string.IsNullOrWhiteSpace(options.Value.Password)
+    passwordConfigured = !string.IsNullOrWhiteSpace(options.Value.Password),
+    personnelAuthenticationConfigured = auth.IsConfigured
 }));
 
 app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
@@ -95,6 +98,7 @@ app.MapGet("/api/personnel/search", async (string q, PersonnelService service, C
         return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 });
+app.MapPersonnelAuthentication();
 
 app.MapGet("/api/source-stock/warehouses", async (
     string article,
@@ -134,7 +138,7 @@ app.MapPost("/api/mix", async (
 {
     try
     {
-        // Idempotency has priority over all fresh lookups.
+        // Idempotency has priority over all fresh lookups inside an authenticated request.
         var existing = await service.GetAsync(request.ClientOperationId, ct);
         if (existing is not null) return TransactionResult(existing);
 
@@ -246,7 +250,7 @@ app.MapPost("/api/mix", async (
         return TransactionResult(tx);
     }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
-});
+}).AddEndpointFilter<PersonnelBookingAuthorizationFilter>();
 
 app.MapGet("/api/mix/{clientOperationId}", async (string clientOperationId, MixBookingService service, CancellationToken ct) =>
 {
