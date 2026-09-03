@@ -8,24 +8,25 @@ public sealed record PersonnelOption(string PersonnelNo, string FullName);
 internal sealed record PersonnelSearchSeed(Dictionary<string, string> Fields);
 
 /// <summary>
-/// Read-only personnel lookup reconstructed from the captured Oxaion JET flow of 2026-09-02.
-/// Confirmed sequence:
-/// MN10209J *CHKCMD (MA) -> US14090J *LOAD/*GETCFTIT/*FIRSTLIST/*SEARCH ->
-/// US14000J *LOAD/*READ.
-/// The operator enters the personnel number without leading zeroes. Oxaion returns PEPENU padded
-/// to 10 digits. PEPENA is the full personnel name. PESAKZ is intentionally not used because it
-/// is not maintained for every employee.
+/// Read-only personnel lookup reconstructed from captured Oxaion JET flows.
+/// AJAX suggestions still use US14090J *SEARCH as a candidate lookup, but candidates are accepted
+/// only when their normalized PEPENU starts with the entered number. This prevents matches that
+/// exist only in other free-search columns such as cost center.
+///
+/// Exact server-side validation before a booking uses the confirmed Oxaion personnel filter flow:
+/// US14001R *GETFILTER -> US14001 *SAVCURSET -> US14001R *GETSLTV/*GETSLTATR/*CHKSLTV
+/// with IPENU=<10-digit personnel number>, followed by US14090J *FIRSTLIST FROM_PGMN=MAINFILTER.
+/// PEPENA is the full personnel name. PESAKZ and PENLAE are intentionally not used.
 /// </summary>
 public sealed class PersonnelService
 {
     private const int MaxResults = 10;
     private readonly OxaionClient _oxaion;
-    private readonly OxaionOptions _options;
 
     public PersonnelService(OxaionClient oxaion, IOptions<OxaionOptions> options)
     {
         _oxaion = oxaion;
-        _options = options.Value;
+        _ = options.Value;
     }
 
     public async Task<IReadOnlyList<PersonnelOption>> SearchAsync(string query, CancellationToken ct)
@@ -34,7 +35,87 @@ public sealed class PersonnelService
         if (string.IsNullOrWhiteSpace(query)) return [];
 
         await using var session = await _oxaion.ConnectAsync(ct);
+        var ssid = await OpenPersonnelListAsync(session, ct);
 
+        var search = await session.CallAsync("US14090J", "*SEARCH", Dict(
+            ("SSID", ssid),
+            ("SEARCH", query),
+            ("mode", "replace")), ct);
+        OxaionSession.AssertNoFcod(search);
+
+        // US14090J *SEARCH is a free search across the displayed columns. Never expose its result
+        // directly. PEPENU is the authoritative field and the prefix check happens before the
+        // result limit so cost-center/name matches cannot consume our ten returned slots.
+        var seeds = ParseSearchSeeds(search.Xml)
+            .Where(seed => MatchesPersonnelPrefix(Get(seed.Fields, "PEPENU"), query))
+            .Take(MaxResults)
+            .ToList();
+        if (seeds.Count == 0) return [];
+
+        var result = await ReadPersonnelOptionsAsync(session, seeds, ct);
+        return result
+            .Where(option => option.PersonnelNo.StartsWith(query, StringComparison.Ordinal))
+            .Take(MaxResults)
+            .ToList();
+    }
+
+    public async Task<PersonnelOption?> ReadExactAsync(string personnelNo, CancellationToken ct)
+    {
+        var normalized = NormalizeInput(personnelNo);
+        if (string.IsNullOrWhiteSpace(normalized)) return null;
+
+        await using var session = await _oxaion.ConnectAsync(ct);
+        var ssid = await OpenPersonnelListAsync(session, ct);
+
+        // This exact field filter is confirmed by the 2026-09-03 JET capture. Do not replace it
+        // with the free search: the free search also matches values in unrelated displayed fields.
+        OxaionSession.AssertNoFcod(await session.CallAsync("US14001R", "*GETFILTER", Dict(
+            ("SSID", ssid)), ct));
+
+        OxaionSession.AssertNoFcod(await session.CallAsync("US14001", "*SAVCURSET", Dict(
+            ("SSID", ssid)), ct));
+
+        var getSelection = await session.CallAsync("US14001R", "*GETSLTV", Dict(
+            ("SSID", ssid)), ct);
+        OxaionSession.AssertNoFcod(getSelection);
+
+        var selectionFields = new Dictionary<string, string>(getSelection.Dta, StringComparer.Ordinal)
+        {
+            ["SSID"] = ssid
+        };
+
+        var attributeInput = new Dictionary<string, string>(selectionFields, StringComparer.Ordinal)
+        {
+            ["mode"] = "merge"
+        };
+        OxaionSession.AssertNoFcod(await session.CallAsync("US14001R", "*GETSLTATR", attributeInput, ct));
+
+        selectionFields["IPENU"] = ToOxaionPersonnelNumber(normalized);
+        OxaionSession.AssertNoFcod(await session.CallAsync("US14001R", "*CHKSLTV", selectionFields, ct));
+
+        var filtered = await session.CallAsync("US14090J", "*FIRSTLIST", Dict(
+            ("SSID", ssid),
+            ("FROM_PGMN", "MAINFILTER"),
+            ("mode", "replace-children")), ct);
+        OxaionSession.AssertNoFcod(filtered);
+
+        var exactSeeds = ParseSearchSeeds(filtered.Xml)
+            .Where(seed => string.Equals(
+                NormalizeOxaionNumber(Get(seed.Fields, "PEPENU")),
+                normalized,
+                StringComparison.Ordinal))
+            .Take(2)
+            .ToList();
+        if (exactSeeds.Count != 1) return null;
+
+        var matches = await ReadPersonnelOptionsAsync(session, exactSeeds, ct);
+        return matches.Count == 1 && string.Equals(matches[0].PersonnelNo, normalized, StringComparison.Ordinal)
+            ? matches[0]
+            : null;
+    }
+
+    private static async Task<string> OpenPersonnelListAsync(OxaionSession session, CancellationToken ct)
+    {
         var command = await session.CallAsync("MN10209J", "*CHKCMD", Dict(
             ("CHKCMD", "MA"),
             ("_father_", "CMDLINE")), ct);
@@ -47,13 +128,14 @@ public sealed class PersonnelService
         OxaionSession.AssertNoFcod(await session.CallAsync("US14090J", "*LOAD", listContext, ct));
         OxaionSession.AssertNoFcod(await session.CallAsync("US14090J", "*GETCFTIT", listContext, ct));
         OxaionSession.AssertNoFcod(await session.CallAsync("US14090J", "*FIRSTLIST", Dict(("SSID", ssid)), ct));
+        return ssid;
+    }
 
-        var search = await session.CallAsync("US14090J", "*SEARCH", Dict(
-            ("SSID", ssid),
-            ("SEARCH", query),
-            ("mode", "replace")), ct);
-        OxaionSession.AssertNoFcod(search);
-        var seeds = ParseSearchSeeds(search.Xml).Take(MaxResults).ToList();
+    private static async Task<IReadOnlyList<PersonnelOption>> ReadPersonnelOptionsAsync(
+        OxaionSession session,
+        IReadOnlyList<PersonnelSearchSeed> seeds,
+        CancellationToken ct)
+    {
         if (seeds.Count == 0) return [];
 
         OxaionSession.AssertNoFcod(await session.CallAsync("US14000J", "*LOAD", Dict(
@@ -72,16 +154,6 @@ public sealed class PersonnelService
         }
 
         return result;
-    }
-
-    public async Task<PersonnelOption?> ReadExactAsync(string personnelNo, CancellationToken ct)
-    {
-        var normalized = NormalizeInput(personnelNo);
-        if (string.IsNullOrWhiteSpace(normalized)) return null;
-        var matches = (await SearchAsync(normalized, ct))
-            .Where(x => string.Equals(x.PersonnelNo, normalized, StringComparison.Ordinal))
-            .ToList();
-        return matches.Count == 1 ? matches[0] : null;
     }
 
     internal static IReadOnlyList<PersonnelSearchSeed> ParseSearchSeeds(XDocument xml)
@@ -114,6 +186,19 @@ public sealed class PersonnelService
         var fullName = V("PEPENA");
         if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(fullName)) return null;
         return new PersonnelOption(no, fullName);
+    }
+
+    internal static bool MatchesPersonnelPrefix(string oxaionPersonnelNo, string normalizedPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedPrefix)) return false;
+        return NormalizeOxaionNumber(oxaionPersonnelNo)
+            .StartsWith(normalizedPrefix, StringComparison.Ordinal);
+    }
+
+    internal static string ToOxaionPersonnelNumber(string personnelNo)
+    {
+        var normalized = NormalizeInput(personnelNo);
+        return normalized.PadLeft(10, '0');
     }
 
     internal static string NormalizeInput(string value)
