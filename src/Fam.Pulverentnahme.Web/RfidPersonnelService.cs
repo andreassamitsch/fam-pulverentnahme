@@ -1,5 +1,4 @@
 using System.Data;
-using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 
@@ -26,7 +25,7 @@ public sealed class RfidPersonnelService
 
     public async Task<RfidPersonnelResult?> ResolveAsync(string serialNumber, CancellationToken ct)
     {
-        var rfid = SerialNumberToRfid(serialNumber);
+        var rfid = NormalizeSerialNumber(serialNumber);
         if (string.IsNullOrWhiteSpace(_options.ConnectionString))
             throw new InvalidOperationException("Syncos SQL-Verbindung ist nicht konfiguriert. Syncos__ConnectionString muss gesetzt sein.");
 
@@ -86,27 +85,22 @@ public sealed class RfidPersonnelService
         return PersonnelService.NormalizeInput(value);
     }
 
-    internal static string SerialNumberToRfid(string serialNumber)
+    internal static string NormalizeSerialNumber(string serialNumber)
     {
         var value = (serialNumber ?? "").Trim();
         if (value.Length == 0)
             throw new ArgumentException("Der NFC-Chip hat keine auslesbare Seriennummer.", nameof(serialNumber));
 
-        // Web NFC exposes the tag serial/UID as hexadecimal bytes, normally separated by ':'.
-        // For diagnostics/API tests we additionally accept an already-decimal RFID value.
-        if (value.All(char.IsDigit) && !value.Contains(':') && !value.Contains('-') && !value.Contains(' '))
-        {
-            if (!ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var direct))
-                throw new ArgumentException("NFC-Seriennummer ist ungültig.", nameof(serialNumber));
-            return direct.ToString(CultureInfo.InvariantCulture);
-        }
+        // Syncos stores RFID as an alphanumeric identifier. Never interpret it as a decimal or hex number.
+        // Web NFC/readers may insert separators between UID groups; remove separators only and preserve the identifier.
+        var normalized = new string(value
+            .Where(c => c != ':' && c != '-' && !char.IsWhiteSpace(c))
+            .ToArray())
+            .ToUpperInvariant();
 
-        var hex = new string(value.Where(Uri.IsHexDigit).ToArray());
-        if (hex.Length == 0 || hex.Length % 2 != 0 || hex.Length > 16)
-            throw new ArgumentException("NFC-Seriennummer hat kein unterstütztes Hex-Format.", nameof(serialNumber));
-        if (!ulong.TryParse(hex, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var numeric))
-            throw new ArgumentException("NFC-Seriennummer konnte nicht in RFID umgerechnet werden.", nameof(serialNumber));
+        if (normalized.Length == 0 || !normalized.All(char.IsLetterOrDigit))
+            throw new ArgumentException("NFC-Seriennummer enthält nicht unterstützte Zeichen.", nameof(serialNumber));
 
-        return numeric.ToString(CultureInfo.InvariantCulture);
+        return normalized;
     }
 }
