@@ -124,9 +124,9 @@ Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
 
 ### Mitarbeiter
 
-Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die WebApp sucht die Nummer in Oxaion, zeigt Treffer mit Personalnummer, Kuerzel und vollstaendigem Namen und verlangt eine bewusste Auswahl. Name und Kuerzel werden nicht frei eingegeben.
+Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die WebApp sucht die Nummer in Oxaion, zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht.
 
-Der aus einem realen Datenstrom bestaetigte Ablauf und die Felder `PEPENU`, `PESAKZ` und `PENLAE` sind in `docs/OXAION_PERSONNEL_LOOKUP.md` dokumentiert. Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut in Oxaion.
+`PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet. Der bestaetigte Ablauf und die Feldzuordnung sind in `docs/OXAION_PERSONNEL_LOOKUP.md` dokumentiert. Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend `PEPENU` und `PEPENA` erneut in Oxaion.
 
 ### Neue Mix-Charge und Buchungsdaten
 
