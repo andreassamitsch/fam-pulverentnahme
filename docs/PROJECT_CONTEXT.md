@@ -89,25 +89,29 @@ Damit werden getrennt gefuehrt:
 
 Die WebApp darf organisatorisch nicht entscheiden, ob eine andere Maschine grundsaetzlich erlaubt ist. Sie prueft jedoch technisch, welches Pulver sich aktuell auf der gewaehlten Maschine befindet.
 
-### Pruefung des Maschinenbestands
+### Maschinenwahl und Pruefung des Maschinenbestands
 
 Im Online-Fall wird vor dem Nachfuellen der aktuelle Oxaion-Bestand der tatsaechlichen Maschine ueber das Backend geprueft.
 
-- **Maschine leer:** Nachfuellen ist zulaessig.
-- **Maschine enthaelt passendes Pulver:** Nachfuellen ist zulaessig.
-- **Maschine enthaelt anderes Pulver oder eine nicht kompatible Mix-Charge:** Nachfuellen ist nicht zulaessig.
+Fuer den aktuellen STAGING-Nachfuellprozess gilt verbindlich:
 
-Im letzten Fall erscheint die klare Meldung `Pulverwechsel erforderlich` und die Moeglichkeit, direkt in den Prozess **Pulver tauschen** zu wechseln.
+- Die Maschine beziehungsweise der Tank-Lagerort wird aus einer gepflegten Maschinenliste ausgewaehlt; aktuell sind `EOS1` und `EOS2` konfiguriert.
+- Der spaetere Maschinen-QR-Code ersetzt die manuelle Auswahl, muss aber gegen dieselbe Maschinenliste validiert werden.
+- Der Pulverartikel wird beim Nachfuellen nicht manuell eingegeben. Er wird aus der einzigen positiven Bestandsposition des ausgewaehlten Maschinen-Lagerorts abgeleitet.
+- Artikelnummer und Artikelbezeichnung sind Systeminformationen und nicht editierbar.
+- Auf einer Maschine wird fuer diesen Prozess genau ein positiver Pulverbestand erwartet. Mehrere positive Bestandspositionen sind nicht eindeutig und sperren die Buchung.
+- Die aktuelle Mix-Charge und die komplette Tankmenge werden ebenfalls aus Oxaion uebernommen und nicht manuell eingegeben.
 
-Die WebApp darf niemals unterschiedliches oder nicht kompatibles Pulver zusammenmischen.
+Bis der spaetere FA-/Leerbefuellungsablauf umgesetzt ist, kann ein komplett leerer Tank in diesem Nachfuellprozess keinen Artikel liefern und wird deshalb nicht automatisch freigegeben.
 
 ### Auswahl der Nachfuellquellen
 
-Lagerort, Lagerplatz und Charge einer neuen Nachfuellmenge werden nicht mehr frei als Buchungsschluessel eingegeben. Sie werden aus dem aktuellen positiven Oxaion-Bestand zum Pulverartikel ausgewaehlt.
+Lagerort, Lagerplatz und Charge einer neuen Nachfuellmenge werden nicht frei als Buchungsschluessel eingegeben. Sie werden aus dem aktuellen positiven Oxaion-Bestand zum aus der Maschine abgeleiteten Pulverartikel ausgewaehlt.
 
 Verbindlich gilt:
 
 - Das Backend ermittelt die Lagerorte mit positivem Artikelbestand aus der bestaetigten Oxaion-Auskunft `Chargen und Lagerorte pro Artikel`.
+- Der aktuell ausgewaehlte Maschinen-Tanklagerort darf nicht als Nachfuellquelle angeboten oder vom Backend akzeptiert werden.
 - Nach Auswahl eines Lagerortes ermittelt das Backend die dort vorhandenen positiven Lagerplatz-/Chargenpositionen aus `Lagerplaetze pro Artikel und -ort`.
 - Fuer die Buchung wird immer der von Oxaion gelieferte interne Lagerplatzschluessel verwendet. Eine visuell formatierte Lagerplatzdarstellung darf nicht vom Bediener nachgebildet und als `PSLAPL` uebergeben werden.
 - Der Referenzfall `H04HRL / RE1F3 / Charge 84671` bestaetigt, dass `RE1F3` der intern gueltige Buchungsschluessel ist.
@@ -116,7 +120,38 @@ Verbindlich gilt:
 - Mehrere Nachfuellchargen duerfen in einem Vorgang verwendet werden. Dieselbe exakte Oxaion-Bestandsposition darf innerhalb eines Vorgangs nicht doppelt ausgewaehlt werden.
 - Direkt vor der ersten schreibenden Oxaion-Materialbuchung validiert das Backend jede Nachfuellquelle erneut anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge. Bei Abweichung wird keine Materialbuchung gestartet.
 
-Technische Details und die bestaetigten Oxaion-Programme/Felder stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
+Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
+
+### Mitarbeiter
+
+Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
+
+Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet.
+
+Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit der Browserauswahl. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md`.
+
+### Neue Mix-Charge und Buchungsdaten
+
+Fuer neue Mix-Chargen ist das Nummernschema verbindlich festgelegt:
+
+```text
+<Artikel ohne Punkt>MIX_<yyyyMMdd>_<HHmmss>
+```
+
+Beispiel fuer `RP.00010`:
+
+```text
+RP00010MIX_20260902_162312
+```
+
+Die Nummer wird automatisch aus dem abgeleiteten Artikel und dem aktuellen Erstellungszeitpunkt erzeugt. Sie ist nicht frei editierbar; der Bediener kann lediglich bewusst eine neue Nummer mit neuem Zeitstempel erzeugen.
+
+- `Mix Charge erstellt am` zeigt den Erzeugungszeitpunkt; fuer das bisherige Oxaion-Produktionsdatum wird das aktuelle Datum verwendet.
+- Das Buchungsdatum ist beim neuen Nachfuellvorgang immer das aktuelle Datum und wird nicht angezeigt beziehungsweise nicht manuell eingegeben.
+- Ziel der neuen Mix-Charge ist immer die ausgewaehlte Maschine; ein zweites Ziel-Lagerortfeld gibt es im Nachfuellprozess nicht.
+- Der Buchungstext ist nicht frei editierbar und lautet dynamisch `Pulver nachfuellen <Maschinen-Lagerort>`, zum Beispiel `Pulver nachfuellen EOS2`.
+
+Weitere UI-Regeln stehen in `docs/REPLENISHMENT_INPUT_RULES.md`.
 
 Fuer Offline-Betrieb darf ein zuvor bestaetigter lokaler Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Die konkrete maximale Gueligkeitsdauer und der genaue Umfang offline freigegebener Prozessschritte sind noch festzulegen. Nach Reconnect erfolgt vor jeder produktiven Buchung erneut eine serverseitige Validierung.
 
@@ -156,24 +191,20 @@ Dafuer ist ein entsprechender Oxaion Aus-/Wiedereinlagerungs- beziehungsweise Um
 Nach der Entnahme des bisherigen Pulvers:
 
 1. neues Rohmaterial beziehungsweise Rohmaterialcharge scannen
-2. neue Mix-Charge erzeugen
+2. neue Mix-Charge nach dem verbindlichen Mix-Chargenschema erzeugen
 3. Pulver der Maschine zuordnen beziehungsweise buchen
-
-Das derzeit bevorzugte, aber fachlich noch zu bestaetigende Mix-Chargenschema lautet sinngemaess:
-
-```text
-MIX-YYMMDD-XX
-```
-
-Beispiel: `MIX-260827-01`
 
 ## Mix-Chargen
 
 Eine Mix-Charge repraesentiert das Pulver, das aus einem oder mehreren Rohmaterialvorgaengen fuer die Produktion bereitgestellt wird.
 
-Die Mix-Charge ist nicht zwingend an eine Maschine gebunden, da dasselbe Pulver prinzipiell auf unterschiedlichen Maschinen eingesetzt werden kann. Die Maschinenzuordnung wird deshalb separat gefuehrt und soll nicht Bestandteil der Mix-Chargennummer sein.
+Die Mix-Charge ist nicht zwingend an eine Maschine gebunden, da dasselbe Pulver prinzipiell auf unterschiedlichen Maschinen eingesetzt werden kann. Die Maschinenzuordnung wird deshalb separat gefuehrt und ist nicht Bestandteil der Mix-Chargennummer.
 
-Das endgueltige Nummernschema ist als fachliche Entscheidung noch zu bestaetigen.
+Verbindliches Nummernschema:
+
+```text
+<Artikel ohne Punkt>MIX_<yyyyMMdd>_<HHmmss>
+```
 
 ## Fehler- und Transaktionshandling
 
@@ -292,26 +323,19 @@ Die Oberflaeche soll fuer Produktionsmitarbeiter moeglichst einfach sein. Die be
 - Pulver nachfuellen
 - Pulver tauschen
 
-Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, Oxaion und dem vorhandenen Maschinenbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind.
+Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, Oxaion und dem vorhandenen Maschinenbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind. Nicht editierbare Systeminformationen werden optisch klar von wichtigen Eingabefeldern getrennt. Abhaengige Dropdowns werden erst eingeblendet, wenn die jeweils erforderliche Elternauswahl getroffen wurde.
 
 Offline-, Sync- und Buchungsstatus muessen fuer den Bediener klar und eindeutig sichtbar sein. `Lokal gespeichert` darf niemals wie `erfolgreich gebucht` aussehen.
 
 ## Offene Punkte
 
-Die folgenden Punkte sind noch nicht final geklaert und duerfen nicht erfunden werden:
+Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Insbesondere bleiben offen:
 
-- TODO: konkrete Oxaion HTTP-Aufrufe fuer alle Materialbuchungen
-- TODO: konkretes Oxaion BDE-/PPS-Programm beziehungsweise Programme
-- TODO: Buchungsschluessel fuer Maschinenlager -> Pulverlager
-- TODO: Buchungsschluessel Pulverlager -> Maschine
-- TODO: eventuell benoetigte Chargenumbuchungen
-- TODO: genaue Oxaion-Abfrage der Stammdatensperre
-- TODO: technische Ermittlung des sperrenden Benutzers
-- TODO: finales Mix-Chargenschema
-- TODO: endgueltige Ziel-/Maschinen-Lagerort- und Lagerplatzlogik ausserhalb der bestaetigten Nachfuellquellen-Auswahl
-- TODO: genaue Benutzer-Authentifizierung der WebApp
-- TODO: endgueltiger produktiver Server fuer die WebApp
-- TODO: maximale Offline-Gueligkeitsdauer eines Maschinenzustands
-- TODO: konkrete offline zulaessige Prozessschritte je Buchungsszenario
-- TODO: IndexedDB-Schema und migrationssichere Versionsstrategie
-- TODO: Frontend-/API-Kompatibilitaet bei PWA-Updates
+- konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen
+- Buchungsschluessel fuer Maschinenlager -> Pulverlager und noch nicht abgedeckte Gegenrichtungen
+- genaue Oxaion-Abfrage der Stammdatensperre und technische Ermittlung des sperrenden Benutzers
+- finale Maschinenliste und QR-Zuordnung; STAGING nutzt derzeit `EOS1` und `EOS2`
+- genaue Benutzer-Authentifizierung der WebApp
+- endgueltiger produktiver Server
+- maximale Offline-Gueligkeitsdauer und konkrete offline zulaessige Prozessschritte
+- IndexedDB-Schema, Migrationsstrategie und Frontend-/API-Kompatibilitaet bei PWA-Updates

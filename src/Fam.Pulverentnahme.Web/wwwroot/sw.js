@@ -1,9 +1,10 @@
-const CACHE='fam-pulver-staging-v7-pwa-install';
+const CACHE='fam-pulver-staging-v9-pepena';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css',
-  '/app.js?v=20260902-source-stock',
+  '/app.js?v=20260903-pepena',
+  '/submit.js?v=20260902-machine-personnel',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
   '/icons/icon-192.svg',
@@ -21,19 +22,9 @@ self.addEventListener('activate',e=>{
 
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||e.request.url.includes('/api/'))return;
-
   if(e.request.mode==='navigate'){
-    e.respondWith(
-      fetch(e.request)
-        .then(response=>{
-          const copy=response.clone();
-          caches.open(CACHE).then(c=>c.put('/',copy));
-          return response;
-        })
-        .catch(()=>caches.match(e.request).then(r=>r||caches.match('/')))
-    );
+    e.respondWith(fetch(e.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(c=>c.put('/',copy));return response}).catch(()=>caches.match(e.request).then(r=>r||caches.match('/'))));
     return;
   }
-
   e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
 });

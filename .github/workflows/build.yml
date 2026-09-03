@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/staging-real-mix-prototype
+      - pr8-pwa-test
   pull_request:
     branches:
       - main
@@ -37,7 +38,7 @@ jobs:
         run: dotnet test .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj --configuration Release --no-restore
 
       - name: Publish self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test'
         shell: pwsh
         run: |
           $out = '.\artifacts\FAM-Pulverentnahme-STAGING-win-x64'
@@ -51,7 +52,7 @@ jobs:
           Copy-Item .\scripts\START_STAGING.bat (Join-Path $out 'START_STAGING.bat')
 
       - name: Upload self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test'
         uses: actions/upload-artifact@v4
         with:
           name: FAM-Pulverentnahme-STAGING-win-x64
