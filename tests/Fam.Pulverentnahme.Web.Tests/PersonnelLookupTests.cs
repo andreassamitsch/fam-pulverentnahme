@@ -70,6 +70,56 @@ public sealed class PersonnelLookupTests
         Assert.Equal("Andreas Samitsch", person!.FullName);
     }
 
+    [Fact]
+    public void SelectsOnlyDtaMatchingExpectedPepenu()
+    {
+        var xml = XDocument.Parse("""
+            <PARM>
+              <DTA>
+                <PEPENU>0000000245</PEPENU>
+                <PEPENA>Anlegende Person</PEPENA>
+              </DTA>
+              <DTA>
+                <PEPENU>0000000450</PEPENU>
+                <PESAKZ>NICHT_VERWENDEN</PESAKZ>
+                <PENLAE>Auch nicht verwenden</PENLAE>
+                <PEPENA>Richtiger Mitarbeiter</PEPENA>
+              </DTA>
+            </PARM>
+            """);
+
+        var person = PersonnelService.ParsePersonnel(xml, "450");
+        Assert.NotNull(person);
+        Assert.Equal("450", person!.PersonnelNo);
+        Assert.Equal("Richtiger Mitarbeiter", person.FullName);
+    }
+
+    [Fact]
+    public void RejectsReadResponseWithoutExpectedPepenu()
+    {
+        var xml = XDocument.Parse("""
+            <PARM><DTA>
+              <PEPENU>0000000245</PEPENU>
+              <PEPENA>Anlegende Person</PEPENA>
+            </DTA></PARM>
+            """);
+
+        Assert.Null(PersonnelService.ParsePersonnel(xml, "450"));
+    }
+
+    [Fact]
+    public void RejectsAmbiguousNamesForSameExpectedPepenu()
+    {
+        var xml = XDocument.Parse("""
+            <PARM>
+              <DTA><PEPENU>0000000450</PEPENU><PEPENA>Name A</PEPENA></DTA>
+              <DTA><PEPENU>0000000450</PEPENU><PEPENA>Name B</PEPENA></DTA>
+            </PARM>
+            """);
+
+        Assert.Null(PersonnelService.ParsePersonnel(xml, "450"));
+    }
+
     [Theory]
     [InlineData("0000000450", "45", true)]
     [InlineData("0000000451", "45", true)]
