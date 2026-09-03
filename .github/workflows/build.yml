@@ -33,6 +33,24 @@ jobs:
       - name: Restore tests
         run: dotnet restore .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj
 
+      - name: Check frontend JavaScript syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\app.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\article-colors.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\personnel-auth.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\nfc.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\qr-scanner.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\submit.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\worker-ui.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\sw.js'
+          )
+          foreach ($file in $files) {
+            node --check $file
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Build
         run: dotnet build .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --configuration Release --no-restore
 
