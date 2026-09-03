@@ -61,7 +61,7 @@ Der Bediener soll moeglichst wenige, klar verstaendliche Hauptfunktionen sehen. 
 
 ## 1. Pulver nachfuellen / Pulver fuer Fertigungsauftrag vorbereiten
 
-Ausgangsbasis ist der QR-Code des Fertigungsauftrags. Der vorhandene QR-Code enthaelt sinngemaess:
+Der vorhandene QR-Code des Fertigungsauftrags enthaelt sinngemaess:
 
 ```text
 Rohmaterialnummer
@@ -71,64 +71,90 @@ Fertigungsauftragsnummer
 Maschinen-ID
 ```
 
-Die Maschinen-ID aus dem Fertigungsauftrag ist die geplante beziehungsweise vorgeschlagene Maschine. Da sich die Maschine kurzfristig in der Produktion aendern kann, zeigt die WebApp nach dem Scan die vorgesehene Maschine und bietet zwei Wege:
+Beispiel:
 
-- vorgeschlagene Maschine verwenden
-- andere Maschine verwenden
+```text
+RP.00010+++FA24FI00118+++EP-M650-1
+```
 
-Bei Auswahl einer anderen Maschine gilt:
+`EP-M650-1` ist dabei die Produktionsmaschinen-ID und nicht der Oxaion-Lagerort des Maschinentanks. Die verbindliche Referenz zwischen Produktionsmaschinen-ID und Maschinentank-Lagerort ist noch offen und darf nicht erfunden werden.
 
-- Ein Maschinenscan ist verpflichtend.
-- Die tatsaechlich verwendete Maschine wird protokolliert.
-- Die urspruengliche Maschine aus Fertigungsauftrag beziehungsweise QR-Code bleibt ebenfalls im Protokoll erhalten.
+Langfristig bleibt die Planmaschine aus dem Fertigungsauftrag relevant. Da sich die Produktionsmaschine kurzfristig aendern kann, muessen Planmaschine und tatsaechlich verwendete Maschine beziehungsweise der zugehoerige Maschinentank getrennt nachvollziehbar bleiben. Die WebApp darf organisatorisch nicht entscheiden, ob eine kurzfristige Maschinenabweichung erlaubt ist; sie muss aber den tatsaechlichen Tank eindeutig identifizieren und dessen Pulverzustand pruefen.
 
-Damit werden getrennt gefuehrt:
+Bis der FA-getriebene Online-Auftrag und die Maschinen-ID-zu-Tank-Referenz verbindlich definiert sind, gilt fuer den aktuellen STAGING-Nachfuellprozess der organisatorische Uebergang mit muendlicher beziehungsweise papierbasierter Beauftragung. Der tatsaechlich zu befuellende Maschinentank wird physisch per Tank-QR gescannt.
 
-- Soll-/Planmaschine
-- tatsaechlich verwendete Maschine
+### Maschinentankwahl und Pruefung des Maschinenbestands
 
-Die WebApp darf organisatorisch nicht entscheiden, ob eine andere Maschine grundsaetzlich erlaubt ist. Sie prueft jedoch technisch, welches Pulver sich aktuell auf der gewaehlten Maschine befindet.
-
-### Maschinenwahl und Pruefung des Maschinenbestands
-
-Im Online-Fall wird vor dem Nachfuellen der aktuelle Oxaion-Bestand der tatsaechlichen Maschine ueber das Backend geprueft.
+Im Online-Fall wird vor dem Nachfuellen der aktuelle Oxaion-Bestand des tatsaechlich gescannten Maschinentanks ueber das Backend geprueft.
 
 Fuer den aktuellen STAGING-Nachfuellprozess gilt verbindlich:
 
-- Die Maschine beziehungsweise der Tank-Lagerort wird aus einer gepflegten Maschinenliste ausgewaehlt; aktuell sind `EOS1` und `EOS2` konfiguriert.
-- Der spaetere Maschinen-QR-Code ersetzt die manuelle Auswahl, muss aber gegen dieselbe Maschinenliste validiert werden.
-- Der Pulverartikel wird beim Nachfuellen nicht manuell eingegeben. Er wird aus der einzigen positiven Bestandsposition des ausgewaehlten Maschinen-Lagerorts abgeleitet.
+- Die sichtbare manuelle Auswahl des Maschinentanks ist im normalen Ablauf durch den QR-Scan ersetzt.
+- Der Maschinentank-QR enthaelt ausschliesslich den Oxaion-Tanklagerort, zum Beispiel `EOS1`.
+- Der gescannte Tanklagerort muss gegen die gepflegte Maschinen-/Tankliste validiert werden; aktuell sind `EOS1` und `EOS2` konfiguriert.
+- Ein Code mit `+++` ist in diesem Scan-Schritt kein gueltiger Maschinentank-QR.
+- Der Pulverartikel wird beim Nachfuellen nicht manuell eingegeben. Er wird aus der einzigen positiven Bestandsposition des gescannten Maschinentanks abgeleitet.
 - Artikelnummer und Artikelbezeichnung sind Systeminformationen und nicht editierbar.
-- Auf einer Maschine wird fuer diesen Prozess genau ein positiver Pulverbestand erwartet. Mehrere positive Bestandspositionen sind nicht eindeutig und sperren die Buchung.
+- Auf einem Maschinentank wird fuer diesen Prozess genau ein positiver Pulverbestand erwartet. Mehrere positive Bestandspositionen sind nicht eindeutig und sperren die Buchung.
 - Die aktuelle Mix-Charge und die komplette Tankmenge werden ebenfalls aus Oxaion uebernommen und nicht manuell eingegeben.
 
 Bis der spaetere FA-/Leerbefuellungsablauf umgesetzt ist, kann ein komplett leerer Tank in diesem Nachfuellprozess keinen Artikel liefern und wird deshalb nicht automatisch freigegeben.
 
+Details zu den QR-Formaten und der noch offenen Produktionsmaschinen-ID-zu-Tank-Zuordnung stehen in `docs/QR_CODE_WORKFLOW.md`.
+
 ### Auswahl der Nachfuellquellen
 
-Lagerort, Lagerplatz und Charge einer neuen Nachfuellmenge werden nicht frei als Buchungsschluessel eingegeben. Sie werden aus dem aktuellen positiven Oxaion-Bestand zum aus der Maschine abgeleiteten Pulverartikel ausgewaehlt.
+Lagerort, Lagerplatz und Charge einer neuen Nachfuellmenge werden nicht frei als Buchungsschluessel eingegeben. Der Bediener scannt die physisch verwendete Charge; die gueltige Buchungsquelle wird danach aus dem aktuellen positiven Oxaion-Bestand ermittelt.
+
+Chargen-QR im aktuellen STAGING-Ablauf:
+
+```text
+Artikel+++Charge
+```
+
+Beispiele:
+
+```text
+RP.00006+++88688
+RP.00010+++RP00010MIX_20260903_132212
+```
 
 Verbindlich gilt:
 
-- Das Backend ermittelt die Lagerorte mit positivem Artikelbestand aus der bestaetigten Oxaion-Auskunft `Chargen und Lagerorte pro Artikel`.
-- Der aktuell ausgewaehlte Maschinen-Tanklagerort darf nicht als Nachfuellquelle angeboten oder vom Backend akzeptiert werden.
-- Nach Auswahl eines Lagerortes ermittelt das Backend die dort vorhandenen positiven Lagerplatz-/Chargenpositionen aus `Lagerplaetze pro Artikel und -ort`.
+- Die Artikelnummer aus dem Chargen-QR muss dem aus dem Maschinentank abgeleiteten Artikel entsprechen.
+- Das Backend beziehungsweise die PWA nutzt die bestaetigte Oxaion-Auskunft `Chargen und Lagerorte pro Artikel`, um positive Quell-Lagerorte des Artikels zu bestimmen.
+- Der aktuell gescannte Maschinentank darf nicht als Nachfuellquelle angeboten oder vom Backend akzeptiert werden.
+- Fuer die moeglichen Lagerorte werden die dort vorhandenen positiven Lagerplatz-/Chargenpositionen aus `Lagerplaetze pro Artikel und -ort` gelesen.
+- Es werden nur Positionen mit der exakt gescannten Charge beruecksichtigt.
+- Gibt es genau eine eindeutige positive Oxaion-Bestandsposition fuer die gescannte Charge, werden Lagerort und gegebenenfalls interner Lagerplatz automatisch uebernommen.
+- Gibt es mehrere Lagerorte oder Lagerplaetze fuer dieselbe Charge, muss der Bediener den tatsaechlich verwendeten Entnahmeort bewusst bestaetigen. Die WebApp darf nicht raten oder einen Treffer stillschweigend priorisieren.
 - Fuer die Buchung wird immer der von Oxaion gelieferte interne Lagerplatzschluessel verwendet. Eine visuell formatierte Lagerplatzdarstellung darf nicht vom Bediener nachgebildet und als `PSLAPL` uebergeben werden.
 - Der Referenzfall `H04HRL / RE1F3 / Charge 84671` bestaetigt, dass `RE1F3` der intern gueltige Buchungsschluessel ist.
 - Meldet Oxaion eindeutig `LAG1626` (`Lagerort hat keine Lagerplatzorganisation`), bleibt der Lagerplatz leer; die Charge und der Bestand werden ueber den bestaetigten Ablauf `Chargen pro Lagerort` ermittelt. Es wird kein Lagerplatz erfunden.
-- Die Einfuellmenge bleibt eine Bedienereingabe, darf jedoch den aktuell verfuegbaren Oxaion-Bestand der gewaehlten Bestandsposition nicht ueberschreiten.
+- Die Einfuellmenge bleibt eine Bedienereingabe, darf jedoch den aktuell verfuegbaren Oxaion-Bestand der bestaetigten Bestandsposition nicht ueberschreiten.
 - Mehrere Nachfuellchargen duerfen in einem Vorgang verwendet werden. Dieselbe exakte Oxaion-Bestandsposition darf innerhalb eines Vorgangs nicht doppelt ausgewaehlt werden.
 - Direkt vor der ersten schreibenden Oxaion-Materialbuchung validiert das Backend jede Nachfuellquelle erneut anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge. Bei Abweichung wird keine Materialbuchung gestartet.
 
-Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
+Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md` und `docs/QR_CODE_WORKFLOW.md`.
 
 ### Mitarbeiter
 
-Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
+Die Personalnummer ist die einzige manuelle Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
 
-Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet.
+Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt bei der manuellen Suche eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet.
 
-Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit der Browserauswahl. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md`.
+Zusaetzlich ist die NFC-Personalidentifikation im aktuellen Android-STAGING-Test bestaetigt:
+
+- Web NFC liest den vorhandenen Personalchip.
+- Reader-Trennzeichen wie `:`, `-` oder Leerzeichen werden aus der RFID-Darstellung entfernt.
+- `ITSUSER.RFID` in Syncos wird als alphanumerischer String behandelt; es findet keine Dezimal-, Hex- oder Byte-Reihenfolgen-Konvertierung statt.
+- Syncos `ObjectKey` liefert die zehnstellig mit fuehrenden Nullen gespeicherte Personalnummer.
+- Danach wird dieselbe Personalnummer ueber den bestaetigten exakten Oxaion-`IPENU`-Ablauf geprueft.
+- Erst nach erfolgreicher Syncos- und Oxaion-Pruefung wird der Mitarbeiter automatisch ausgewaehlt.
+- Bei physischer NFC-Erkennung erzeugt die PWA unmittelbar einen kurzen Ton ueber die Browser-WebAudio-API. Dieser Ton bestaetigt nur die Chiperkennung, nicht bereits die erfolgreiche Personalzuordnung.
+- Die manuelle AJAX-Personalsuche bleibt als Fallback bestehen.
+
+Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit der Browserauswahl. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md` und `docs/NFC_PERSONNEL_LOOKUP.md`.
 
 ### Neue Mix-Charge und Buchungsdaten
 
@@ -148,22 +174,32 @@ Die Nummer wird automatisch aus dem abgeleiteten Artikel und dem aktuellen Erste
 
 - `Mix Charge erstellt am` zeigt den Erzeugungszeitpunkt; fuer das bisherige Oxaion-Produktionsdatum wird das aktuelle Datum verwendet.
 - Das Buchungsdatum ist beim neuen Nachfuellvorgang immer das aktuelle Datum und wird nicht angezeigt beziehungsweise nicht manuell eingegeben.
-- Ziel der neuen Mix-Charge ist immer die ausgewaehlte Maschine; ein zweites Ziel-Lagerortfeld gibt es im Nachfuellprozess nicht.
+- Ziel der neuen Mix-Charge ist immer der gescannte Maschinentank; ein zweites Ziel-Lagerortfeld gibt es im Nachfuellprozess nicht.
 - Der Buchungstext ist nicht frei editierbar und lautet dynamisch `Pulver nachfuellen <Maschinen-Lagerort>`, zum Beispiel `Pulver nachfuellen EOS2`.
 
 Weitere UI-Regeln stehen in `docs/REPLENISHMENT_INPUT_RULES.md`.
 
 Fuer Offline-Betrieb darf ein zuvor bestaetigter lokaler Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Die konkrete maximale Gueligkeitsdauer und der genaue Umfang offline freigegebener Prozessschritte sind noch festzulegen. Nach Reconnect erfolgt vor jeder produktiven Buchung erneut eine serverseitige Validierung.
 
+### Entnahmeschein-QR aus der frueheren Offline-Version
+
+Der bisherige vierteilige Code, zum Beispiel
+
+```text
+RP.00010+++EOS1+++87911+++RP00010MIX_20260903_132212
+```
+
+stammt aus dem urspruenglichen Offline-Ablauf. Fuer die aktuelle online mit Oxaion verbundene PWA ist noch festzulegen, wie Produktionsleitung beziehungsweise Stellvertretung einen Tanknachfuell- oder Tankwechselauftrag digital erteilt. Bis diese Beauftragung definiert ist, gilt der organisatorische Uebergangsprozess. Der alte Entnahmeschein-QR ist in der neuen Online-PWA keine verbindliche Quelle fuer aktuelle Lagerort-/Chargen-Buchungsschluessel.
+
 ## 2. Pulver tauschen
 
-Beim Pulverwechsel ist die Maschine der Ausgangspunkt. Ein Maschinenscan ist daher immer verpflichtend.
+Beim Pulverwechsel ist der Maschinentank der Ausgangspunkt. Ein Maschinentank-Scan ist daher immer verpflichtend.
 
-Der aktuelle Pulverbestand wird nicht manuell eingegeben. Im Online-Fall fragt das Backend nach dem Maschinenscan ueber die freigegebene Oxaion-Logik den aktuellen Bestand der Maschine ab.
+Der aktuelle Pulverbestand wird nicht manuell eingegeben. Im Online-Fall fragt das Backend nach dem Maschinentank-Scan ueber die freigegebene Oxaion-Logik den aktuellen Bestand des Tanks ab.
 
 Mindestens anzuzeigen sind:
 
-- Maschine
+- Maschinentank
 - aktuell vorhandener Pulverartikel
 - aktuelle Mix-Charge
 - Systembestand beziehungsweise Restmenge
@@ -192,7 +228,7 @@ Nach der Entnahme des bisherigen Pulvers:
 
 1. neues Rohmaterial beziehungsweise Rohmaterialcharge scannen
 2. neue Mix-Charge nach dem verbindlichen Mix-Chargenschema erzeugen
-3. Pulver der Maschine zuordnen beziehungsweise buchen
+3. Pulver dem Maschinentank zuordnen beziehungsweise buchen
 
 ## Mix-Chargen
 
@@ -300,7 +336,7 @@ Fuer die spaetere Nachvollziehbarkeit werden mindestens gespeichert:
 - Rohmaterialcharge
 - Mix-Charge
 - vorgesehene Maschine
-- tatsaechlich verwendete Maschine
+- tatsaechlich verwendete Maschine beziehungsweise Maschinentank
 - Menge
 - Quelllager
 - Ziellager
@@ -323,7 +359,15 @@ Die Oberflaeche soll fuer Produktionsmitarbeiter moeglichst einfach sein. Die be
 - Pulver nachfuellen
 - Pulver tauschen
 
-Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, Oxaion und dem vorhandenen Maschinenbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind. Nicht editierbare Systeminformationen werden optisch klar von wichtigen Eingabefeldern getrennt. Abhaengige Dropdowns werden erst eingeblendet, wenn die jeweils erforderliche Elternauswahl getroffen wurde.
+Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, NFC, Oxaion und dem vorhandenen Maschinentankbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind. Nicht editierbare Systeminformationen werden optisch klar von wichtigen Eingabefeldern getrennt.
+
+Fuer den aktuellen Nachfuellablauf bedeutet das insbesondere:
+
+- Mitarbeiter per NFC oder alternativ manueller Personalnummer identifizieren.
+- Maschinentank physisch per QR scannen.
+- Nachfuellcharge physisch per QR scannen.
+- Lagerort/Lagerplatz aus Oxaion automatisch ermitteln; nur bei Mehrdeutigkeit den tatsaechlichen Entnahmeort bestaetigen lassen.
+- Menge als notwendige Bedienereingabe erfassen.
 
 Offline-, Sync- und Buchungsstatus muessen fuer den Bediener klar und eindeutig sichtbar sein. `Lokal gespeichert` darf niemals wie `erfolgreich gebucht` aussehen.
 
@@ -334,7 +378,8 @@ Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Ins
 - konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen
 - Buchungsschluessel fuer Maschinenlager -> Pulverlager und noch nicht abgedeckte Gegenrichtungen
 - genaue Oxaion-Abfrage der Stammdatensperre und technische Ermittlung des sperrenden Benutzers
-- finale Maschinenliste und QR-Zuordnung; STAGING nutzt derzeit `EOS1` und `EOS2`
+- verbindliche Zuordnung der Produktionsmaschinen-ID aus dem Fertigungsauftrag, z. B. `EP-M650-1`, zum tatsaechlichen Maschinentank/Oxaion-Lagerort und Verhalten bei kurzfristiger Maschinenumplanung
+- digitaler Online-Beauftragungsprozess fuer Tanknachfuellung und Tankwechsel; bis zur Entscheidung gilt der bestehende organisatorische Uebergangsprozess
 - genaue Benutzer-Authentifizierung der WebApp
 - endgueltiger produktiver Server
 - maximale Offline-Gueligkeitsdauer und konkrete offline zulaessige Prozessschritte
