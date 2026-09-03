@@ -37,6 +37,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [x] Artikel und Artikelbezeichnung werden beim Nachfuellen aus dem eindeutigen aktuellen Maschinenbestand abgeleitet und sind keine Bedienereingaben.
 - [x] Der aktuelle Maschinen-Tanklagerort darf nie als Quelllager einer Nachfuellcharge verwendet werden.
 - [x] Mitarbeiter-Anmeldung festgelegt: Nach Auswahl der Oxaion-Personalnummer ist ein Passwort erforderlich. Die PWA prueft das Passwort ausschliesslich serverseitig gegen den vorhandenen SYNCOS-`PASSWORD`-Wert; Details und rekonstruierte Legacy-Transformation siehe `docs/PERSONNEL_AUTHENTICATION.md`.
+- [x] STAGING-Testbetrieb ueber HTTP fuer Mitarbeiter-Login zugelassen. HTTP wird fuer die Testphase nicht blockiert; produktiv bleibt HTTPS erforderlich. Der komplette installierbare PWA-/Service-Worker-Betrieb kann auf normalen LAN-HTTP-Adressen browserbedingt weiterhin eingeschraenkt sein.
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
 - [ ] Maschinenliste/QR-Zuordnung finalisieren. Der aktuelle STAGING-Stand verwendet eine gepflegte Maschinenlager-Whitelist mit `EOS1` und `EOS2`; der spaetere Maschinen-QR soll gegen dieselbe Liste validiert werden.
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
@@ -44,11 +45,10 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 ## Anwendung und Betrieb
 
 - [x] Authentifizierungskonzept fuer Bediener der WebApp festgelegt: Oxaion-Personalnummer/Name bleiben fuer die Identitaet fuehrend, danach serverseitige Passwortpruefung gegen den vorhandenen SYNCOS-Credentialwert und serverseitige Session; keine Passwortspeicherung im Frontend. Details siehe `docs/PERSONNEL_AUTHENTICATION.md`.
-- [ ] Konkreten SYNCOS-Schema-/Tabellennamen fuer den lesenden `PASSWORD`-Lookup bestaetigen und die produktive `PersonnelAuthentication__PasswordLookupSql` festlegen. Kein Tabellenname wird im Code erfunden.
-- [ ] Zuordnung `PEPENU ohne fuehrende Nullen -> zehnstelliger OBJECTKEY`, z. B. `446 -> 0000000446`, an mehreren realen Mitarbeitern fuer die Produktivfreigabe bestaetigen. Der Referenzdatensatz `446 / ANSA` ist bereits bestaetigt.
+- [x] SYNCOS-Credential-Lookup bestaetigt: `syncos_stg_102.ITSDEV.ITSUSER`, `ClassID = 47`, `IsEnabled = -1`, `IsVisible = -1`, Zuordnung ueber `OBJECTKEY LIKE '%<Personalnummer>'`. Die Backend-Abfrage ist fest implementiert und parametriert; mehrere Treffer werden abgelehnt. Keine frei konfigurierbare Lookup-SQL mehr.
 - [ ] Falls produktiv Sonderzeichen oder Passwoerter mit mehr als 18 Zeichen vorkommen: Legacy-Transformation dafuer mit kontrollierten Testvektoren bestaetigen. Aktuell sind nur ASCII-Buchstaben/Ziffern bis 18 Zeichen freigegeben.
 - [ ] Endgueltigen produktiven Web-/Application-Server festlegen
-- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten, der SYNCOS-Credential-DB-Verbindung und sonstiger Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Die Credential-DB-Verbindung wird ebenfalls nur als Laufzeitkonfiguration vorgesehen. Es gibt keine fest vorgegebenen Zugangsdaten im Repository.
+- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten, des `PersonnelAuthentication__ConnectionString` und sonstiger Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Es gibt keine fest vorgegebenen Zugangsdaten im Repository.
 - [ ] Persistenztechnik fuer produktives Transaktionslog, Idempotenz, Status und Audit Trail festlegen; STAGING-Prototyp verwendet vorerst JSON-Dateien unter `App_Data/transactions`
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach weiterer Analyse der Oxaion-Schnittstelle festlegen
@@ -59,7 +59,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 
 Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Outbox, `clientOperationId`, serverseitige Revalidierung und kontrollierte Updates ist in `docs/OFFLINE_PWA.md` dokumentiert. Der aktuelle STAGING-Prototyp verwendet bereits `IndexedDB` fuer einen offenen `clientOperationId`-Vorgang und das Backend behandelt diese ID idempotent. Offen sind weiterhin die konkreten Betriebsparameter und Prozessgrenzen:
 
-- [x] STAGING-PWA mit installierbarem Web App Manifest, lokalen 192x192-/512x512-App-Icons, maskierbarem Android-Icon, Favicon und Service-Worker-App-Shell konfiguriert; fuer Installation auf realen Android-Geraeten bleibt HTTPS am IIS/Reverse Proxy Voraussetzung.
+- [x] STAGING-PWA mit Web App Manifest, lokalen 192x192-/512x512-App-Icons, maskierbarem Android-Icon, Favicon und Service-Worker-App-Shell konfiguriert. Die normale WebApp und der Login sind fuer die Testphase auch ueber HTTP nutzbar; fuer Service Worker/Installation auf realen Android-Geraeten bleibt HTTPS am IIS/Reverse Proxy die regulaere Voraussetzung.
 - [ ] Maximale Gueligkeitsdauer eines lokal gecachten Maschinenzustands fachlich festlegen
 - [ ] Pro Buchungsszenario festlegen, welche Schritte offline bis `PENDING_SYNC` vorbereitet werden duerfen
 - [ ] Entscheiden, ob Pulverwechsel offline nur erfasst oder teilweise vorbereitet werden darf
