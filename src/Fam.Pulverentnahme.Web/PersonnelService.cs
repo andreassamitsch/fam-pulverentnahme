@@ -69,31 +69,37 @@ public sealed class PersonnelService
 
         // This exact field filter is confirmed by the 2026-09-03 JET capture. Do not replace it
         // with the free search: the free search also matches values in unrelated displayed fields.
-        OxaionSession.AssertNoFcod(await session.CallAsync("US14001R", "*GETFILTER", Dict(
-            ("SSID", ssid)), ct));
+        var getFilter = await CallPersonnelValidationStepAsync(session, "US14001R", "*GETFILTER", Dict(
+            ("SSID", ssid)), ct);
+        OxaionSession.AssertNoFcod(getFilter);
 
-        OxaionSession.AssertNoFcod(await session.CallAsync("US14001", "*SAVCURSET", Dict(
-            ("SSID", ssid)), ct));
+        var saveCurrent = await CallPersonnelValidationStepAsync(session, "US14001", "*SAVCURSET", Dict(
+            ("SSID", ssid)), ct);
+        OxaionSession.AssertNoFcod(saveCurrent);
 
-        var getSelection = await session.CallAsync("US14001R", "*GETSLTV", Dict(
+        var getSelection = await CallPersonnelValidationStepAsync(session, "US14001R", "*GETSLTV", Dict(
             ("SSID", ssid)), ct);
         OxaionSession.AssertNoFcod(getSelection);
 
-        var selectionFields = new Dictionary<string, string>(getSelection.Dta, StringComparer.Ordinal)
+        var attributeInput = new Dictionary<string, string>(getSelection.Dta, StringComparer.Ordinal)
         {
-            ["SSID"] = ssid
-        };
-
-        var attributeInput = new Dictionary<string, string>(selectionFields, StringComparer.Ordinal)
-        {
+            ["SSID"] = ssid,
             ["mode"] = "merge"
         };
-        OxaionSession.AssertNoFcod(await session.CallAsync("US14001R", "*GETSLTATR", attributeInput, ct));
+        var getAttributes = await CallPersonnelValidationStepAsync(session, "US14001R", "*GETSLTATR", attributeInput, ct);
+        OxaionSession.AssertNoFcod(getAttributes);
 
-        selectionFields["IPENU"] = ToOxaionPersonnelNumber(normalized);
-        OxaionSession.AssertNoFcod(await session.CallAsync("US14001R", "*CHKSLTV", selectionFields, ct));
+        // GETSLTATR can enrich/replace selection state required by CHKSLTV. The previous
+        // implementation discarded this response and sent only the older GETSLTV state.
+        var selectionFields = BuildExactSelectionFields(
+            getSelection.Dta,
+            getAttributes.Dta,
+            ssid,
+            normalized);
+        var checkSelection = await CallPersonnelValidationStepAsync(session, "US14001R", "*CHKSLTV", selectionFields, ct);
+        OxaionSession.AssertNoFcod(checkSelection);
 
-        var filtered = await session.CallAsync("US14090J", "*FIRSTLIST", Dict(
+        var filtered = await CallPersonnelValidationStepAsync(session, "US14090J", "*FIRSTLIST", Dict(
             ("SSID", ssid),
             ("FROM_PGMN", "MAINFILTER"),
             ("mode", "replace-children")), ct);
@@ -112,6 +118,26 @@ public sealed class PersonnelService
         return matches.Count == 1 && string.Equals(matches[0].PersonnelNo, normalized, StringComparison.Ordinal)
             ? matches[0]
             : null;
+    }
+
+    private static async Task<OxaionCallResult> CallPersonnelValidationStepAsync(
+        OxaionSession session,
+        string program,
+        string action,
+        IReadOnlyDictionary<string, string> dta,
+        CancellationToken ct)
+    {
+        try
+        {
+            return await session.CallAsync(program, action, dta, ct);
+        }
+        catch (InvalidOperationException ex) when (
+            string.Equals(ex.Message, "Oxaion response was not valid XML.", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Oxaion response during personnel validation {program} {action} was not valid XML.",
+                ex);
+        }
     }
 
     private static async Task<string> OpenPersonnelListAsync(OxaionSession session, CancellationToken ct)
@@ -199,6 +225,21 @@ public sealed class PersonnelService
     {
         var normalized = NormalizeInput(personnelNo);
         return normalized.PadLeft(10, '0');
+    }
+
+    internal static Dictionary<string, string> BuildExactSelectionFields(
+        IReadOnlyDictionary<string, string> selectionValues,
+        IReadOnlyDictionary<string, string> selectionAttributes,
+        string ssid,
+        string personnelNo)
+    {
+        var result = new Dictionary<string, string>(selectionValues, StringComparer.Ordinal);
+        foreach (var pair in selectionAttributes)
+            result[pair.Key] = pair.Value ?? "";
+
+        result["SSID"] = ssid;
+        result["IPENU"] = ToOxaionPersonnelNumber(personnelNo);
+        return result;
     }
 
     internal static string NormalizeInput(string value)
