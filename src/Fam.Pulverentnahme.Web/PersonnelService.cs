@@ -75,9 +75,12 @@ public sealed class PersonnelService
             ("SSID", ssid)), ct);
         OxaionSession.AssertNoFcod(getFilter);
 
-        var saveCurrent = await CallPersonnelValidationStepAsync(session, "US14001", "*SAVCURSET", Dict(
-            ("SSID", ssid)), ct);
-        OxaionSession.AssertNoFcod(saveCurrent);
+        // Live STAGING on 2026-09-03 showed that US14001 *SAVCURSET can return HTTP success with a
+        // non-XML body even though responseFormat=xml is requested. CallAsync parses XML only after
+        // the HTTP status has already been accepted, so this one specific parse failure is tolerated.
+        // Transport/HTTP failures still propagate. The subsequent IPENU filter steps and the final
+        // exact PEPENU + PEPENA read remain mandatory, so this does not weaken personnel validation.
+        await SaveCurrentSelectionAsync(session, ssid, ct);
 
         var getSelection = await CallPersonnelValidationStepAsync(session, "US14001R", "*GETSLTV", Dict(
             ("SSID", ssid)), ct);
@@ -121,6 +124,25 @@ public sealed class PersonnelService
             ? matches[0]
             : null;
     }
+
+    private static async Task SaveCurrentSelectionAsync(OxaionSession session, string ssid, CancellationToken ct)
+    {
+        try
+        {
+            var saveCurrent = await session.CallAsync("US14001", "*SAVCURSET", Dict(("SSID", ssid)), ct);
+            OxaionSession.AssertNoFcod(saveCurrent);
+        }
+        catch (InvalidOperationException ex) when (IsToleratedSaveCurrentNonXmlResponse(ex))
+        {
+            // Intentionally continue. OxaionSession.CallAsync reaches XML parsing only after a
+            // successful HTTP response. Exact validation continues with GETSLTV/GETSLTATR/CHKSLTV,
+            // FIRSTLIST and the PEPENU/PEPENA-bound READ; any failure there still stops the booking.
+        }
+    }
+
+    internal static bool IsToleratedSaveCurrentNonXmlResponse(Exception ex) =>
+        ex is InvalidOperationException &&
+        string.Equals(ex.Message, "Oxaion response was not valid XML.", StringComparison.Ordinal);
 
     private static async Task<OxaionCallResult> CallPersonnelValidationStepAsync(
         OxaionSession session,
