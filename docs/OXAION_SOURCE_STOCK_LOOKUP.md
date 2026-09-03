@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Für eine Nachfüllcharge dürfen Lagerort, Lagerplatz und Charge nicht frei als Text eingegeben werden. Die gültige Buchungsquelle wird aus dem aktuellen positiven Oxaion-Bestand gewählt und unmittelbar vor der Materialbuchung erneut validiert.
+Für eine Nachfüllcharge dürfen Lagerort, Lagerplatz und Charge nicht frei als Text eingegeben werden. Die gültige Buchungsquelle wird aus dem aktuellen positiven Oxaion-Bestand ermittelt und unmittelbar vor der Materialbuchung erneut validiert.
 
 Grundlage sind die am 02.09.2026 aufgezeichneten JET-Datenströme:
 
@@ -94,7 +94,7 @@ Die Bezeichnung ist Anzeigeinformation. Für die Buchung bleibt der Oxaion-Schl�
 
 ## 3. Exakter Lagerplatz + Charge + Bestand
 
-Für einen gewählten Lagerort mit Lagerplatzorganisation:
+Für einen gewählten beziehungsweise aus dem Chargen-Scan zu prüfenden Lagerort mit Lagerplatzorganisation:
 
 ```text
 US30600J
@@ -137,7 +137,7 @@ RE1F2 / 88673 /  600,000 kg
 RE1F3 / 84671 / 1024,713 kg
 ```
 
-Für die Auswahl werden nur Bestände `> 0` angeboten.
+Für die Auswahl werden nur Bestände `> 0` berücksichtigt.
 
 ## 4. Lagerort ohne Lagerplatzorganisation
 
@@ -175,16 +175,21 @@ Diese Ansicht bestätigt die fachlichen Daten, enthält aber keinen exakten Lage
 
 ## Verbindliche WebApp-Logik
 
-Für jede Nachfüllcharge gilt:
+Für jede Nachfüllcharge gilt im aktuellen STAGING-Ablauf:
 
-1. Artikel ist bekannt.
-2. Backend liest über `LB30340R` die Lagerorte mit positivem Artikelbestand.
-3. Bediener wählt einen dieser Lagerorte.
-4. Backend liest über `LB30430R` die positiven Lagerplatz-/Chargenpositionen.
-5. Bei `LAG1626` wird `LB30230R` verwendet und der Lagerplatz bleibt leer.
-6. Bediener wählt eine konkrete Oxaion-Bestandsposition; Lagerort, interner Lagerplatzschlüssel und Charge sind danach nicht frei editierbar.
-7. Bediener gibt nur noch die gewünschte Einfüllmenge ein; sie darf den angezeigten Bestand nicht überschreiten.
-8. Direkt vor der ersten schreibenden Materialbuchung liest das Backend alle ausgewählten Quellen erneut und verlangt exakte Übereinstimmung von Artikel, Lagerort, Lagerplatz und Charge sowie ausreichenden Bestand.
-9. Bei Abweichung oder nicht lesbarem Bestand wird keine Materialbuchung gestartet.
+1. Der Artikel ist bereits aus dem eindeutig gelesenen Maschinentankbestand bekannt.
+2. Der Bediener scannt den physischen Chargen-QR im Format `Artikel+++Charge`.
+3. Die Artikelnummer aus dem QR muss exakt zum aus dem Maschinentank abgeleiteten Artikel passen. Andernfalls wird die Charge abgelehnt.
+4. Über `LB30340R` werden die Lagerorte mit positivem Bestand zu diesem Artikel gelesen. Der aktuelle Maschinentank wird als Nachfüllquelle ausgeschlossen.
+5. Für diese möglichen Lagerorte werden über `LB30430R` die positiven Lagerplatz-/Chargenpositionen gelesen. Nur bei eindeutigem `LAG1626` wird auf `LB30230R` zurückgegriffen und der Lagerplatz bleibt leer.
+6. Aus den gelesenen Oxaion-Positionen werden ausschließlich Positionen mit der exakt gescannten Charge berücksichtigt.
+7. Gibt es genau eine eindeutige positive Oxaion-Bestandsposition, werden Lagerort und gegebenenfalls interner Lagerplatz automatisch übernommen.
+8. Gibt es mehrere mögliche Entnahmeorte beziehungsweise Lagerplätze für dieselbe Charge, muss der Bediener den tatsächlich verwendeten Entnahmeort bewusst bestätigen. Es wird kein Treffer geraten oder stillschweigend priorisiert.
+9. Gibt es keinen Treffer oder kann einer der für die eindeutige Ermittlung benötigten Oxaion-Bestände nicht sicher gelesen werden, wird keine Quelle automatisch freigegeben.
+10. Der Bediener gibt nur noch die gewünschte Einfüllmenge ein; sie darf den aktuell verfügbaren Bestand der bestätigten Position nicht überschreiten.
+11. Direkt vor der ersten schreibenden Materialbuchung liest das Backend alle ausgewählten Quellen erneut und verlangt exakte Übereinstimmung von Artikel, Lagerort, internem Lagerplatzschlüssel und Charge sowie ausreichenden Bestand.
+12. Bei Abweichung oder nicht lesbarem Bestand wird keine Materialbuchung gestartet.
 
-Mehrfachauswahl derselben exakten Bestandsposition innerhalb eines Vorgangs ist nicht zulässig; die Menge ist in einer Quelle zusammenzufassen.
+Mehrfachauswahl derselben exakten Oxaion-Bestandsposition innerhalb eines Vorgangs ist nicht zulässig; die Menge ist in einer Quelle zusammenzufassen.
+
+Die QR-Auswahl ändert damit ausschließlich die Bedienfolge. Die für die Buchung verwendeten Lagerort-/Lagerplatz-/Chargenschlüssel stammen weiterhin aus den bestätigten Oxaion-Auskunftswegen und nicht aus frei erzeugten Browserwerten.
