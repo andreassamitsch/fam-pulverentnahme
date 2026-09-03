@@ -38,20 +38,35 @@ public sealed class PersonnelLookupTests
     }
 
     [Fact]
-    public void ParsesCodeAndFullNameReturnedByUs14000()
+    public void ParsesPersonnelNumberAndFullNameFromPepenaWithoutShortCode()
     {
         var xml = XDocument.Parse("""
             <PARM><DTA>
               <PEPENU>0000000446</PEPENU>
-              <PESAKZ>ANSA</PESAKZ>
-              <PENLAE>Andreas Samitsch</PENLAE>
+              <PEPENA>Andreas Samitsch</PEPENA>
             </DTA></PARM>
             """);
 
         var person = PersonnelService.ParsePersonnel(xml);
         Assert.NotNull(person);
         Assert.Equal("446", person!.PersonnelNo);
-        Assert.Equal("ANSA", person.Code);
         Assert.Equal("Andreas Samitsch", person.FullName);
+    }
+
+    [Fact]
+    public void IgnoresPesakzAndPenlaeWhenPepenaIsPresent()
+    {
+        var xml = XDocument.Parse("""
+            <PARM><DTA>
+              <PEPENU>0000000446</PEPENU>
+              <PESAKZ>ANSA</PESAKZ>
+              <PENLAE>Falsches Namensfeld</PENLAE>
+              <PEPENA>Andreas Samitsch</PEPENA>
+            </DTA></PARM>
+            """);
+
+        var person = PersonnelService.ParsePersonnel(xml);
+        Assert.NotNull(person);
+        Assert.Equal("Andreas Samitsch", person!.FullName);
     }
 }
