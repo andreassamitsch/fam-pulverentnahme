@@ -30,6 +30,21 @@ Schreibende API-Antworten und ERP-Buchungsergebnisse duerfen nicht als fachliche
 
 Lesende Daten mit fachlicher Bedeutung, insbesondere Maschinenzustaende, werden nur ueber die explizit definierte IndexedDB-Cachelogik mit Zeitstempel und Versionsinformation verwendet.
 
+## PWA-Installierbarkeit auf Android
+
+Der STAGING-Prototyp ist technisch als installierbare PWA konfiguriert:
+
+- `wwwroot/manifest.webmanifest` enthaelt App-Name, `start_url`, `scope`, `display: standalone`, Theme-/Hintergrundfarbe und die fuer Chromium-basierte Android-Browser benoetigten Icon-Groessen 192x192 und 512x512.
+- Ein separates maskierbares 512x512-Icon ist fuer adaptive Android-App-Icons vorhanden.
+- Das Browser-Favicon liegt lokal unter `wwwroot/icons/favicon.svg` und wird in `index.html` referenziert.
+- Die PWA-Icons liegen lokal unter `wwwroot/icons/` und werden zusammen mit der App-Shell vom Service Worker gecacht.
+- Der vorhandene Service Worker wird beim App-Start durch `app.js` registriert.
+- Die App verwendet weiterhin `display: standalone`, damit eine installierte PWA ohne normale Browser-Adressleiste startet.
+
+Fuer eine regulaere PWA-Installation auf Android muss die vom Smartphone aufgerufene WebApp ueber **HTTPS** bereitgestellt werden. `localhost` beziehungsweise Loopback-Adressen sind nur Entwicklungs-Ausnahmen. Ein reiner HTTP-Aufruf eines IIS-Servers im Netzwerk erfuellt diese Voraussetzung nicht. Die HTTPS-Bereitstellung beziehungsweise das Zertifikat wird in der IIS-/Deployment-Konfiguration geloest und nicht durch unsichere Ausnahmen im Frontend umgangen.
+
+Die Installierbarkeit aendert keine fachliche Offline-Grenze: Eine installierte PWA darf produktive Oxaion-Buchungen weiterhin weder offline simulieren noch als erfolgreich bestaetigt darstellen.
+
 ## IndexedDB
 
 Mindestens folgende Datenbereiche sind vorgesehen:
@@ -236,4 +251,4 @@ Die konkreten offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. F
 - Verhalten bei vollem oder vom Browser geloeschtem lokalem Speicher;
 - Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb;
 - genaue Frontend-/API-Versionierung und Kompatibilitaetsregeln;
-- technische Strategie fuer verwaltete Android-Geraete und PWA-Installation.
+- technisches Installations-/Rollout-Konzept fuer verwaltete Android-Geraete.
