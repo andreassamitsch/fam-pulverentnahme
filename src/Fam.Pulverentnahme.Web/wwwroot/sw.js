@@ -1,5 +1,15 @@
-const CACHE='fam-pulver-staging-v6';
-const ASSETS=['/','/index.html','/styles.css','/app.js?v=20260902-source-stock','/manifest.webmanifest'];
+const CACHE='fam-pulver-staging-v7-pwa-install';
+const ASSETS=[
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/app.js?v=20260902-source-stock',
+  '/manifest.webmanifest',
+  '/icons/favicon.svg',
+  '/icons/icon-192.svg',
+  '/icons/icon-512.svg',
+  '/icons/icon-maskable-512.svg'
+];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
