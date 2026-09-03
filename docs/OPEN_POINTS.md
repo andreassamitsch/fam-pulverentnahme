@@ -36,15 +36,19 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [x] Buchungsdatum beim neuen Nachfuellvorgang ist immer das aktuelle Datum und keine Bedienereingabe; `Mix Charge erstellt am` wird aus dem aktuellen Erzeugungszeitpunkt der neuen Mix-Charge gebildet.
 - [x] Artikel und Artikelbezeichnung werden beim Nachfuellen aus dem eindeutigen aktuellen Maschinenbestand abgeleitet und sind keine Bedienereingaben.
 - [x] Der aktuelle Maschinen-Tanklagerort darf nie als Quelllager einer Nachfuellcharge verwendet werden.
+- [x] Mitarbeiter-Anmeldung festgelegt: Nach Auswahl der Oxaion-Personalnummer ist ein Passwort erforderlich. Die PWA prueft das Passwort ausschliesslich serverseitig gegen den vorhandenen SYNCOS-`PASSWORD`-Wert; Details und rekonstruierte Legacy-Transformation siehe `docs/PERSONNEL_AUTHENTICATION.md`.
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
 - [ ] Maschinenliste/QR-Zuordnung finalisieren. Der aktuelle STAGING-Stand verwendet eine gepflegte Maschinenlager-Whitelist mit `EOS1` und `EOS2`; der spaetere Maschinen-QR soll gegen dieselbe Liste validiert werden.
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
 
 ## Anwendung und Betrieb
 
-- [ ] Authentifizierungskonzept fuer Benutzer der WebApp festlegen
+- [x] Authentifizierungskonzept fuer Bediener der WebApp festgelegt: Oxaion-Personalnummer/Name bleiben fuer die Identitaet fuehrend, danach serverseitige Passwortpruefung gegen den vorhandenen SYNCOS-Credentialwert und serverseitige Session; keine Passwortspeicherung im Frontend. Details siehe `docs/PERSONNEL_AUTHENTICATION.md`.
+- [ ] Konkreten SYNCOS-Schema-/Tabellennamen fuer den lesenden `PASSWORD`-Lookup bestaetigen und die produktive `PersonnelAuthentication__PasswordLookupSql` festlegen. Kein Tabellenname wird im Code erfunden.
+- [ ] Zuordnung `PEPENU ohne fuehrende Nullen -> zehnstelliger OBJECTKEY`, z. B. `446 -> 0000000446`, an mehreren realen Mitarbeitern fuer die Produktivfreigabe bestaetigen. Der Referenzdatensatz `446 / ANSA` ist bereits bestaetigt.
+- [ ] Falls produktiv Sonderzeichen oder Passwoerter mit mehr als 18 Zeichen vorkommen: Legacy-Transformation dafuer mit kontrollierten Testvektoren bestaetigen. Aktuell sind nur ASCII-Buchstaben/Ziffern bis 18 Zeichen freigegeben.
 - [ ] Endgueltigen produktiven Web-/Application-Server festlegen
-- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten und sonstigen Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Es gibt keinen fest vorgegebenen Oxaion-Laufzeitbenutzer im Repository.
+- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten, der SYNCOS-Credential-DB-Verbindung und sonstiger Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Die Credential-DB-Verbindung wird ebenfalls nur als Laufzeitkonfiguration vorgesehen. Es gibt keine fest vorgegebenen Zugangsdaten im Repository.
 - [ ] Persistenztechnik fuer produktives Transaktionslog, Idempotenz, Status und Audit Trail festlegen; STAGING-Prototyp verwendet vorerst JSON-Dateien unter `App_Data/transactions`
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach weiterer Analyse der Oxaion-Schnittstelle festlegen
@@ -64,7 +68,7 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Reihenfolge und Abhaengigkeiten bei der Synchronisation mehrerer lokaler Vorgaenge definieren
 - [ ] Verhalten bei vollem, vom Benutzer geloeschtem oder vom Browser bereinigtem lokalem Speicher festlegen
 - [ ] Pruefen, ob `navigator.storage.persist()` auf den eingesetzten Android-Geraeten sinnvoll und ausreichend unterstuetzt wird
-- [ ] Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb definieren
+- [x] Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb definiert: Passwort und Authentifizierungsersatz werden nicht offline gespeichert; eine abgelaufene Session erfordert nach Reconnect eine neue Online-Anmeldung, bevor eine neue produktive Buchung gestartet wird.
 - [x] Health-/Connectivity-Endpunkte fuer den STAGING-Prototyp angelegt (`/api/health` und `/api/health/oxaion`); produktive Health-Policy noch festlegen
 - [ ] Frontend-/API-Versionierung und Kompatibilitaetsregeln definieren
 - [ ] Technische Update-Erkennung fuer die PWA festlegen, zum Beispiel Versionsressource plus Service-Worker-Lebenszyklus
