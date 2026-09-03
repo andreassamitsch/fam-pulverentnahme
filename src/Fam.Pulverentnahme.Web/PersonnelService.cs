@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace Fam.Pulverentnahme.Web;
 
-public sealed record PersonnelOption(string PersonnelNo, string Code, string FullName);
+public sealed record PersonnelOption(string PersonnelNo, string FullName);
 
 internal sealed record PersonnelSearchSeed(Dictionary<string, string> Fields);
 
@@ -13,7 +13,8 @@ internal sealed record PersonnelSearchSeed(Dictionary<string, string> Fields);
 /// MN10209J *CHKCMD (MA) -> US14090J *LOAD/*GETCFTIT/*FIRSTLIST/*SEARCH ->
 /// US14000J *LOAD/*READ.
 /// The operator enters the personnel number without leading zeroes. Oxaion returns PEPENU padded
-/// to 10 digits. PESAKZ is the personnel short code and PENLAE is the full name.
+/// to 10 digits. PEPENA is the full personnel name. PESAKZ is intentionally not used because it
+/// is not maintained for every employee.
 /// </summary>
 public sealed class PersonnelService
 {
@@ -110,10 +111,9 @@ public sealed class PersonnelService
         if (dta is null) return null;
         string V(string name) => dta.Element(name)?.Value.Trim() ?? "";
         var no = NormalizeOxaionNumber(V("PEPENU"));
-        var code = V("PESAKZ");
-        var fullName = V("PENLAE");
+        var fullName = V("PEPENA");
         if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(fullName)) return null;
-        return new PersonnelOption(no, code, fullName);
+        return new PersonnelOption(no, fullName);
     }
 
     internal static string NormalizeInput(string value)
