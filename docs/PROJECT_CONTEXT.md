@@ -124,9 +124,11 @@ Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
 
 ### Mitarbeiter
 
-Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die WebApp sucht die Nummer in Oxaion, zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht.
+Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
 
-`PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet. Der bestaetigte Ablauf und die Feldzuordnung sind in `docs/OXAION_PERSONNEL_LOOKUP.md` dokumentiert. Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend `PEPENU` und `PEPENA` erneut in Oxaion.
+Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet.
+
+Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit der Browserauswahl. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md`.
 
 ### Neue Mix-Charge und Buchungsdaten
 
