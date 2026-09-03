@@ -91,4 +91,31 @@ public sealed class PersonnelLookupTests
     {
         Assert.Equal(expected, PersonnelService.ToOxaionPersonnelNumber(input));
     }
+
+    [Fact]
+    public void ExactSelectionUsesGetSltAtrStateBeforeChkSltv()
+    {
+        var getSltv = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["IWERK"] = "OLD",
+            ["UNCHANGED"] = "A"
+        };
+        var getSltAtr = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["IWERK"] = "NEW",
+            ["ATTRIBUTE_ONLY"] = "B"
+        };
+
+        var fields = PersonnelService.BuildExactSelectionFields(
+            getSltv,
+            getSltAtr,
+            "PERSONNEL-SSID",
+            "450");
+
+        Assert.Equal("NEW", fields["IWERK"]);
+        Assert.Equal("A", fields["UNCHANGED"]);
+        Assert.Equal("B", fields["ATTRIBUTE_ONLY"]);
+        Assert.Equal("PERSONNEL-SSID", fields["SSID"]);
+        Assert.Equal("0000000450", fields["IPENU"]);
+    }
 }
