@@ -95,18 +95,32 @@ public sealed class OxaionClient
 
     internal static XDocument ParseXml(string raw, string context = "response", int? statusCode = null, string? contentType = null)
     {
+        var trimmed = (raw ?? "").TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+        if (trimmed.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Oxaion {context} response was not valid XML ({FormatHttpContext(statusCode, contentType)}{DescribePayload(raw)})."
+            );
+        }
+
         try
         {
             return XDocument.Parse(raw, LoadOptions.PreserveWhitespace);
         }
         catch (XmlException ex)
         {
-            var http = statusCode.HasValue ? $"HTTP {statusCode.Value}; " : "";
-            var type = string.IsNullOrWhiteSpace(contentType) ? "" : $"Content-Type {contentType}; ";
             throw new InvalidOperationException(
-                $"Oxaion {context} response was not valid XML ({http}{type}{DescribePayload(raw)}; XML parser line {ex.LineNumber}, position {ex.LinePosition}).",
+                $"Oxaion {context} response was not valid XML ({FormatHttpContext(statusCode, contentType)}{DescribePayload(raw)}; XML parser line {ex.LineNumber}, position {ex.LinePosition}).",
                 ex);
         }
+    }
+
+    private static string FormatHttpContext(int? statusCode, string? contentType)
+    {
+        var http = statusCode.HasValue ? $"HTTP {statusCode.Value}; " : "";
+        var type = string.IsNullOrWhiteSpace(contentType) ? "" : $"Content-Type {contentType}; ";
+        return http + type;
     }
 
     private static string DescribePayload(string raw)
