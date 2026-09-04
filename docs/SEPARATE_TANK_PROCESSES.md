@@ -4,6 +4,8 @@ Stand: 04.09.2026
 
 Diese Datei dokumentiert die neue fachliche Entscheidung, den Pulverwechsel nicht als einen einzigen automatisch verketteten Buchungsvorgang zu behandeln. Die Bedienoberflaeche bietet stattdessen separate Vorgaenge. Die allgemeinen Regeln zu Personal-Session, QR-Scanner, Oxaion-Revalidierung, Idempotenz, Fehlerbehandlung und `Dev-Infos` bleiben unveraendert.
 
+**Diese neuere und spezifischere Entscheidung ersetzt fuer den aktuellen Entwicklungsstand die aeltere monolithische Bezeichnung beziehungsweise Ablaufbeschreibung `Pulver tauschen` in `docs/PROJECT_CONTEXT.md` und Szenario F in `docs/BOOKING_SCENARIOS.md`.** Die dort beschriebenen Sicherheitsziele und noch offenen Oxaion-Schreibdetails bleiben weiterhin gueltig; nur die Bedien- und Transaktionsgrenze wird jetzt in zwei separate Vorgaenge aufgeteilt. Bei der naechsten Konsolidierung der Hauptdokumentation sind diese aelteren Abschnitte entsprechend nachzuziehen.
+
 ## Sichtbare Vorgaenge
 
 Nach erfolgreicher Mitarbeiter-Anmeldung waehlt der Bediener einen Vorgang:
