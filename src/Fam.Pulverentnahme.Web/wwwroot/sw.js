@@ -1,17 +1,18 @@
-const CACHE='fam-pulver-staging-v14-scan-safety';
+const CACHE='fam-pulver-staging-v15-worker-flow-2';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css?v=20260904-scan-safety',
   '/worker-ui.css?v=20260904-scan-safety',
   '/qr-scanner.css?v=20260904-persistent-zoom',
-  '/qr-scanner.js?v=20260904-persistent-zoom',
+  '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20260904-scan-safety',
   '/article-colors.js?v=20260903-recognition-colors',
   '/personnel-auth.js?v=20260903-guided-worker',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20260904-scan-safety',
+  '/worker-enhancements.js?v=20260904-worker-flow-2',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
   '/icons/icon-192.svg',
