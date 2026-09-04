@@ -44,6 +44,7 @@ jobs:
             '.\src\Fam.Pulverentnahme.Web\wwwroot\qr-scanner.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\submit.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\worker-ui.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\worker-enhancements.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\sw.js'
           )
           foreach ($file in $files) {
