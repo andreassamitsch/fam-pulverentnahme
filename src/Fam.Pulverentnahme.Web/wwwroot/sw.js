@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v15-worker-flow-2';
+const CACHE='fam-pulver-staging-v16-worker-flow-3';
 const ASSETS=[
   '/',
   '/index.html',
@@ -12,7 +12,7 @@ const ASSETS=[
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20260904-scan-safety',
-  '/worker-enhancements.js?v=20260904-worker-flow-2',
+  '/worker-enhancements.js?v=20260904-worker-flow-3',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
   '/icons/icon-192.svg',
