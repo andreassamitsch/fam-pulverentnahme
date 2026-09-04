@@ -57,7 +57,7 @@
       </div>
       <div id="personnelLogin" class="inputBlock hidden">
         <label class="importantLabel">Passwort
-          <input id="personnelPassword" class="importantInput" type="password" maxlength="18" autocomplete="current-password" autocapitalize="none" spellcheck="false" placeholder="Passwort">
+          <input id="personnelPassword" class="importantInput" type="text" maxlength="18" autocomplete="off" aria-autocomplete="none" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" style="-webkit-text-security:disc" placeholder="Passwort">
         </label>
         <div class="actions"><button class="primary compact" id="personnelLoginBtn" type="button">Anmelden</button></div>
         <div class="footerNote devOnly">Passwort wird nur zum Backend übertragen und nicht im Buchungsvorgang oder in IndexedDB gespeichert.</div>
@@ -174,6 +174,6 @@
 <script src="/nfc.js?v=20260903-guided-worker"></script>
 <script src="/submit.js?v=20260903-guided-worker"></script>
 <script src="/worker-ui.js?v=20260904-scan-safety"></script>
-<script src="/worker-enhancements.js?v=20260904-worker-flow-2"></script>
+<script src="/worker-enhancements.js?v=20260904-worker-flow-3"></script>
 </body>
 </html>
