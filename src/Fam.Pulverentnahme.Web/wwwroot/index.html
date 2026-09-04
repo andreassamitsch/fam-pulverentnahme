@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#15324a">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=20260903-guided-worker">
-  <link rel="stylesheet" href="/worker-ui.css?v=20260903-guided-worker">
-  <link rel="stylesheet" href="/qr-scanner.css?v=20260903-explicit-scan">
+  <link rel="stylesheet" href="/styles.css?v=20260904-scan-safety">
+  <link rel="stylesheet" href="/worker-ui.css?v=20260904-scan-safety">
+  <link rel="stylesheet" href="/qr-scanner.css?v=20260904-persistent-zoom">
   <title>FAM Pulverentnahme</title>
 </head>
 <body>
@@ -107,9 +107,9 @@
     </div>
 
     <div id="sourceScanStatus" class="status neutral">Chargen-QR scannen. Entnahmeort wird aus oxaion ermittelt.</div>
-    <div class="actions"><button class="primary" id="addSourceBtn" type="button" disabled>Nachfüllcharge scannen</button></div>
     <div id="additionalSources"></div>
-    <div class="footerNote devOnly">Chargen-QR: <b>Artikel+++Charge</b>. Bei genau einer Oxaion-Bestandsposition wird diese automatisch gewählt; bei mehreren muss der tatsächliche Entnahmeort bestätigt werden. Der Maschinentank ist keine zulässige Quelle.</div>
+    <div id="addSourceActions" class="actions"><button class="primary" id="addSourceBtn" type="button" disabled>Nachfüllcharge scannen</button></div>
+    <div class="footerNote devOnly">Chargen-QR: <b>Artikel+++Charge</b>. Dieselbe Charge darf mehrfach verwendet werden, wenn sie auf unterschiedlichen noch nicht verwendeten Oxaion-Bestandspositionen liegt. Dieselbe exakte Position darf nur einmal gewählt werden.</div>
   </section>
 
   <section id="mixSection" class="card hidden devOnly">
@@ -144,6 +144,7 @@
 <div id="qrScannerModal" class="qrModal hidden" role="dialog" aria-modal="true" aria-labelledby="qrScannerTitle">
   <div class="qrDialog">
     <div class="qrHeader"><div><h2 id="qrScannerTitle">QR-Code scannen</h2><div id="qrScannerHelp" class="qrHelp"></div></div><button id="qrScannerClose" class="qrClose" type="button" aria-label="Scanner schließen">×</button></div>
+    <div id="qrTargetGuide" class="scanTargetGuide hidden" aria-live="polite"></div>
     <div class="qrCamera">
       <video id="qrScannerVideo" playsinline muted autoplay></video>
       <canvas id="qrScannerCanvas" class="hidden"></canvas>
@@ -155,12 +156,23 @@
   </div>
 </div>
 
-<script src="/qr-scanner.js?v=20260903-explicit-scan"></script>
-<script src="/app.js?v=20260903-guided-worker"></script>
+<div id="rejectedScanModal" class="blockingScanModal hidden" role="alertdialog" aria-modal="true" aria-labelledby="rejectedScanTitle" aria-describedby="rejectedScanMessage">
+  <div class="blockingScanDialog">
+    <div class="blockingScanIcon" aria-hidden="true">!</div>
+    <h2 id="rejectedScanTitle">Falsches Pulver</h2>
+    <div id="rejectedScanMessage" class="blockingScanMessage"></div>
+    <div id="rejectedScanComparison" class="scanComparison scanComparisonError"></div>
+    <div id="rejectedScanAudit" class="scanAuditNote">Fehlscan wird dokumentiert.</div>
+    <button id="rejectedScanAcknowledge" class="dangerAcknowledge" type="button">Verstanden</button>
+  </div>
+</div>
+
+<script src="/qr-scanner.js?v=20260904-persistent-zoom"></script>
+<script src="/app.js?v=20260904-scan-safety"></script>
 <script src="/article-colors.js?v=20260903-recognition-colors"></script>
 <script src="/personnel-auth.js?v=20260903-guided-worker"></script>
 <script src="/nfc.js?v=20260903-guided-worker"></script>
 <script src="/submit.js?v=20260903-guided-worker"></script>
-<script src="/worker-ui.js?v=20260903-guided-worker"></script>
+<script src="/worker-ui.js?v=20260904-scan-safety"></script>
 </body>
 </html>
