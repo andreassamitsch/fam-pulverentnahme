@@ -8,6 +8,7 @@ on:
       - pr8-pwa-test
       - feature/nfc-personnel
       - feature/worker-guided-ui
+      - feature/separate-processes
   pull_request:
     branches:
       - main
@@ -39,6 +40,7 @@ jobs:
           $files = @(
             '.\src\Fam.Pulverentnahme.Web\wwwroot\app.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\article-colors.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-mode.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\personnel-auth.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\nfc.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\qr-scanner.js',
@@ -59,7 +61,7 @@ jobs:
         run: dotnet test .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj --configuration Release --no-restore
 
       - name: Publish self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
         shell: pwsh
         run: |
           $out = '.\artifacts\FAM-Pulverentnahme-STAGING-win-x64'
@@ -73,7 +75,7 @@ jobs:
           Copy-Item .\scripts\START_STAGING.bat (Join-Path $out 'START_STAGING.bat')
 
       - name: Upload self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
         uses: actions/upload-artifact@v4
         with:
           name: FAM-Pulverentnahme-STAGING-win-x64
