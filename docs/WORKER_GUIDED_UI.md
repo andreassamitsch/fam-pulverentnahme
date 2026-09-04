@@ -1,6 +1,6 @@
 # Mitarbeitergefuehrte Bedienoberflaeche
 
-Stand: 03.09.2026
+Stand: 04.09.2026
 
 ## Ziel
 
@@ -90,6 +90,43 @@ Wichtig:
 - Bei mehreren moeglichen Positionen muss der Mitarbeiter den tatsaechlichen Entnahmeort bestaetigen.
 - Unmittelbar vor der Buchung wird die Position serverseitig erneut validiert.
 
+#### Dieselbe Charge auf mehreren Lagerplaetzen
+
+Eine Chargennummer ist nicht selbst die Eindeutigkeitsgrenze. Dieselbe Charge darf in einem Vorgang mehrfach gescannt und verwendet werden, wenn Oxaion fuer diese Charge mehrere unterschiedliche positive Bestandspositionen liefert.
+
+Verbindlich gilt:
+
+- Eindeutig ist die Kombination aus Oxaion-Lagerort, internem Lagerplatz und Charge.
+- Eine bereits in diesem Vorgang ausgewaehlte exakte Bestandsposition wird bei einem weiteren Scan derselben Charge ausgeblendet.
+- Bleibt danach genau eine noch nicht verwendete Bestandsposition uebrig, wird diese automatisch uebernommen.
+- Bleiben mehrere Positionen uebrig, muss der Mitarbeiter den tatsaechlichen Entnahmeort bestaetigen.
+- Dieselbe exakte Oxaion-Bestandsposition darf weiterhin nicht zweimal verwendet werden. Diese Regel wird vor der Buchung zusaetzlich serverseitig geprueft.
+
+Damit kann beispielsweise Charge `52918` nacheinander von zwei unterschiedlichen Lagerplaetzen entnommen werden, ohne die Duplicate-Prevention fuer die tatsaechliche Bestandsposition aufzuweichen.
+
+#### Soll-Farbe waehrend des Chargenscans
+
+Beim Oeffnen des Chargenscanners bleibt die aus EFA01/EFA02 ermittelte Soll-Erkennungsfarbe des Tankartikels sichtbar. Direkt daneben steht der Scanstatus.
+
+Sobald ein QR-Code erkannt wurde, wird kurz der erkannte Artikel samt Charge neben der Soll-Farbe angezeigt. Nach einem gueltigen Scan bleibt diese Soll-/Ist-Darstellung auch in der angelegten Nachfuellcharge sichtbar. Die Farbanzeige ist weiterhin nur eine visuelle Erkennungshilfe; die fachliche Freigabe erfolgt ueber Artikel, Charge und aktuellen Oxaion-Bestand.
+
+#### Falscher oder nicht zulaessiger Chargenscan
+
+Ein falscher Scan erzeugt keine Nachfuellkarte und muss nicht manuell entfernt werden.
+
+Als Fehlscan gelten in diesem Ablauf insbesondere:
+
+- gescannter Artikel stimmt nicht mit dem Tankartikel ueberein;
+- Charge des richtigen Artikels ist auf keinem zulaessigen Quellbestand positiv vorhanden;
+- fuer die erneut gescannte Charge sind alle von Oxaion gefundenen exakten Bestandspositionen in diesem Vorgang bereits verwendet;
+- QR-Code entspricht nicht dem erwarteten Format `Artikel+++Charge`.
+
+Bei einem solchen Scan erscheint eine seitendeckende, blockierende Meldung. Bei falschem Artikel beziehungsweise nicht verfuegbarer Charge lautet die Kernaussage eindeutig, dass diese Charge **nicht in den Maschinentank eingefuellt werden darf**. Die Soll-Erkennungsfarbe und - soweit aus dem QR ableitbar - der gescannte Artikel und die Charge werden plakativ gegenuebergestellt.
+
+Der Mitarbeiter muss die Meldung bewusst mit `Verstanden` bestaetigen. Erst danach wird der normale Scanablauf fortgesetzt.
+
+Fehlscans werden serverseitig als WebApp-Auditereignis dokumentiert. Gespeichert werden nur die fuer die Nachvollziehbarkeit benoetigten strukturierten Daten: Zeitpunkt, angemeldeter Mitarbeiter, Maschinentank, erwarteter Artikel, gescannter Artikel, gescannte Charge und Ablehnungsgrund. Passwoerter, RFID, Connection Strings und ein beliebiger roher QR-Inhalt werden nicht in diesem Audit gespeichert. Dieses Vorpruefungsereignis ist **kein** Oxaion-Buchungsstatus `REJECTED` und loest keine Materialbuchung aus.
+
 ### 4. Menge eingeben
 
 Nach erfolgreicher Aufloesung der gescannten Charge wird das Mengenfeld hervorgehoben.
@@ -106,6 +143,8 @@ Erst wenn die aktuelle Charge inklusive Menge vollstaendig ist, kann eine weiter
 Der Ablauf fuer weitere Chargen wiederholt sich:
 
 `Charge scannen -> Entnahmeort falls noetig bestaetigen -> Menge eingeben`.
+
+Der Button `Weitere Nachfuellcharge scannen` steht unterhalb der bereits erfassten Nachfuellcharge(n), damit der visuelle Ablauf von oben nach unten der tatsaechlichen Arbeit entspricht.
 
 ### 5. Buchen
 
@@ -141,6 +180,15 @@ Bei `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`:
 - Status beziehungsweise Beleg nach dem dokumentierten Recovery-Verfahren pruefen.
 
 Die Regeln aus `docs/ERROR_HANDLING.md` bleiben unveraendert verbindlich.
+
+## Kamera-Zoom als Geraetepraeferenz
+
+Der vom Mitarbeiter am QR-Scanner eingestellte Kamera-Zoom wird als reine lokale UI-/Geraetepraeferenz gespeichert und beim naechsten Kameraoeffnen wiederhergestellt, soweit das aktuelle Geraet beziehungsweise die Kamera Zoom unterstuetzt.
+
+- Die Einstellung gilt ueber Buchungsvorgaenge und App-Neustarts hinweg fuer denselben Browser-Origin.
+- Ein gespeicherter Wert wird auf den vom aktuellen Kameratrack gemeldeten Min-/Max-Bereich begrenzt.
+- Ist Zoom auf einem Geraet nicht unterstuetzt, hat der gespeicherte Wert keine fachliche Wirkung.
+- Dafuer darf `localStorage` verwendet werden, weil es sich nicht um fachliche Vorgangs-, Outbox-, Buchungs- oder ERP-Daten handelt. Fachliche Offline-Daten bleiben gemaess `docs/OFFLINE_PWA.md` in IndexedDB.
 
 ## Hervorhebung des naechsten Schritts
 
