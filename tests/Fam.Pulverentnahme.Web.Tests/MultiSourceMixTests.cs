@@ -31,6 +31,24 @@ public sealed class MultiSourceMixTests
     }
 
     [Fact]
+    public void AllowsSameBatchFromDifferentStoragePositions()
+    {
+        var request = Request(additionalSources:
+        [
+            new AdditionalPowderSource("FAMLAB", "FAM LABOR", "KA1", "87911", 0.005m),
+            new AdditionalPowderSource("FAMLAB", "FAM LABOR", "KA2", "87911", 0.007m)
+        ]);
+
+        MixBookingService.ValidateRequest(request);
+
+        var sources = MixRequestLogic.Sources(request);
+        Assert.Equal(2, sources.Count);
+        Assert.Equal("87911", sources[0].Batch);
+        Assert.Equal("87911", sources[1].Batch);
+        Assert.NotEqual(sources[0].StorageBin, sources[1].StorageBin);
+    }
+
+    [Fact]
     public void RejectsInconsistentLegacyFirstSourceMirror()
     {
         var request = Request(additionalSources:
