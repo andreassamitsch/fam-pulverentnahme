@@ -121,7 +121,11 @@ async function scanQrCode({title='QR-Code scannen',help='QR-Code in das Kamerafe
     const state={resolve,reject,detector,onDetected,stream:null,track:null,interval:null,busy:false,closed:false,scanning:false,last:'',lastAt:0};qrScanState=state;ui.close.onclick=qrCancel;ui.scan.onclick=qrToggleDetection;
     try{
       state.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-      state.track=state.stream.getVideoTracks()[0]||null;ui.video.srcObject=state.stream;await ui.video.play();await qrInitZoom(state.track);ui.scan.disabled=false;qrSetStatus('Kamera bereit. Bei Bedarf Zoom einstellen und anschließend „Scannen“ drücken.','neutral');
+      state.track=state.stream.getVideoTracks()[0]||null;
+      // Restore the persisted hardware zoom before binding the camera stream to the visible video.
+      // This avoids the visible jump from the camera's default zoom to the stored preference.
+      await qrInitZoom(state.track);
+      ui.video.srcObject=state.stream;await ui.video.play();ui.scan.disabled=false;qrSetStatus('Kamera bereit. Bei Bedarf Zoom einstellen und anschließend „Scannen“ drücken.','neutral');
     }catch(error){qrCleanup();reject(error)}
   });
 }
