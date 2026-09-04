@@ -2,6 +2,21 @@
 
 Diese Datei ergaenzt `docs/WORKER_GUIDED_UI.md`. Sie beschreibt die nach dem realen Android-/STAGING-Test verbindlich festgelegten Bedienungsdetails. Die fachlichen Buchungs-, Idempotenz- und Recovery-Regeln aus `docs/ERROR_HANDLING.md` bleiben unveraendert.
 
+## Abnahme 04.09.2026
+
+Der aktuelle Stand wurde am 04.09.2026 nach dem realen Android-/STAGING-Test vom Anwender als passend bestaetigt und wird fuer die weitere Entwicklung als abgenommener Bedienungs-Basisstand uebernommen.
+
+Damit gelten insbesondere folgende zuletzt nachgebesserte Punkte als bestaetigt:
+
+- echte SOLL-/IST-Erkennungsfarben auch in der blockierenden Fehlermeldung bei falschem Artikel, soweit der rein lesende Oxaion-Farbabruf erfolgreich ist;
+- stabile Mengeneingabe ohne vorzeitigen Fokus-/Scrollsprung und Weiterfuehrung erst nach bewusstem `Enter`/`OK`;
+- In-App-Kontrollabfrage vor `Buchung starten` statt Browser-`confirm()`;
+- seitendeckende, bestaetigungspflichtige Buchungsergebnisse mit unveraenderter sicherer Recovery-Logik;
+- Passwort-Fallback ohne vom Prozess gewuenschte Browser-Passwortspeicherung/AutoFill;
+- dauerhafter Kamera-Zoom als reine lokale UI-Praeferenz.
+
+Dieser Stand ist damit die Referenz fuer weitere UI-Aenderungen. Spaetere Anpassungen duerfen diese bestaetigten Bedienungsregeln nicht stillschweigend wieder aufheben.
+
 ## Live bestaetigter Multi-Position-Fall
 
 Am 04.09.2026 wurde dieselbe reale Charge `52918` aus zwei unterschiedlichen Oxaion-Lagerplaetzen in einem Nachfuellvorgang verwendet.
