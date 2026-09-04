@@ -37,18 +37,22 @@ Syncos SQL wird in diesem Projekt nur fuer die bestaetigten rein lesenden Person
 - bevorzugte Mitarbeiter-Anmeldung ueber NFC; Fallback Personalnummer + SYNCOS-Passwort
 - Scan von Fertigungsauftrags-, Maschinentank- und Rohmaterial-/Chargencodes ueber die Kamera
 - Kamera wird zuerst nur geoeffnet; Barcode-Erkennung startet erst nach bewusstem Druck auf `Scannen`
+- Kamera-Zoom wird als reine lokale Geraete-/UI-Praeferenz gespeichert und beim naechsten Kameraoeffnen wieder angewendet, soweit vom Track unterstuetzt; dieser Wert ist kein fachlicher Prozesszustand
 - Anzeige von Maschinentank, Pulverartikel, EFA01/EFA02-Erkennungsfarben, Prozessstatus und konkreten Fehlermassnahmen
+- beim Chargenscan bleibt die EFA01/EFA02-Sollfarbe sichtbar; ein erkannter Artikel/Charge wird unmittelbar als Ist-Scan gegenuebergestellt
 - Anzeige bekannter positiver Lagerorte/Lagerplaetze mit passendem Pulver als Suchhilfe; diese Anzeige ist keine Buchungsfreigabe
 - Mengenfelder fuer Nachfuellchargen werden nicht vorbelegt
 - PWA mit Web App Manifest und Service Worker
 - Offline-faehige App-Shell fuer kurze Netzunterbrechungen
 - `IndexedDB` fuer lokale Vorgangsdaten, Maschinenzustands-Cache und Outbox
+- `localStorage` nur fuer nicht-fachliche Geraete-/UI-Praeferenzen wie den Kamera-Zoom; keine Buchungs-, Outbox-, Authentifizierungs- oder ERP-Wahrheit daraus ableiten
 - Vergabe einer eindeutigen `clientOperationId` bereits beim lokalen Anlegen eines Vorgangs
 - klare Trennung zwischen lokalem Sync-Status und serverseitigem Buchungsstatus
 - kontrollierte Synchronisation nach Wiederherstellung der Backend-Verbindung
 - kontrollierte PWA-Aktualisierung ohne Datenverlust und ohne erzwungenen Reload waehrend kritischer Vorgaenge
 - keine Oxaion-Zugangsdaten, Syncos-Connection-Strings, Passworttransformationen, Buchungsschluessel oder vertrauenswuerdige Buchungslogik im Frontend
 - Nachfuellquellen werden nicht als freie Lagerort-/Lagerplatz-/Chargenschluessel eingegeben, sondern aus den vom Backend gelieferten aktuellen Oxaion-Bestandspositionen bestimmt
+- dieselbe Chargennummer darf auf mehreren unterschiedlichen positiven Bestandspositionen verwendet werden; Duplicate Prevention bezieht sich auf die exakte Kombination aus Lagerort, internem Lagerplatz und Charge
 
 Der Browser-/Geraetespeicher ist nur ein Zwischenpuffer. Er ist nicht die fachlich fuehrende Datenhaltung.
 
@@ -98,6 +102,8 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - `POST /api/personnel/login`: manueller Passwort-Fallback; Person in Oxaion bestaetigen und vorhandenes SYNCOS-Passwort serverseitig pruefen
 - `GET /api/personnel/session` und `POST /api/personnel/logout` fuer Sessionstatus und Abmeldung
 - Login-Rate-Limit fuer den Passwortweg
+- `POST /api/scan-events/rejected-charge` fuer strukturierte, authentifizierte Auditereignisse bei fachlich abgelehnten Chargenscans; diese Ereignisse sind keine Oxaion-Buchung und kein Transaktionsstatus `REJECTED`
+- STAGING-Persistenz der Fehlscan-Audits als WebApp-eigene JSON-Dateien unter `App_Data/scan-events`; Details und Sicherheitsgrenzen siehe `docs/REJECTED_SCAN_AUDIT.md`
 - Vergabe und Persistierung eindeutiger serverseitiger Transaktions- beziehungsweise Vorgangs-IDs
 - eindeutige Zuordnung der `clientOperationId` zu einer serverseitigen Transaktion
 - serverseitige Idempotenz, Duplicate Prevention und Statusverwaltung
@@ -113,6 +119,7 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - vor einem neuen Mix-Buchungsversuch: Session zum Mitarbeiter pruefen und Mitarbeiter erneut exakt in Oxaion lesen
 - vor einem neuen Mix-Buchungsversuch: erneute Bestandsabfrage und Vergleich von Lagerort, Artikel, Charge und kompletter Maschinenmenge mit dem vom Frontend vorbereiteten Request; bei Abweichung keine schreibende Materialbuchung starten
 - zusaetzlich vor einem neuen Mix-Buchungsversuch: jede Nachfuellquelle anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge erneut aus Oxaion lesen; bei Abweichung oder unzureichendem Bestand keine schreibende Materialbuchung starten
+- dieselbe exakte Quellenposition Lagerort/Lagerplatz/Charge wird in `SourceStockService.ValidateSourcesAsync` weiterhin serverseitig als Duplicate blockiert; dieselbe Chargennummer auf unterschiedlichen Positionen bleibt zulaessig
 
 Dasselbe `clientOperationId` darf nicht zu mehreren wirksamen Oxaion-Buchungen fuehren. Wiederholtes Senden derselben Outbox-Nachricht muss serverseitig idempotent behandelt werden.
 
@@ -149,7 +156,7 @@ Eine separate Datenbank darf ausschliesslich WebApp-eigene Informationen verwalt
 - `clientOperationId` und eindeutige Zuordnung zur Backend-Transaktion
 - technische und fachliche Status
 - Fehlerprotokoll
-- Audit Trail
+- Audit Trail, einschliesslich spaeter produktiv zu persistierender Fehlscan-Ereignisse
 - Zuordnung von Planmaschine und tatsaechlich verwendeter Maschine
 
 Sie ist kein Ersatz fuer Oxaion als fachlich fuehrendes ERP-System.
