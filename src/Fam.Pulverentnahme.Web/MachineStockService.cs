@@ -174,13 +174,31 @@ public sealed class MachineStockService
 
         if (!string.Equals(current.Article, article, StringComparison.OrdinalIgnoreCase))
         {
+            ArticleRecognitionColorsResult recognitionColors;
+            try
+            {
+                recognitionColors = await ArticleRecognitionColorLookup.ReadAsync(session, article, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // This lookup is only a visual aid for the scanned IST article. Failure must never
+                // weaken or change the WRONG_ARTICLE decision from the stock comparison.
+                recognitionColors = new ArticleRecognitionColorsResult(
+                    ArticleRecognitionColorStatuses.Unavailable,
+                    article,
+                    null,
+                    null,
+                    $"Erkennungsfarben EFA01/EFA02 konnten nicht aus oxaion gelesen werden: {ex.Message}");
+            }
+
             return new MachineStockResult(
                 MachineStockStatuses.WrongArticle,
                 warehouse,
                 article,
                 $"Auf {warehouse} liegt anderes Pulver: {current.Article} ({current.ArticleText}), Charge {current.Batch}, {current.QuantityKg:0.###} kg. Vor dem Nachfüllen ist ein Pulverwechsel erforderlich.",
                 DateTimeOffset.UtcNow,
-                nonZeroRows);
+                nonZeroRows,
+                recognitionColors);
         }
 
         return new MachineStockResult(
