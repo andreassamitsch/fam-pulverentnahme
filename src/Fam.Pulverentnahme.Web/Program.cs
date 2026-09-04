@@ -9,6 +9,7 @@ builder.Services.Configure<PrototypeOptions>(builder.Configuration.GetSection("P
 builder.Services.Configure<MachineTankOptions>(builder.Configuration.GetSection("MachineTanks"));
 builder.Services.AddHttpClient(nameof(OxaionClient));
 builder.Services.AddSingleton<JsonTransactionStore>();
+builder.Services.AddSingleton<RejectedScanEventStore>();
 builder.Services.AddSingleton<OxaionClient>();
 builder.Services.AddSingleton<MachineStockService>();
 builder.Services.AddSingleton<MachineTankService>();
@@ -186,6 +187,36 @@ app.MapGet("/api/source-stock/positions", async (
     try { return Results.Ok(await service.ReadPositionsAsync(article, warehouse, ct)); }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
+});
+
+// Rejected physical charge scans are pre-booking audit events. They are intentionally separate
+// from Oxaion transaction status such as REJECTED and contain no password, RFID or raw QR payload.
+app.MapPost("/api/scan-events/rejected-charge", async (
+    RejectedChargeScanRequest request,
+    HttpContext http,
+    RejectedScanEventStore store,
+    CancellationToken ct) =>
+{
+    var personnelNo = http.Session.GetString(PersonnelAuthenticationSession.PersonnelNo);
+    var personnelName = http.Session.GetString(PersonnelAuthenticationSession.PersonnelName);
+    if (string.IsNullOrWhiteSpace(personnelNo) || string.IsNullOrWhiteSpace(personnelName))
+    {
+        return Results.Json(new
+        {
+            status = "AUTH_REQUIRED",
+            message = "Fehlscan konnte keiner angemeldeten Person zugeordnet werden."
+        }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    try
+    {
+        var evt = await store.SaveAsync(request, personnelNo, personnelName, ct);
+        return Results.Ok(new { recorded = true, eventId = evt.EventId, recordedAtUtc = evt.RecordedAtUtc });
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { recorded = false, error = ex.Message });
+    }
 });
 
 app.MapPost("/api/mix", async (
