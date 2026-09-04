@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v16-worker-flow-3';
+const CACHE='fam-pulver-staging-v17-separate-processes';
 const ASSETS=[
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const ASSETS=[
   '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20260904-scan-safety',
   '/article-colors.js?v=20260903-recognition-colors',
+  '/process-mode.js?v=20260904-separate-processes-1',
   '/personnel-auth.js?v=20260903-guided-worker',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
