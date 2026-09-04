@@ -24,9 +24,18 @@ Beim Chargenscan werden **immer** zwei visuelle Bereiche angezeigt:
 - `SOLL`: EFA01/EFA02 des aus dem Maschinentank abgeleiteten Artikels;
 - `IST / GESCANNT`: gescannter Artikel und Charge plus ein zweigeteiltes Farbkaestchen.
 
-Bei einem korrekten Artikel zeigt die IST-Seite dieselben bereits aus Oxaion geladenen EFA01/EFA02-Erkennungsfarben. Bei einem falschen Artikel darf die PWA niemals die Sollfarben als vermeintliche Istfarben darstellen. Solange fuer den falschen Artikel kein separater Sachmerkmalsabruf vorliegt, wird das Ist-Farbkaestchen deshalb neutral als `nicht bekannt` dargestellt.
+Bei einem korrekten Artikel zeigt die IST-Seite dieselben bereits aus Oxaion geladenen EFA01/EFA02-Erkennungsfarben.
 
-Die Farbe ist weiterhin nur Erkennungshilfe. Freigabe und Ablehnung basieren auf Artikel, Charge und aktuellem Oxaion-Bestand.
+Bei einem falschen Artikel wird vor der blockierenden Fehlermeldung zusaetzlich der bereits bestaetigte rein lesende EFA01/EFA02-Sachmerkmalsweg fuer **den gescannten Ist-Artikel** ausgefuehrt. Technisch wird dafuer der vorhandene Diagnose-Leseweg `/api/machine-stock` wiederverwendet; dessen `WRONG_ARTICLE`-Ergebnis liefert die Erkennungsfarben des angefragten Artikels mit. Dadurch kann die Fehlermeldung Soll- und echte Ist-Farben nebeneinander zeigen.
+
+Wichtig:
+
+- Die Farbabfrage ist nur eine visuelle Erkennungshilfe.
+- Der falsche Artikel ist bereits anhand der Artikelnummer eindeutig abgelehnt; ein Fehler beim Ist-Farbabruf darf diese Ablehnung niemals aufheben oder verzoegern.
+- Kann die Ist-Farbe nicht sicher gelesen werden, bleibt das Ist-Farbkaestchen sichtbar, wird aber neutral als nicht verfuegbar dargestellt.
+- Die Sollfarben werden niemals als vermeintliche Istfarben eines falschen Artikels verwendet.
+
+Freigabe und Ablehnung basieren weiterhin auf Artikel, Charge und aktuellem Oxaion-Bestand.
 
 ## Mengeneingabe ohne Fokusverlust
 
@@ -34,7 +43,14 @@ Solange ein Mengenfeld den Tastaturfokus hat, darf die automatische Schrittsteue
 
 Das ist notwendig, damit Dezimalwerte wie `1,012` ohne Unterbrechung eingegeben werden koennen. Ein bereits positiver Zwischenwert wie `1` darf zwar fachlich als positive Zahl erkannt werden, beendet aber nicht automatisch die aktive Texteingabe.
 
-Nach Verlassen des Mengenfeldes wird die normale Schrittsteuerung erneut ausgewertet.
+Der Mengeninput verwendet fuer die mobile Tastatur `enterkeyhint=done`. Bei bewusstem `Enter`/`OK` wird:
+
+1. die Eingabe beendet,
+2. das Mengenfeld geblurt, damit die Bildschirmtastatur schliesst,
+3. die aktuelle Buchungs-/Quellenpruefung erneut ausgewertet,
+4. der Scrollfokus auf die naechste erforderliche Aktion gesetzt, zum Beispiel naechste Menge, weitere Charge oder `Buchung starten`.
+
+Ein einfacher positiver Zwischenwert ohne `Enter`/`OK` loest weiterhin keinen Sprung aus.
 
 ## Buchungszusammenfassung
 
@@ -46,6 +62,23 @@ Die Mitarbeiteransicht in Schritt `4 · Buchen` zeigt fuer jede Nachfuellpositio
 - internen Lagerplatz, sofern vorhanden.
 
 Damit kann der Mitarbeiter vor dem Start der Buchung die physische Entnahmequelle nochmals direkt gegen die erfasste Position pruefen.
+
+## In-App-Kontrollabfrage vor dem Buchen
+
+Die letzte Kontrollabfrage vor dem eigentlichen `POST /api/mix` wird nicht mehr als Browser-`confirm()` angezeigt. Sie ist Bestandteil der PWA und zeigt blockierend:
+
+- Maschinentank und Pulverartikel;
+- Mitarbeiter;
+- jede Nachfuellcharge;
+- Menge;
+- Lagerort und gegebenenfalls Lagerplatz.
+
+Der Bediener hat zwei klare Aktionen:
+
+- `Abbrechen` - es wird nichts an das Buchungs-Backend gesendet;
+- `Buchung starten` - erst danach wird der bereits vorhandene sichere Buchungsweg aufgerufen.
+
+Die In-App-Kontrollabfrage ersetzt keine serverseitige Revalidierung. Maschinenbestand, Personal und jede Quellenposition werden direkt vor dem ersten schreibenden Oxaion-Aufruf weiterhin erneut geprueft.
 
 ## Seitendeckende Buchungsmeldung
 
@@ -72,6 +105,20 @@ Eine eindeutige Oxaion-Ablehnung bleibt ein serverseitig protokollierter Vorgang
 Die Meldung muss plakativ `NICHT erneut buchen` enthalten. Der Vorgang bleibt erhalten und wird nicht geleert. Nach `Verstanden` wird auf die Recovery-/Statuspruefung gefuehrt.
 
 Ein Verbindungsabbruch waehrend oder nach dem Versand wird niemals allein wegen einer fehlenden Browserantwort als `nicht gebucht` behandelt.
+
+## Passwortfeld im manuellen Fallback
+
+Die PWA darf dem Bediener fuer das vorhandene SYNCOS-Passwort keine Browser-Speicherung beziehungsweise AutoFill als gewuenschten Prozess anbieten.
+
+Der aktuelle Android-/Chrome-orientierte STAGING-Stand haertet das Eingabefeld deshalb gegen Passwortmanager-Heuristiken:
+
+- im HTML kein `type=password` und kein `autocomplete=current-password`;
+- `autocomplete=off` und zusaetzliche gaengige `data-*-ignore`-Attribute;
+- visuelle Maskierung ueber `-webkit-text-security: disc`;
+- initial `readonly`, Freigabe erst beim bewussten Fokus;
+- Passwort wird nach jedem Loginversuch weiterhin unmittelbar aus dem Eingabefeld geloescht.
+
+Browser und installierte Passwortmanager koennen eigene Heuristiken verwenden; eine WebApp kann deren UI nicht absolut technisch verbieten. Ziel und getestete Anforderung ist, dass der eingesetzte Android-/Browser-Stand keine Passwort-speichern-Abfrage mehr anbietet. Die serverseitige Passwortpruefung und das Verbot, Klartextpasswoerter in IndexedDB/Logs/Buchungsdaten zu speichern, bleiben unveraendert.
 
 ## Kamera-Zoom
 
