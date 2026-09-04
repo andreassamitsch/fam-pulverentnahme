@@ -1,6 +1,6 @@
 # Mitarbeiter-Anmeldung: NFC und Passwort-Fallback
 
-Stand: 03.09.2026
+Stand: 04.09.2026
 
 ## Ziel
 
@@ -45,6 +45,21 @@ Wenn Web NFC nicht verfuegbar ist oder der Personalchip nicht gelesen werden kan
 5. Das Klartextpasswort wird nur fuer diesen Login-Request an das Backend uebertragen und danach im Browser verworfen.
 6. Backend prueft Identitaet erneut in Oxaion und vergleicht den transformierten Passwortwert zeitkonstant mit dem vorhandenen SYNCOS-`PASSWORD`-Wert.
 7. Bei Erfolg wird dieselbe Personal-Session gesetzt wie beim NFC-Login.
+
+### Browser-Passwortspeicherung
+
+Fuer die Produktions-PWA soll das vorhandene SYNCOS-Passwort nicht als speicherbares Browser-Passwort angeboten werden. Im aktuellen Android-/Chrome-orientierten Stand wird das Eingabefeld daher bewusst nicht als klassisches Browser-Passwortfeld ausgezeichnet:
+
+- kein `type=password`;
+- kein `autocomplete=current-password`;
+- `autocomplete=off` und gaengige Passwortmanager-Ignore-Hinweise;
+- visuelle Maskierung ueber `-webkit-text-security: disc`;
+- initial `readonly`, Freigabe erst bei bewusstem Fokus;
+- nach jedem erfolgreichen oder fehlgeschlagenen Login wird der Feldinhalt wieder geloescht.
+
+Diese Massnahmen verhindern die Passwort-speichern-Abfrage im vorgesehenen Android-/Browser-Testaufbau soweit die Browser-Heuristik dies respektiert. Eine Website kann UI-Entscheidungen eines Browsers oder eines separat installierten Passwortmanagers nicht absolut erzwingen. Sollte der eingesetzte verwaltete Browser trotz dieser Kennzeichnung weiterhin eine Speicherung anbieten, muss dies zusaetzlich ueber Browser-/MDM-Policy unterbunden werden.
+
+Diese UI-Haertung aendert nichts an der serverseitigen Passwortpruefung. Das Passwort darf weiterhin niemals in IndexedDB, Transaktionsdaten, Auditdateien oder Logs gespeichert werden.
 
 ## Bestaetigter SYNCOS-Credential-Lookup
 
