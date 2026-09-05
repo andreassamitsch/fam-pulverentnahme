@@ -2,8 +2,11 @@ name: Cleanup Actions artifacts
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
   schedule:
-    - cron: "37 */4 * * *"
+    - cron: "37 3 * * *"
   push:
     branches: [main]
     paths:
@@ -19,7 +22,7 @@ jobs:
     timeout-minutes: 10
     env:
       KEEP_NEWEST: "1"
-      GRACE_MINUTES: "120"
+      GRACE_MINUTES: "15"
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Delete old Actions artifacts
