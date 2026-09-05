@@ -58,4 +58,4 @@ jobs:
           name: FAM-Pulverentnahme-STAGING-win-x64
           path: .\artifacts\FAM-Pulverentnahme-STAGING-win-x64\
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
