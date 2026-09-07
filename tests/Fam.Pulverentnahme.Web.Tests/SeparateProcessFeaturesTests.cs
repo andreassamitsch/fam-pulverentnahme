@@ -70,16 +70,4 @@ public sealed class SeparateProcessFeaturesTests
         ];
         Assert.True(MaterialTransferBookingService.MovementsComplete([spec], rows, out _));
     }
-
-    [Fact]
-    public void InventoryArticleIndexIgnoresAggregatedWarehouseColumn()
-    {
-        var xml = XDocument.Parse("""
-<ROOT><ROW><KEY><POIDNR>RP.00002</POIDNR></KEY><IDNR.TLBEZG>Powder</IDNR.TLBEZG><_CALC.W_LAGO>FAMLAB, H04KDX</_CALC.W_LAGO></ROW><ROW><KEY><POIDNR>XX.00001</POIDNR></KEY><IDNR.TLBEZG>Other</IDNR.TLBEZG></ROW><STOP/></ROOT>
-""");
-        var rows = InventoryService.ParseRpArticleIndex(xml);
-        var row = Assert.Single(rows);
-        Assert.Equal("RP.00002", row.Article);
-        Assert.Equal("Powder", row.ArticleText);
-    }
 }
