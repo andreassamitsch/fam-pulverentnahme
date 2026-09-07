@@ -1,0 +1,129 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text.Json;
+using System.Xml.Linq;
+using Microsoft.Extensions.Options;
+
+namespace Fam.Pulverentnahme.Web;
+
+public static class SeparateProcessFeatureExtensions
+{
+    public static IServiceCollection AddSeparateProcessFeatures(this IServiceCollection services)
+    {
+        services.AddSingleton<SeparateOperationStore>();
+        services.AddSingleton<MaterialTransferBookingService>();
+        services.AddSingleton<TankOutService>();
+        services.AddSingleton<FillNewService>();
+        services.AddSingleton<FaMaterialService>();
+        services.AddSingleton<FaConsumptionService>();
+        services.AddSingleton<InventoryService>();
+        return services;
+    }
+
+    public static IEndpointRouteBuilder MapSeparateProcessEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapGet("/api/article-recognition-colors", async (string article, HttpContext http, OxaionClient oxaion, CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try
+            {
+                await using var session = await oxaion.ConnectAsync(ct);
+                return Results.Ok(await ArticleRecognitionColorLookup.ReadAsync(session, article, ct));
+            }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/fa-material", async (string orderNo, string article, HttpContext http, FaMaterialService service, CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.FindUniqueAsync(orderNo, article, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/inventory/rp-stock", async (HttpContext http, InventoryService service, CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.ReadRpStockAsync(ct)); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapPost("/api/tank-out", async (TankOutRequest request, HttpContext http, TankOutService service, CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            try { return OperationResult(await service.ExecuteAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+        });
+        endpoints.MapGet("/api/tank-out/{id}", async (string id, HttpContext http, TankOutService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
+        endpoints.MapPost("/api/tank-out/{id}/reconcile", async (string id, HttpContext http, TankOutService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
+
+        endpoints.MapPost("/api/fill-new", async (FillNewRequest request, HttpContext http, FillNewService service, CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            try { return OperationResult(await service.ExecuteAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+        });
+        endpoints.MapGet("/api/fill-new/{id}", async (string id, HttpContext http, FillNewService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
+        endpoints.MapPost("/api/fill-new/{id}/reconcile", async (string id, HttpContext http, FillNewService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
+
+        endpoints.MapPost("/api/fa-consumption", async (FaConsumptionRequest request, HttpContext http, FaConsumptionService service, CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            try { return OperationResult(await service.ExecuteAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+        });
+        endpoints.MapGet("/api/fa-consumption/{id}", async (string id, HttpContext http, FaConsumptionService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
+        endpoints.MapPost("/api/fa-consumption/{id}/reconcile", async (string id, HttpContext http, FaConsumptionService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
+
+        return endpoints;
+    }
+
+    private static bool SessionAuthenticated(HttpContext http, out IResult? result)
+    {
+        var no = http.Session.GetString(PersonnelAuthenticationSession.PersonnelNo);
+        var name = http.Session.GetString(PersonnelAuthenticationSession.PersonnelName);
+        if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(name))
+        {
+            result = Results.Json(new { status="AUTH_REQUIRED", message="Bitte Mitarbeiter anmelden." }, statusCode:401);
+            return false;
+        }
+        result = null;
+        return true;
+    }
+
+    private static bool SessionMatches(HttpContext http, ISeparatePersonnelRequest request, out IResult? result)
+    {
+        var no = http.Session.GetString(PersonnelAuthenticationSession.PersonnelNo);
+        var name = http.Session.GetString(PersonnelAuthenticationSession.PersonnelName);
+        if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(name))
+        {
+            result = Results.Json(new { status="AUTH_REQUIRED", stage="PERSONNEL_VALIDATION", message="Bitte Mitarbeiter anmelden. Es wurde keine Materialbuchung gestartet." }, statusCode:401);
+            return false;
+        }
+        if (!string.Equals(no, request.PersonnelNo, StringComparison.Ordinal) || !string.Equals(name, request.PersonnelName, StringComparison.Ordinal))
+        {
+            result = Results.Json(new { status="AUTH_CONFLICT", stage="PERSONNEL_VALIDATION", message="Angemeldeter Mitarbeiter stimmt nicht mit dem Vorgang überein. Es wurde keine Materialbuchung gestartet." }, statusCode:403);
+            return false;
+        }
+        result = null; return true;
+    }
+
+    private static IResult OperationResult(SeparateOperation tx) => tx.Status switch
+    {
+        TransactionStatuses.Success => Results.Ok(tx.ToResponse()),
+        TransactionStatuses.Rejected => Results.Json(tx.ToResponse(), statusCode:422),
+        TransactionStatuses.Conflict or TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired => Results.Json(tx.ToResponse(), statusCode:409),
+        _ => Results.Accepted(value: tx.ToResponse())
+    };
+}
