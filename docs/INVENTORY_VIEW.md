@@ -10,17 +10,61 @@ Die Funktion ist reine Auskunft. Sie erzeugt keine Lager- oder Materialbuchung.
 
 ## Verbindliche Korrektur vom 07.09.2026
 
-Fuer die Gesamtansicht wird `Chargen je Firma` (`LB30210R`) nicht als Artikelindex benoetigt und nicht mehr verwendet.
+Der Versuch, den Artikelbereich `RP.*` direkt als `TIDF/I_TIDF` an die Unterprogramme `LB30340R` beziehungsweise `LB30430R` zu uebergeben, ist im STAGING-Livetest fehlgeschlagen.
 
-Grund: Die Bestandsansicht benoetigt weder eine vorgelagerte vollstaendige Artikelliste noch die kundenspezifische Lagerortanzeige aus `Chargen je Firma`. Der sauberere Einstieg ist direkt die Lager-/Chargenstruktur mit Artikelbereich `RP.*`.
+Oxaion meldete:
 
-Der Bediener hat bestaetigt, dass der Oxaion-Artikelbereich fuer diese Listen mit `RP.*` eingeschraenkt werden kann. Die Backend-Implementierung verwendet deshalb denselben bereits bestaetigten Artikelparameter `TIDF/I_TIDF`, der bei den Einzelartikel-Auskuenften verwendet wird, nun mit `RP.*` fuer die Gesamtansicht. Die Live-Bestaetigung dieses neuen Gesamtaufrufs erfolgt im STAGING-Test.
+```text
+IDN1823 Artikel mit Identnummer "RP.*" nicht gefunden.
+Field: TIDF
+```
 
-Nullbestaende werden im Backend zusaetzlich immer ausgefiltert. Negative Bestaende bleiben sichtbar.
+Damit ist technisch nachgewiesen:
 
-## Warum `Chargen je Firma` nicht fuer Lagerorte verwendet wird
+- `RP.*` ist fuer diesen Ablauf ein **Listenfilter**, keine gueltige Oxaion-Identnummer;
+- `TIDF/I_TIDF` der Unterprogramme erhalten nur konkrete Artikelnummern wie `RP.00010`;
+- der direkte Wildcard-Abstieg wird nicht weiter verwendet.
 
-In der aktuell verwendeten Sicht von `Chargen je Firma` ist die sichtbare Lagerortspalte `_CALC.W_LAGO` eine kundenspezifisch kalkulierte/aggregierte Anzeige und kann mehrere Lagerorte in einem Wert zusammenfassen.
+## Verbindlicher Ablauf: `Chargen je Firma` als gefilterter Index
+
+### 1. Gefilterter Einstieg ueber `Chargen je Firma`
+
+Als Einstieg dient wieder:
+
+```text
+MN10209J *CHKCMD
+CHKCMD = CF
+-> LB30210R - Chargen je Firma
+```
+
+Die Liste soll in Oxaion auf folgende Bedingungen eingeschraenkt werden:
+
+```text
+Artikelnummer: RP.*
+Lagerbestand:  <> 0
+```
+
+Der vorhandene Referenzmitschnitt einer bereits so eingeschraenkten `LB30210R *FIRSTLIST` lieferte nur eine kleine RP-Pulverliste und endete mit `<STOP/>`.
+
+Aus dieser Liste werden fuer die weitere Verarbeitung ausschliesslich verwendet:
+
+```text
+KEY/POIDNR bzw. IDNR.TLIDNR   konkrete Artikelnummer
+IDNR.TLBEZG                   Artikelbezeichnung
+UPOWEP.POLABE                 Lagerbestand
+```
+
+Mehrere Chargenzeilen desselben Artikels werden zu genau einer konkreten Artikelnummer zusammengefasst.
+
+Das Backend prueft zusaetzlich defensiv:
+
+- Artikel beginnt mit `RP.`;
+- Bestand ist `<> 0`;
+- negative Bestaende bleiben enthalten und werden spaeter als Klaerungsfall sichtbar gemacht.
+
+### 2. `_CALC.W_LAGO` wird nicht verwendet
+
+Die sichtbare Lagerortspalte `_CALC.W_LAGO` in `Chargen je Firma` ist eine kundenspezifisch kalkulierte/aggregierte Anzeige und kann mehrere Lagerorte in einem Wert zusammenfassen.
 
 Der Mitschnitt vom 07.09.2026 belegt das konkret fuer:
 
@@ -30,56 +74,44 @@ Charge:  72911
 _CALC.W_LAGO = FAMLAB, H04KDX
 ```
 
-Dieser Wert ist kein eindeutiger Lagerortschluessel und darf weder fuer Buchungen noch fuer eine exakte hierarchische Bestandszuordnung verwendet werden.
+Dieser Wert ist kein eindeutiger Lagerortschluessel. Er wird weder fuer die hierarchische Bestandsanzeige noch fuer Buchungen ausgewertet.
 
-## Verbindlicher Lagerort-zuerst-Ablauf
+`Chargen je Firma` dient in der Lagerbestandsansicht damit **nur zur Ermittlung der konkreten RP-Artikelnummern**.
 
-### 1. RP.* Lagerorte ermitteln
+### 3. Mit konkretem Artikel in `Chargen und Lagerorte pro Artikel`
 
-Als Einstieg wird die bereits bestaetigte Auskunft
+Fuer jede aus `LB30210R` gelesene konkrete Artikelnummer, z. B.
+
+```text
+RP.00010
+```
+
+wird die bestaetigte Auskunft aufgerufen:
 
 ```text
 LB30340R - Chargen und Lagerorte pro Artikel
 ```
 
-mit dem Artikelbereich
+Relevante Felder:
 
 ```text
-RP.*
+KEY/LALAGO                 Lagerort
+KEY/LAIDNR                 Artikel
+KEY/LAPONR                 Charge
+LLAWEL01PONR.LALABE        Lagerbestand
 ```
 
-aufgerufen.
+Nur Bestaende `<> 0` werden fuer die Gesamtansicht weiterverarbeitet.
 
-Aus den zurueckgegebenen Schluesselfeldern werden ausschliesslich echte Oxaion-Daten verwendet:
+### 4. Pro Lagerort exakte Lagerplatz-/Chargenpositionen lesen
 
-```text
-KEY/LALAGO   Lagerort
-KEY/LAIDNR   Artikel
-KEY/LAPONR   Charge
-```
-
-Fuer die weitere Verarbeitung werden nur Zeilen mit Artikel `RP.*` und Bestand `<> 0` beruecksichtigt. Aus ihnen werden die unterschiedlichen Lagerorte bestimmt.
-
-`LB30340R` wird dabei nicht als finale Lagerplatzansicht verwendet, sondern als sauberer Einstieg zu den Lagerorten, auf denen aktuell RP-Pulver vorhanden ist.
-
-### 2. Pro Lagerort die exakten Lagerplatz-/Chargenpositionen lesen
-
-Fuer jeden so ermittelten Lagerort wird
+Fuer jeden so ermittelten Lagerort wird mit derselben **konkreten** Artikelnummer aufgerufen:
 
 ```text
 LB30430R - Lagerplaetze pro Artikel und -ort
 ```
 
-mit
-
-```text
-Lagerort = <ermittelter Lagerort>
-Artikel  = RP.*
-```
-
-aufgerufen.
-
-Damit werden fuer lagerplatzgefuehrte Lagerorte in einem Durchlauf alle RP-Pulverpositionen dieses Lagerorts gelesen. Verwendet werden insbesondere:
+Relevante Schluessel/Felder:
 
 ```text
 KEY/LPLAGO   Lagerort
@@ -91,7 +123,7 @@ LLPWEP.LPLABE Bestand
 
 Der interne Lagerplatzschluessel wird ausschliesslich aus Oxaion uebernommen und niemals aus einer optisch formatierten Anzeige nachgebildet.
 
-### 3. Lagerort ohne Lagerplatzorganisation
+### 5. Lagerort ohne Lagerplatzorganisation
 
 Meldet Oxaion bei `LB30430R` eindeutig
 
@@ -105,11 +137,9 @@ wird fuer genau diesen Lagerort auf den bestaetigten Ablauf
 LB30230R - Chargen pro Lagerort
 ```
 
-zurueckgegriffen, ebenfalls mit Artikelbereich `RP.*`.
+zurueckgegriffen, ebenfalls mit der **konkreten** Artikelnummer.
 
-Der Lagerplatz bleibt dann leer. Die einzelnen RP-Artikel, Chargen und Bestaende stammen aus der Oxaion-Lagerortliste.
-
-Andere Fehlercodes werden nicht als `kein Lagerplatz` interpretiert.
+Der Lagerplatz bleibt leer. Andere Fehlercodes werden nicht als `kein Lagerplatz` interpretiert.
 
 ## Ergebnisstruktur
 
@@ -129,7 +159,7 @@ Artikel RP.xxxxx - Bezeichnung
 Sichtbare Felder:
 
 - Artikelnummer
-- Artikelbezeichnung, soweit die verwendete Oxaion-Liste sie liefert
+- Artikelbezeichnung
 - Lagerortschluessel
 - Lagerortbezeichnung
 - interner Lagerplatzschluessel, falls vorhanden
@@ -142,13 +172,22 @@ Sichtbare Felder:
 
 Verbindlich:
 
-- nur Artikel, deren Artikelnummer mit `RP.` beginnt;
-- Artikelbereich des Oxaion-Aufrufs fuer die Gesamtansicht: `RP.*`;
-- nur Bestandspositionen mit Bestand `<> 0`;
+- `RP.*` wird ausschliesslich als Filter der `Chargen je Firma`-Liste verwendet, niemals als konkrete Identnummer in `TIDF/I_TIDF` der Unterprogramme;
+- `Chargen je Firma` dient nur als Artikelindex, nicht als Lagerortquelle;
+- `_CALC.W_LAGO` wird ignoriert;
+- alle Unterprogramme werden je konkreter `RP.xxxxx`-Artikelnummer aufgerufen;
 - Nullbestaende werden nicht angezeigt;
 - negative Bestaende werden nicht herausgefiltert, sondern auffaellig markiert;
-- Listen, fuer die `*NEXTLIST` bereits bestaetigt ist (`LB30340R`, `LB30430R`, `LB30230R`), werden bis zum bestaetigten `<STOP/>` gelesen;
-- keine Abhaengigkeit mehr von der nicht vollstaendigen ersten `LB30210R *FIRSTLIST`.
+- `LB30340R`, `LB30430R` und `LB30230R` werden auf den bereits bestaetigten Wegen bis `<STOP/>` gelesen;
+- eine unvollstaendige `LB30210R`-Indexliste wird nicht als vollstaendige Lagerbestandsansicht akzeptiert.
+
+## Noch technisch offen: Setzen des `RP.*`-Listenfilters per HTTP/JET
+
+Der vorhandene Mitschnitt beweist die bereits gefilterte `LB30210R *FIRSTLIST`. Der exakte HTTP/JET-Datenstrom, mit dem der Benutzer in `Chargen je Firma` den alphanumerischen Artikelnummernfilter `RP.*` setzt und anwendet, ist jedoch noch nicht aufgezeichnet.
+
+Die generische Oxaion-Listenfiltermechanik und der Bestandfilter `<>` sind aus anderen Listendialogen bekannt. Die genaue Kodierung des `RP.*`-Werts fuer `LB30210` wird trotzdem nicht geraten.
+
+Bis dieser kurze Mitschnitt vorliegt, blockiert das Backend eine `LB30210R`-Antwort ohne `<STOP/>`, statt eine unvollstaendige RP-Liste als vollstaendig auszugeben oder eine nicht bestaetigte Pagination beziehungsweise Filterfolge zu erfinden.
 
 ## Sicherheitsregel
 
