@@ -4,15 +4,23 @@ Stand: 07.09.2026
 
 ## Ziel
 
-Die PWA soll eine rein lesende Funktion `Lagerbestand` erhalten. Sie zeigt aktuelle Oxaion-Bestaende fuer Pulverartikel `RP.*` hierarchisch nach Lagerort und - soweit der Lagerort lagerplatzgefuehrt ist - nach internem Lagerplatz.
+Die PWA besitzt eine rein lesende Funktion `Lagerbestand`. Sie zeigt aktuelle Oxaion-Bestaende fuer Pulverartikel `RP.*` hierarchisch nach Lagerort und - soweit der Lagerort lagerplatzgefuehrt ist - nach internem Lagerplatz.
 
 Die Funktion ist reine Auskunft. Sie erzeugt keine Lager- oder Materialbuchung.
 
-## Wichtige Abgrenzung: `Chargen je Firma`
+## Verbindliche Korrektur vom 07.09.2026
 
-Der Oxaion-Dialog `Chargen je Firma` beziehungsweise `LB30210R` darf fuer die Lagerortdarstellung nicht als alleinige fachliche Quelle verwendet werden.
+Fuer die Gesamtansicht wird `Chargen je Firma` (`LB30210R`) nicht als Artikelindex benoetigt und nicht mehr verwendet.
 
-Grund: In der aktuell verwendeten Sicht ist die sichtbare Lagerortspalte `_CALC.W_LAGO` eine kundenspezifisch kalkulierte/aggregierte Anzeige und kann mehrere Lagerorte in einem Wert zusammenfassen.
+Grund: Die Bestandsansicht benoetigt weder eine vorgelagerte vollstaendige Artikelliste noch die kundenspezifische Lagerortanzeige aus `Chargen je Firma`. Der sauberere Einstieg ist direkt die Lager-/Chargenstruktur mit Artikelbereich `RP.*`.
+
+Der Bediener hat bestaetigt, dass der Oxaion-Artikelbereich fuer diese Listen mit `RP.*` eingeschraenkt werden kann. Die Backend-Implementierung verwendet deshalb denselben bereits bestaetigten Artikelparameter `TIDF/I_TIDF`, der bei den Einzelartikel-Auskuenften verwendet wird, nun mit `RP.*` fuer die Gesamtansicht. Die Live-Bestaetigung dieses neuen Gesamtaufrufs erfolgt im STAGING-Test.
+
+Nullbestaende werden im Backend zusaetzlich immer ausgefiltert. Negative Bestaende bleiben sichtbar.
+
+## Warum `Chargen je Firma` nicht fuer Lagerorte verwendet wird
+
+In der aktuell verwendeten Sicht von `Chargen je Firma` ist die sichtbare Lagerortspalte `_CALC.W_LAGO` eine kundenspezifisch kalkulierte/aggregierte Anzeige und kann mehrere Lagerorte in einem Wert zusammenfassen.
 
 Der Mitschnitt vom 07.09.2026 belegt das konkret fuer:
 
@@ -22,28 +30,90 @@ Charge:  72911
 _CALC.W_LAGO = FAMLAB, H04KDX
 ```
 
-Dieser Wert ist damit kein eindeutiger Lagerortschluessel und darf weder fuer Buchungen noch fuer eine exakte hierarchische Bestandszuordnung verwendet werden.
+Dieser Wert ist kein eindeutiger Lagerortschluessel und darf weder fuer Buchungen noch fuer eine exakte hierarchische Bestandszuordnung verwendet werden.
 
-`Chargen je Firma` kann spaeter hoechstens als Einstieg zum Ermitteln vorhandener RP-Artikel/Chargen dienen, sofern die dafuer verwendeten Artikel-/Chargenfelder technisch eindeutig bestaetigt sind. Seine aggregierte Lagerortanzeige wird dabei ignoriert.
+## Verbindlicher Lagerort-zuerst-Ablauf
 
-## Verbindlicher Abstiegsweg fuer exakte Lagerorte
+### 1. RP.* Lagerorte ermitteln
 
-Fuer einen bekannten Pulverartikel gilt der bereits technisch bestaetigte Auskunftsweg:
+Als Einstieg wird die bereits bestaetigte Auskunft
 
-1. `LB30340R` - `Chargen und Lagerorte pro Artikel`
-   - liefert den echten Oxaion-Lagerortschluessel zum Artikel/Charge-Bestand;
-   - fuer die Lagerbestandsansicht werden Bestaende `<> 0` beruecksichtigt, nicht nur positive Bestaende;
-   - negative Bestaende werden sichtbar als Klaerungsfall dargestellt und nicht ausgeblendet.
-2. Fuer jeden ermittelten Lagerort wird `LB30430R` - `Lagerplaetze pro Artikel und -ort` gelesen.
-   - liefert den internen Lagerplatzschluessel, Charge und Lagerplatzbestand;
-   - Lagerplatzwerte werden ausschliesslich aus Oxaion uebernommen und nicht aus einer optisch formatierten Darstellung nachgebildet.
-3. Meldet Oxaion fuer einen Lagerort eindeutig `LAG1626` (`Lagerort hat keine Lagerplatzorganisation`), bleibt die Lagerplatzebene leer und der bestaetigte `LB30230R`-Lagerort-/Chargenweg wird verwendet.
+```text
+LB30340R - Chargen und Lagerorte pro Artikel
+```
 
-Diese Hierarchie entspricht den bereits fuer Nachfuellquellen bestaetigten Lesewegen und vermeidet die Verwendung einer aggregierten Lagerort-Anzeigespalte.
+mit dem Artikelbereich
 
-## Gewuenschte Darstellung
+```text
+RP.*
+```
 
-Die Mitarbeiteransicht soll mindestens anzeigen:
+aufgerufen.
+
+Aus den zurueckgegebenen Schluesselfeldern werden ausschliesslich echte Oxaion-Daten verwendet:
+
+```text
+KEY/LALAGO   Lagerort
+KEY/LAIDNR   Artikel
+KEY/LAPONR   Charge
+```
+
+Fuer die weitere Verarbeitung werden nur Zeilen mit Artikel `RP.*` und Bestand `<> 0` beruecksichtigt. Aus ihnen werden die unterschiedlichen Lagerorte bestimmt.
+
+`LB30340R` wird dabei nicht als finale Lagerplatzansicht verwendet, sondern als sauberer Einstieg zu den Lagerorten, auf denen aktuell RP-Pulver vorhanden ist.
+
+### 2. Pro Lagerort die exakten Lagerplatz-/Chargenpositionen lesen
+
+Fuer jeden so ermittelten Lagerort wird
+
+```text
+LB30430R - Lagerplaetze pro Artikel und -ort
+```
+
+mit
+
+```text
+Lagerort = <ermittelter Lagerort>
+Artikel  = RP.*
+```
+
+aufgerufen.
+
+Damit werden fuer lagerplatzgefuehrte Lagerorte in einem Durchlauf alle RP-Pulverpositionen dieses Lagerorts gelesen. Verwendet werden insbesondere:
+
+```text
+KEY/LPLAGO   Lagerort
+KEY/LPIDNR   Artikel
+KEY/LPLAPL   interner Lagerplatzschluessel
+KEY/LPPONR   Charge
+LLPWEP.LPLABE Bestand
+```
+
+Der interne Lagerplatzschluessel wird ausschliesslich aus Oxaion uebernommen und niemals aus einer optisch formatierten Anzeige nachgebildet.
+
+### 3. Lagerort ohne Lagerplatzorganisation
+
+Meldet Oxaion bei `LB30430R` eindeutig
+
+```text
+LAG1626 - Lagerort hat keine Lagerplatzorganisation
+```
+
+wird fuer genau diesen Lagerort auf den bestaetigten Ablauf
+
+```text
+LB30230R - Chargen pro Lagerort
+```
+
+zurueckgegriffen, ebenfalls mit Artikelbereich `RP.*`.
+
+Der Lagerplatz bleibt dann leer. Die einzelnen RP-Artikel, Chargen und Bestaende stammen aus der Oxaion-Lagerortliste.
+
+Andere Fehlercodes werden nicht als `kein Lagerplatz` interpretiert.
+
+## Ergebnisstruktur
+
+Die PWA zeigt mindestens:
 
 ```text
 Artikel RP.xxxxx - Bezeichnung
@@ -56,10 +126,10 @@ Artikel RP.xxxxx - Bezeichnung
     Charge 67890        -0,250 kg   [Klaerung erforderlich]
 ```
 
-Sinnvolle Felder:
+Sichtbare Felder:
 
 - Artikelnummer
-- Artikelbezeichnung
+- Artikelbezeichnung, soweit die verwendete Oxaion-Liste sie liefert
 - Lagerortschluessel
 - Lagerortbezeichnung
 - interner Lagerplatzschluessel, falls vorhanden
@@ -68,26 +138,17 @@ Sinnvolle Felder:
 - Mengeneinheit
 - Kennzeichnung negativer Bestaende
 
-Optional koennen Summen je Artikel und Lagerort berechnet werden. Diese Summen sind Anzeigehilfen; die Einzelpositionen bleiben sichtbar.
+## Filter und Vollstaendigkeit
 
-## Filter
-
-Fuer die geplante Gesamtansicht gilt:
+Verbindlich:
 
 - nur Artikel, deren Artikelnummer mit `RP.` beginnt;
+- Artikelbereich des Oxaion-Aufrufs fuer die Gesamtansicht: `RP.*`;
 - nur Bestandspositionen mit Bestand `<> 0`;
 - Nullbestaende werden nicht angezeigt;
-- negative Bestaende werden **nicht** herausgefiltert, sondern auffaellig markiert.
-
-## Noch offener technischer Einstieg fuer `alle RP.*`
-
-Die bestaetigten `LB30340R`-/`LB30430R`-Wege starten mit einem bekannten Artikel. Fuer die Gesamtansicht `alle RP.*` wird noch ein sauberer rein lesender Einstieg benoetigt, der die vorhandenen RP-Artikel ermittelt.
-
-Der bereits bekannte Dialog `Chargen je Firma` ist als moeglicher Artikel-/Chargenindex zu pruefen, jedoch ohne seine kundenspezifische aggregierte Lagerortspalte zu uebernehmen. Die im Mitschnitt bestaetigten Felder `IDNR.TLIDNR` (Artikel), `UPOWEP.POPONR` (Charge) und `UPOWEP.POLABE` (Gesamtbestand der Charge) koennen dafuer getrennt bewertet werden; `_CALC.W_LAGO` wird nicht als exakte Lagerquelle uebernommen.
-
-Falls ein besser geeigneter Oxaion-Standarddialog beziehungsweise ein bestaetigter HTTP-Auskunftsweg existiert, ist dieser vorzuziehen.
-
-Bis dieser Einstieg technisch bestaetigt ist, darf die Gesamtansicht nicht so implementiert werden, als waere die aggregierte Lagerortspalte aus `Chargen je Firma` eine eindeutige Bestandsquelle.
+- negative Bestaende werden nicht herausgefiltert, sondern auffaellig markiert;
+- Listen, fuer die `*NEXTLIST` bereits bestaetigt ist (`LB30340R`, `LB30430R`, `LB30230R`), werden bis zum bestaetigten `<STOP/>` gelesen;
+- keine Abhaengigkeit mehr von der nicht vollstaendigen ersten `LB30210R *FIRSTLIST`.
 
 ## Sicherheitsregel
 
