@@ -12,7 +12,17 @@ Die Funktion ist reine Auskunft. Sie erzeugt keine Lager- oder Materialbuchung.
 
 Der Oxaion-Dialog `Chargen je Firma` beziehungsweise `LB30210R` darf fuer die Lagerortdarstellung nicht als alleinige fachliche Quelle verwendet werden.
 
-Grund: In der aktuell verwendeten Sicht kann die sichtbare Lagerortspalte eine kundenspezifisch kalkulierte/aggregierte Spalte sein und mehrere Lagerorte beispielsweise per `STRING_AGG` in einem Anzeigewert zusammenfassen. Dieser Anzeigewert ist kein eindeutiger Lagerortschluessel und darf weder fuer Buchungen noch fuer eine exakte hierarchische Bestandszuordnung verwendet werden.
+Grund: In der aktuell verwendeten Sicht ist die sichtbare Lagerortspalte `_CALC.W_LAGO` eine kundenspezifisch kalkulierte/aggregierte Anzeige und kann mehrere Lagerorte in einem Wert zusammenfassen.
+
+Der Mitschnitt vom 07.09.2026 belegt das konkret fuer:
+
+```text
+Artikel: RP.00002
+Charge:  72911
+_CALC.W_LAGO = FAMLAB, H04KDX
+```
+
+Dieser Wert ist damit kein eindeutiger Lagerortschluessel und darf weder fuer Buchungen noch fuer eine exakte hierarchische Bestandszuordnung verwendet werden.
 
 `Chargen je Firma` kann spaeter hoechstens als Einstieg zum Ermitteln vorhandener RP-Artikel/Chargen dienen, sofern die dafuer verwendeten Artikel-/Chargenfelder technisch eindeutig bestaetigt sind. Seine aggregierte Lagerortanzeige wird dabei ignoriert.
 
@@ -73,7 +83,9 @@ Fuer die geplante Gesamtansicht gilt:
 
 Die bestaetigten `LB30340R`-/`LB30430R`-Wege starten mit einem bekannten Artikel. Fuer die Gesamtansicht `alle RP.*` wird noch ein sauberer rein lesender Einstieg benoetigt, der die vorhandenen RP-Artikel ermittelt.
 
-Der bereits bekannte Dialog `Chargen je Firma` ist als moeglicher Artikel-/Chargenindex zu pruefen, jedoch ohne seine kundenspezifische aggregierte Lagerortspalte zu uebernehmen. Falls ein besser geeigneter Oxaion-Standarddialog beziehungsweise ein bestaetigter HTTP-Auskunftsweg existiert, ist dieser vorzuziehen.
+Der bereits bekannte Dialog `Chargen je Firma` ist als moeglicher Artikel-/Chargenindex zu pruefen, jedoch ohne seine kundenspezifische aggregierte Lagerortspalte zu uebernehmen. Die im Mitschnitt bestaetigten Felder `IDNR.TLIDNR` (Artikel), `UPOWEP.POPONR` (Charge) und `UPOWEP.POLABE` (Gesamtbestand der Charge) koennen dafuer getrennt bewertet werden; `_CALC.W_LAGO` wird nicht als exakte Lagerquelle uebernommen.
+
+Falls ein besser geeigneter Oxaion-Standarddialog beziehungsweise ein bestaetigter HTTP-Auskunftsweg existiert, ist dieser vorzuziehen.
 
 Bis dieser Einstieg technisch bestaetigt ist, darf die Gesamtansicht nicht so implementiert werden, als waere die aggregierte Lagerortspalte aus `Chargen je Firma` eine eindeutige Bestandsquelle.
 
