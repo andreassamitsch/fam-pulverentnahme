@@ -99,6 +99,47 @@ public sealed class InventoryService
             .ToList();
     }
 
+    internal static IReadOnlyList<InventoryBinRow> ParseInventoryBinRows(XDocument xml, string warehouseText)
+    {
+        var rows = new List<InventoryBinRow>();
+        foreach (var row in xml.Descendants("ROW"))
+        {
+            var key = row.Element("KEY");
+            if (key is null)
+                continue;
+
+            var warehouse = key.Element("LPLAGO")?.Value.Trim() ?? "";
+            var article = key.Element("LPIDNR")?.Value.Trim() ?? "";
+            var storageBin = key.Element("LPLAPL")?.Value.Trim()
+                             ?? row.Element("LLPWEP.LPLAPL")?.Value.Trim()
+                             ?? "";
+            var batch = key.Element("LPPONR")?.Value.Trim()
+                        ?? row.Element("LLPWEP.LPPONR")?.Value.Trim()
+                        ?? "";
+            var quantityText = row.Element("LLPWEP.LPLABE")?.Value.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(warehouse)
+                || string.IsNullOrWhiteSpace(article)
+                || string.IsNullOrWhiteSpace(batch))
+                continue;
+
+            var (quantity, unit) = MachineStockService.ParseQuantity(quantityText);
+            if (string.Equals(unit, "kg", StringComparison.OrdinalIgnoreCase))
+                unit = "KGM";
+
+            rows.Add(new InventoryBinRow(
+                warehouse,
+                warehouseText,
+                article,
+                row.Element("IDNR.TLBEZG")?.Value.Trim() ?? "",
+                storageBin,
+                batch,
+                quantity,
+                unit));
+        }
+
+        return rows;
+    }
+
     private async Task<IReadOnlyList<InventoryPosition>> ReadArticleAsync(
         OxaionSession session,
         string article,
@@ -125,7 +166,7 @@ public sealed class InventoryService
                     .Where(x => x.QuantityKg != 0m)
                     .Select(x => new InventoryPosition(
                         article,
-                        articleText,
+                        string.IsNullOrWhiteSpace(x.ArticleText) ? articleText : x.ArticleText,
                         x.Warehouse,
                         x.WarehouseText,
                         x.StorageBin,
@@ -171,7 +212,7 @@ public sealed class InventoryService
             .ToList();
     }
 
-    private async Task<IReadOnlyList<SourceStockPosition>> ReadBinRowsAsync(
+    private async Task<IReadOnlyList<InventoryBinRow>> ReadBinRowsAsync(
         OxaionSession session,
         string article,
         string warehouse,
@@ -183,8 +224,9 @@ public sealed class InventoryService
         var pages = await ReadAllPagesAsync(session, "LB30430R", ssid, ct);
 
         return pages
-            .SelectMany(x => SourceStockService.ParsePositionRows(x, warehouseText))
+            .SelectMany(x => ParseInventoryBinRows(x, warehouseText))
             .Where(x => string.Equals(x.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase))
+            .Where(x => string.Equals(x.Article, article, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
@@ -294,3 +336,13 @@ public sealed class InventoryService
 }
 
 public sealed record InventoryArticleIndexRow(string Article, string ArticleText);
+
+public sealed record InventoryBinRow(
+    string Warehouse,
+    string WarehouseText,
+    string Article,
+    string ArticleText,
+    string StorageBin,
+    string Batch,
+    decimal QuantityKg,
+    string Unit);
