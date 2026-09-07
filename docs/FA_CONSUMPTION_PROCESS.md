@@ -1,38 +1,37 @@
 # Pulververbrauch auf Fertigungsauftrag
 
-Stand: 04.09.2026
+Stand: 07.09.2026
 
-Diese Datei dokumentiert die aktuelle spezifische fachliche Entscheidung fuer den vierten Bedienvorgang `Pulver auf Fertigungsauftrag buchen`.
+Diese Datei dokumentiert die aktuelle spezifische fachliche und technisch nachgewiesene Grundlage fuer den Bedienvorgang `Pulver auf Fertigungsauftrag buchen`.
 
 Der Vorgang ist bewusst eigenstaendig und wird nicht mit Nachfuellen, Tankauslagerung oder Neubefuellung verkettet. Die allgemeinen Regeln aus `AGENTS.md`, `docs/ERROR_HANDLING.md`, `docs/QR_CODE_WORKFLOW.md` und der Mitarbeiter-Authentifizierung gelten unveraendert.
 
 ## Fachlicher Zweck
 
-Nach dem realen Verbrauch von Pulver fuer einen Fertigungsauftrag soll der Bediener den tatsaechlich verbrauchten Anteil aus dem aktuell verwendeten Maschinentank erfassen und spaeter ueber den noch zu bestaetigenden Oxaion-BDE-/PPS-Ablauf auf den Fertigungsauftrag buchen.
+Nach dem realen Pulververbrauch fuer einen Fertigungsauftrag soll der Bediener die zusaetzlich verbrauchte Menge aus dem aktuell verwendeten Maschinentank erfassen und ueber die bestaetigte Oxaion-PPS-Materialrueckmeldung auf die richtige Materialposition des Fertigungsauftrags buchen.
 
-Der Bedienablauf ist verbindlich:
+Der Bedienablauf ist:
 
 1. Mitarbeiter anmelden.
 2. Maschinentank scannen.
 3. Aktuellen Tankbestand eindeutig aus Oxaion lesen.
 4. Fertigungsauftrag scannen.
 5. Rohmaterialartikel aus dem FA-QR gegen den aktuell im Tank vorhandenen Artikel pruefen.
-6. Tatsaechlichen Pulververbrauch in kg bewusst eingeben.
-7. Verbrauch gegen den aktuellen Tankbestand pruefen.
-8. Vor einer spaeteren produktiven Buchung Tankbestand, Mitarbeiter, Fertigungsauftrag und Oxaion-Buchungsvoraussetzungen erneut serverseitig validieren.
-9. Erst nach technisch bestaetigtem Oxaion-Schreibablauf die FA-Materialrueckmeldung ausloesen.
+6. Materialpositionen des Fertigungsauftrags aus Oxaion lesen und die exakt zum Pulverartikel passende Position ermitteln.
+7. Soll-Materialbedarf, bereits gebuchten Ist-Verbrauch und Materialpositionsstatus anzeigen.
+8. Nur wenn genau eine passende und fuer die normale Materialrueckmeldung zulaessige Position vorhanden ist, den zusaetzlichen tatsaechlichen Pulververbrauch in kg eingeben lassen.
+9. Unmittelbar vor einer produktiven Buchung Tankbestand, Mitarbeiter, Materialposition, bereits gebuchten Ist-Verbrauch und Status erneut serverseitig validieren.
+10. Die bestaetigte Oxaion-PPS-Materialrueckmeldung ausloesen.
 
 ## Maschinentank
 
-Der Tank wird wie in den anderen Prozessen physisch per Tank-QR identifiziert.
-
-Der QR enthaelt nur den Oxaion-Tanklagerort, beispielsweise:
+Der Tank wird physisch per Tank-QR identifiziert. Der QR enthaelt nur den Oxaion-Tanklagerort, beispielsweise:
 
 ```text
 EOS1
 ```
 
-Der gescannte Wert muss gegen die gepflegte Tankliste validiert werden. Danach wird der vorhandene bestaetigte `LB30230R`-Leseablauf verwendet.
+Der gescannte Wert muss gegen die gepflegte Tankliste validiert werden. Danach wird der bestaetigte `LB30230R`-Leseablauf verwendet.
 
 Fuer diesen Vorgang ist nur ein eindeutig positiver Tankbestand zulaessig:
 
@@ -54,7 +53,7 @@ Mindestens angezeigt werden:
 
 ## Fertigungsauftrag-QR
 
-Das bereits dokumentierte Format bleibt unveraendert:
+Das Format bleibt:
 
 ```text
 Rohmaterialartikel+++Fertigungsauftrag+++Maschinen-ID
@@ -63,116 +62,177 @@ Rohmaterialartikel+++Fertigungsauftrag+++Maschinen-ID
 Beispiel:
 
 ```text
-RP.00010+++FA24FI00118+++EP-M650-1
+RP.00010+++FA25FK00001+++EP-M650-1
 ```
 
-Im vorbereiteten Ablauf werden genau drei nichtleere Teile verlangt. Eine weitergehende syntaktische Fertigungsauftrags-Regel wird nicht erfunden, solange sie im Repository nicht als verbindlich bestaetigt ist.
+Der Rohmaterialartikel aus dem FA-QR muss exakt zum aus Oxaion gelesenen Tankartikel passen. Ein nicht passender Artikel wird abgelehnt und nicht in den Vorgang uebernommen.
 
-### Artikelpruefung
+Die Maschinen-ID im FA-QR ist weiterhin Plan-/Auftragsinformation und nicht der Oxaion-Tanklagerort. Eine kurzfristig abweichende tatsaechliche Maschine bleibt fachlich moeglich; die noch offene Maschinen-ID-zu-Tank-Referenz wird nicht erfunden.
 
-Der Rohmaterialartikel aus dem FA-QR muss exakt zum aus Oxaion gelesenen Tankartikel passen.
+## Materialposition technisch ermitteln
 
-Beispiel:
+Der Mitschnitt `fa materialpos finden und materialverbrauch.7z` vom 07.09.2026 bestaetigt, dass die Materialpositionen eines Fertigungsauftrags in Oxaion mit Artikelbezug gelesen werden koennen.
+
+Im Materialpositionsbestand sind fuer die WebApp insbesondere relevant:
 
 ```text
-Tank:   RP.00010
-FA-QR:  RP.00010+++FA24FI00118+++EP-M650-1
+PWAMAP.AMPOSN   Materialposition
+PWAMAP.AMIDNK   Komponenten-/Pulverartikel
+PWAMAP.AMMATB   Materialbedarf (Soll)
+PWAMAP.AMMATV   Materialverbrauch (tatsaechlich bereits gebucht)
+PWAMAP.AMMPST   Materialpositionsstatus
 ```
 
-ist fuer die Vorbereitung zulaessig.
-
-Bei
+Im Referenzfall liefert die Liste fuer `FA25FK00001` genau eine Position zum Pulverartikel `RP.00010`:
 
 ```text
-Tank:   RP.00010
-FA-QR:  RP.00006+++FA24FI00118+++EP-M650-1
+AMPOSN = 10
+AMIDNK = RP.00010
+AMMATB = 15,410 kg
+AMMATV = 15,420 kg
+AMMPST = 9
 ```
 
-wird der FA-Scan abgelehnt und nicht in den Vorgang uebernommen.
-
-Die Artikelpruefung ist eine Schutzpruefung gegen eine offensichtliche falsche Materialzuordnung. Sie ersetzt nicht die spaetere serverseitige Oxaion-Pruefung des Fertigungsauftrags und seiner Materialpositionen.
-
-## Planmaschine und tatsaechlicher Tank
-
-Die Maschinen-ID im FA-QR ist weiterhin die Plan-/Auftragsinformation und nicht der Oxaion-Tanklagerort.
-
-Die verbindliche Zuordnung beispielsweise
+`PW20201J *READ` auf Firma + Fertigungsauftrag + Materialposition + Artikel bestaetigt dieselben Werte und liefert zusaetzlich:
 
 ```text
-EP-M650-1 <-> EOS1
+TX_MPST = Komplett abgebucht
+AMMEKZ  = KGM
 ```
 
-ist weiterhin offen und wird nicht erfunden.
+Fuer die WebApp gilt deshalb:
 
-Zusaetzlich ist bereits fachlich entschieden, dass die tatsaechliche Produktionsmaschine kurzfristig von der urspruenglichen FA-Planung abweichen kann. Deshalb gilt fuer diesen vorbereiteten Vorgang:
+- Materialposition nie fest codieren.
+- Nach dem FA-Scan die Oxaion-Materialpositionen lesen.
+- Nur Positionen beruecksichtigen, deren Artikel exakt dem gescannten Tank-/FA-Pulverartikel entspricht.
+- Genau eine passende Position ist Voraussetzung fuer eine automatische Zuordnung.
+- Keine passende Position oder mehrere passende Positionen blockieren die automatische Buchung und fuehren zur manuellen Klaerung.
+- Nach Ermittlung der Position wird diese mit `PW20201J *READ` nochmals exakt gelesen.
 
-- der physisch gescannte Tank ist die tatsaechlich verwendete Quelle;
-- die Maschinen-ID aus dem FA-QR wird sichtbar mitgefuehrt;
-- ein Unterschied beziehungsweise eine noch nicht aufloesbare Zuordnung zwischen FA-Maschine und Tank darf derzeit nicht automatisch als fachlicher Fehler interpretiert werden;
-- die WebApp trifft keine organisatorische Maschinenfreigabeentscheidung.
+## Soll und bereits gebuchter Verbrauch
 
-## Verbrauch
+Wichtige Korrektur vom 07.09.2026:
 
-Der Verbrauch ist eine bewusste Bedienereingabe in kg.
+`ARVBME` aus dem Rueckmeldedialog ist **nicht** die verlaessliche Quelle fuer die bereits gebuchte Menge. Im Dialog kann dieses Feld mit einem kalkulierten beziehungsweise aus der Stueckliste abgeleiteten Wert vorbelegt sein.
+
+Fuer die Anzeige und Doppelbuchungspruefung sind die Materialpositionsfelder massgeblich:
+
+```text
+AMMATB = Soll-/Materialbedarf
+AMMATV = tatsaechlich bereits gebuchter Materialverbrauch
+```
+
+Die Mitarbeiteransicht soll daher vor jeder Eingabe deutlich zeigen, zum Beispiel:
+
+```text
+Materialposition:       10
+Soll laut FA/Stueckliste: 15,410 kg
+Bereits gebucht:          15,420 kg
+Status:                    9 - Komplett abgebucht
+```
+
+Der Bediener gibt nicht einen neuen Gesamtwert ein, sondern den **zusaetzlichen tatsaechlichen Verbrauch**, der jetzt noch gebucht werden soll.
+
+## Schutz vor Doppelbuchung
+
+Die WebApp darf sich nicht auf einen einmal gelesenen Wert verlassen.
+
+Vor dem ersten schreibenden Oxaion-Aufruf muss das Backend mindestens erneut pruefen:
+
+1. Personal-Session passt zum Vorgang.
+2. Mitarbeiter ist weiterhin exakt in Oxaion bestaetigt.
+3. Tanklagerort, Tankartikel, aktuelle Mix-Charge und Bestand entsprechen weiterhin dem vorbereiteten Zustand.
+4. Fertigungsauftrag und Materialposition werden erneut gelesen.
+5. `AMIDNK` entspricht weiterhin dem Pulverartikel.
+6. `AMMATV` entspricht exakt dem Wert, der dem Bediener vor seiner Eingabe angezeigt wurde.
+7. `AMMPST` entspricht weiterhin dem erwarteten Materialstatus.
+8. Der aktuelle Tankbestand reicht fuer die zusaetzliche Verbrauchsmenge aus.
+
+Hat sich `AMMATV`, `AMMPST`, Tankartikel, Mix-Charge oder Tankbestand zwischen Anzeige und Buchung geaendert, wird **keine** neue Materialbuchung gestartet. Der Vorgang geht in `CONFLICT` beziehungsweise manuelle Klaerung.
+
+Jeder produktive Vorgang besitzt eine eindeutige `clientOperationId` und eine serverseitige Transaktions-ID. Ein unklarer Ausgang darf nicht blind erneut gebucht werden.
+
+## Normale Materialrueckmeldung `MK`
+
+Der vorherige Mitschnitt `pulver auf FA Rueckmelden` bestaetigt fuer eine normale Materialkomplettentnahme den Oxaion-Weg ueber:
+
+```text
+PW22000J
+PW22031J
+```
+
+mit Rueckmeldetransaktion:
+
+```text
+ARAKKZ = MK
+```
+
+Der erfolgreiche Referenzfall fuer Materialposition `10` verwendete den Pulverartikel `RP.00010`, Lagerort `EOS1` und die aktuelle Mix-Charge. Nach der erfolgreichen Rueckmeldung wurde in `PW20201J *READ` der Materialverbrauch `AMMATV=15,420` und Status `AMMPST=9` bestaetigt.
+
+Der neue Mitschnitt zeigt gleichzeitig die wichtige Statusgrenze: Ein erneuter `MK`-Versuch auf derselben Materialposition bei `AMMPST=9` wird von Oxaion eindeutig abgelehnt:
+
+```text
+FCOD = AKK2638
+Rückmeldetransaktion "MK" bei Materialstatus "9" nicht möglich
+```
+
+Die Fehlermeldung nennt als fuer `MK` zulaessige Materialstatuswerte `0`, `1` und `8`.
+
+Damit gilt fuer die App:
+
+- `AMMPST=9` ist kein Fall fuer eine normale erneute MK-Buchung.
+- Bei Status 9 muss die normale Schaltflaeche gesperrt bleiben.
+- Der bereits gebuchte Wert `AMMATV` bleibt sichtbar, damit eine versehentliche Doppelbuchung erkannt wird.
+
+## Nachtraeglicher zusaetzlicher Verbrauch mit `MU`
+
+Der neue Mitschnitt zeigt den begonnenen Oxaion-Weg fuer:
+
+```text
+ARAKKZ = MU
+TX_AKKZ = Material ungeplant
+```
+
+Dabei wird fuer den Fertigungsauftrag eine ungeplante Materialrueckmeldung vorbereitet; im Referenzfluss wird nach der Auswahl von `MU` eine neue Position vorbereitet und der Artikel `RP.00010` gesetzt.
+
+Der Mitschnitt wurde bewusst **vor Abschluss der MU-Buchung beendet**. Deshalb sind derzeit nicht als produktiv bestaetigt:
+
+- finaler `PW22031J *PUTNEW` fuer MU;
+- konkrete vollstaendige Pflichtfeldkombination fuer eine erfolgreiche MU-Buchung;
+- Ergebnis-/Verifikationsfolge nach erfolgreichem MU;
+- belastbare Recovery-Logik fuer einen unklaren MU-Ausgang.
+
+Folge: MU darf noch nicht automatisch von der WebApp gebucht werden. Bei einer bereits abgeschlossenen Materialposition kann die App aber darauf hinweisen, dass eine nachtraegliche Korrektur fachlich ueber `Material ungeplant (MU)` moeglich ist und dafuer noch ein vollstaendig erfolgreicher STAGING-Mitschnitt benoetigt wird.
+
+## Verbrauchseingabe
+
+Der zusaetzliche Verbrauch ist eine bewusste Bedienereingabe in kg.
 
 Verbindlich:
 
 - keine Vorbelegung;
 - Wert muss groesser als `0` sein;
 - Wert darf den aktuell gelesenen Tankbestand nicht ueberschreiten;
-- die PWA zeigt den rechnerischen Restbestand als Bedienhilfe an;
-- der rechnerische Restbestand ist vor der spaeteren Oxaion-Buchung keine neue ERP-Wahrheit.
+- bereits gebuchter Verbrauch `AMMATV` wird separat angezeigt und niemals als Eingabewert missverstanden;
+- rechnerischer Restbestand des Tanks ist nur Bedienhilfe und wird vor der Buchung erneut gegen Oxaion validiert.
 
-Beispiel:
+## Aktueller Implementierungs-/Teststatus
 
-```text
-Tankbestand:  82,500 kg
-Verbrauch:     4,250 kg
-Rechnerisch:  78,250 kg Rest
-```
+Technisch nachgewiesen sind jetzt:
 
-Direkt vor einer spaeteren produktiven Buchung muss der aktuelle Tankbestand erneut aus Oxaion gelesen werden. Hat sich Artikel, Mix-Charge oder Menge gegenueber der Vorbereitung geaendert, darf nicht mit dem alten Zustand blind weitergebucht werden.
+- Tankartikel und Mix-Charge aus dem gescannten Maschinentank lesen;
+- FA-QR und Artikelabgleich;
+- Materialposition mit Artikelbezug aus Oxaion lesen;
+- Sollbedarf `AMMATB` lesen;
+- tatsaechlich gebuchten Materialverbrauch `AMMATV` lesen;
+- Materialstatus `AMMPST` und Statustext `TX_MPST` lesen;
+- normale Rueckmeldetransaktion `MK` aus einem erfolgreichen Mitschnitt;
+- eindeutige Oxaion-Ablehnung `AKK2638` fuer `MK` bei Materialstatus `9`;
+- Beginn des alternativen ungeplanten Materialwegs `MU`.
 
-## Vor einer spaeteren produktiven Buchung
+Noch offen fuer eine vollstaendig produktionsreife FA-Rueckmeldung sind:
 
-Mindestens folgende serverseitigen Sicherheitspruefungen sind erforderlich:
-
-1. Personal-Session muss zum Vorgang passen.
-2. Mitarbeiter wird erneut ueber den bestaetigten Oxaion-Personalweg gelesen.
-3. Tanklagerort wird erneut gelesen.
-4. Tankartikel und aktuelle Mix-Charge muessen weiterhin zum vorbereiteten Vorgang passen.
-5. Der aktuelle Tankbestand muss fuer den Verbrauch ausreichen.
-6. Der Fertigungsauftrag muss ueber einen noch zu bestaetigenden Oxaion-Lese-/BDE-PPS-Weg fachlich validiert werden.
-7. Rohmaterialartikel beziehungsweise relevante Materialposition des Fertigungsauftrags muss zum gebuchten Pulver passen.
-8. Eine bestaetigte Oxaion-Sperre muss als `LOCKED` behandelt werden.
-9. Jeder produktive Vorgang erhaelt eine eindeutige `clientOperationId` und eine serverseitige Transaktions-ID.
-10. Ein unklarer Buchungsausgang fuehrt zu `UNCERTAIN` beziehungsweise `MANUAL_REVIEW_REQUIRED`; kein blinder Retry.
-
-## Noch offene Oxaion-Schreiblogik
-
-Im Repository sind weiterhin ausdruecklich offen:
-
-- konkrete Oxaion HTTP-Aufrufe fuer die FA-Materialrueckmeldung;
-- konkretes Oxaion BDE-/PPS-Programm fuer diese Materialbuchung;
-- benoetigte Parameter und Buchungsschluessel;
-- belastbare Ergebnis-/Statusabfrage fuer diese Buchungsart;
-- genaue Sperrerkennung fuer den relevanten Fertigungsauftrag beziehungsweise Fachdatensatz.
-
-Diese Details werden nicht aus dem bestaetigten Lagerbeleg-/Mix-Ablauf abgeleitet.
-
-Bis ein realer Oxaion-/JET-Datenstrom fuer die FA-Materialrueckmeldung analysiert und bestaetigt wurde, endet die PWA an der sicheren Vorbereitungsschwelle. Der Button `Verbrauch auf Fertigungsauftrag buchen` bleibt deaktiviert.
-
-## Aktueller STAGING-Implementierungsstand
-
-Auf `feature/separate-processes` ist der Vorgang bis zur sicheren Vorbereitung umgesetzt:
-
-- vierte Prozessauswahl `Pulver auf Fertigungsauftrag buchen`;
-- Tank-QR scannen und aktuellen eindeutigen Tankbestand lesen;
-- FA-QR mit exakt drei Teilen scannen;
-- FA-Rohmaterial gegen Tankartikel pruefen;
-- Fertigungsauftrag und Maschinen-ID aus dem QR anzeigen;
-- tatsaechlichen Tank separat anzeigen;
-- Verbrauch ohne Vorbelegung erfassen;
-- Verbrauch gegen Tankbestand pruefen;
-- rechnerischen Rest anzeigen;
-- schreibenden Button bewusst deaktiviert lassen, bis die Oxaion-FA-Materialrueckmeldung technisch bestaetigt ist.
+- Backend-Start der Materialpositionsauskunft aus einer screenlosen HTTP-Session im STAGING-End-to-End-Test bestaetigen;
+- MK-Buchungsservice mit Pre-Write-Revalidierung von `AMMATV`/`AMMPST`, Idempotenz und sicherer Ergebnispruefung in der WebApp implementieren und live testen;
+- vollstaendig erfolgreichen MU-Mitschnitt aufnehmen, bevor MU schreibend implementiert wird;
+- Recovery-/Statuspruefung der FA-Rueckmeldung bei Verbindungsabbruch so absichern, dass kein blinder Retry moeglich ist.
