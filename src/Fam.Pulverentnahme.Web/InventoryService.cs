@@ -125,7 +125,7 @@ public sealed class InventoryService
                     .Where(x => x.QuantityKg != 0m)
                     .Select(x => new InventoryPosition(
                         article,
-                        string.IsNullOrWhiteSpace(x.ArticleText) ? articleText : x.ArticleText,
+                        articleText,
                         x.Warehouse,
                         x.WarehouseText,
                         x.StorageBin,
