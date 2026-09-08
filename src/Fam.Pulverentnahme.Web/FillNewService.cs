@@ -1,9 +1,3 @@
-using System.Collections.Concurrent;
-using System.Globalization;
-using System.Text.Json;
-using System.Xml.Linq;
-using Microsoft.Extensions.Options;
-
 namespace Fam.Pulverentnahme.Web;
 
 public sealed class FillNewService
@@ -15,8 +9,19 @@ public sealed class FillNewService
     private readonly SourceStockService _sources;
     private readonly PersonnelService _personnel;
 
-    public FillNewService(SeparateOperationStore store, MaterialTransferBookingService booking, MachineTankService tanks, SourceStockService sources, PersonnelService personnel)
-    { _store = store; _booking = booking; _tanks = tanks; _sources = sources; _personnel = personnel; }
+    public FillNewService(
+        SeparateOperationStore store,
+        MaterialTransferBookingService booking,
+        MachineTankService tanks,
+        SourceStockService sources,
+        PersonnelService personnel)
+    {
+        _store = store;
+        _booking = booking;
+        _tanks = tanks;
+        _sources = sources;
+        _personnel = personnel;
+    }
 
     public Task<SeparateOperation?> GetAsync(string id, CancellationToken ct) => _store.GetAsync(Kind, id, ct);
 
@@ -31,63 +36,178 @@ public sealed class FillNewService
             var existing = await _store.GetAsync(Kind, request.ClientOperationId, ct);
             if (existing is not null)
             {
-                if (existing.RequestJson != json) throw new ProcessConflictException("clientOperationId already belongs to different fill-new data.");
+                if (existing.RequestJson != json)
+                    throw new ProcessConflictException("clientOperationId already belongs to different fill-new data.");
                 return existing;
             }
-            var tx = new SeparateOperation { Kind = Kind, ClientOperationId = request.ClientOperationId, RequestJson = json };
+
+            var tx = new SeparateOperation
+            {
+                Kind = Kind,
+                ClientOperationId = request.ClientOperationId,
+                RequestJson = json
+            };
             await SaveEventAsync(tx, "CREATED", "Fill-new transaction created.", ct);
+
             try
             {
                 var employee = await _personnel.ReadExactAsync(request.PersonnelNo, ct);
                 if (employee is null || employee.FullName != request.PersonnelName)
                     throw new ProcessConflictException("Mitarbeiter ist in Oxaion nicht mehr eindeutig bestätigt.");
+
                 var tank = await _tanks.ReadStockAsync(request.TankWarehouse, ct);
                 if (tank.Status != MachineStockStatuses.Empty)
-                    throw new ProcessConflictException("Maschinentank ist vor der Neubefüllung nicht mehr eindeutig leer. " + tank.Message);
-                var validation = await _sources.ValidateSourcesAsync(request.Article, request.Sources, ct);
-                if (!validation.IsValid) throw new ProcessConflictException(validation.Message);
+                    throw new ProcessConflictException(
+                        "Maschinentank ist vor der Neubefüllung nicht mehr eindeutig leer. " + tank.Message);
 
-                var specs = request.Sources.Select((s, i) => new TransferSpec(
-                    i + 1, "LM", request.Article, request.ArticleText,
-                    s.Warehouse, s.WarehouseText, s.StorageBin ?? "", s.Batch,
-                    request.TankWarehouse, request.TankWarehouseText, "", request.TargetBatch,
-                    s.AmountKg, i == 0 ? request.ProductionDate : null)).ToArray();
-                await _booking.BookAsync(tx, request.BookingDate, request.PersonnelNo, request.PersonnelName,
-                    "Pulver in Maschinentank", specs, ct);
+                var validation = await _sources.ValidateSourcesAsync(request.Article, request.Sources, ct);
+                if (!validation.IsValid)
+                    throw new ProcessConflictException(validation.Message);
+
+                var specs = BuildTransferSpecs(request);
+                await _booking.BookFillNewAsync(
+                    tx,
+                    request.BookingDate,
+                    request.PersonnelNo,
+                    request.PersonnelName,
+                    "Pulver in Maschinentank",
+                    specs,
+                    ct);
             }
-            catch (ProcessConflictException ex) { tx.Status = TransactionStatuses.Conflict; await SaveEventAsync(tx, "CONFLICT", ex.Message, ct); }
-            catch (OxaionRejectedException ex) { tx.Status = TransactionStatuses.Rejected; await SaveEventAsync(tx, "REJECTED", ex.Message, ct); }
-            catch (OxaionTransportException ex) { tx.Status = TransactionStatuses.Uncertain; await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct); }
-            catch (Exception ex) { tx.Status = TransactionStatuses.ManualReviewRequired; await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct); }
+            catch (ProcessConflictException ex)
+            {
+                tx.Status = TransactionStatuses.Conflict;
+                await SaveEventAsync(tx, "CONFLICT", ex.Message, ct);
+            }
+            catch (OxaionRejectedException ex)
+            {
+                tx.Status = TransactionStatuses.Rejected;
+                var message = string.IsNullOrWhiteSpace(tx.DocumentNo)
+                    ? ex.Message
+                    : $"{ex.Message} Oxaion-Beleg {tx.DocumentNo} wurde bereits angelegt; keine Materialbewegung ist dadurch automatisch bestätigt. Nicht blind erneut buchen, sondern den gespeicherten Vorgang prüfen.";
+                await SaveEventAsync(tx, "REJECTED", message, ct);
+            }
+            catch (OxaionTransportException ex)
+            {
+                tx.Status = TransactionStatuses.Uncertain;
+                await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct);
+            }
+            catch (Exception ex)
+            {
+                tx.Status = TransactionStatuses.ManualReviewRequired;
+                await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct);
+            }
+
             return tx;
         }
-        finally { gate.Release(); }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     public async Task<SeparateOperation> ReconcileAsync(string id, CancellationToken ct)
     {
         var tx = await _store.GetAsync(Kind, id, ct) ?? throw new KeyNotFoundException();
         if (tx.Status == TransactionStatuses.Success) return tx;
+
         var request = tx.ReadRequest<FillNewRequest>();
-        var specs = request.Sources.Select((s, i) => new TransferSpec(
-            i + 1, "LM", request.Article, request.ArticleText,
-            s.Warehouse, s.WarehouseText, s.StorageBin ?? "", s.Batch,
-            request.TankWarehouse, request.TankWarehouseText, "", request.TargetBatch,
-            s.AmountKg, i == 0 ? request.ProductionDate : null)).ToArray();
+        var specs = BuildTransferSpecs(request);
         await _booking.ReconcileAsync(tx, specs, ct);
         return tx;
     }
 
+    // Confirmed building blocks:
+    // 1) empty warehouse target is filled with LF -> LE while preserving the source batch;
+    // 2) an existing tank batch can be converted into a newly generated MIX with LM -> LN;
+    // 3) further external batches can be added to the same MIX with LM -> LN.
+    // The combined chain is intentionally kept in one Oxaion material document so the final
+    // movement verification sees every step. This chain still requires a live STAGING end-to-end
+    // confirmation after the 2026-09-08 LF/LE capture.
+    internal static IReadOnlyList<TransferSpec> BuildTransferSpecs(FillNewRequest request)
+    {
+        if (request.Sources is null || request.Sources.Count == 0)
+            throw new ArgumentException("At least one powder source is required.");
+
+        var result = new List<TransferSpec>();
+        var first = request.Sources[0];
+
+        // Position 1: physically move the first real source into the empty tank. The successful
+        // Oxaion trace proves LF -> LE and proves that this step preserves the source batch.
+        result.Add(new TransferSpec(
+            1,
+            "LF",
+            request.Article,
+            request.ArticleText,
+            first.Warehouse,
+            first.WarehouseText,
+            first.StorageBin ?? "",
+            first.Batch,
+            request.TankWarehouse,
+            request.TankWarehouseText,
+            "",
+            "",
+            first.AmountKg));
+
+        // Position 2: the tank now contains the first source batch. Convert exactly that amount
+        // into the mandatory newly generated MIX batch using the already confirmed LM -> LN path.
+        result.Add(new TransferSpec(
+            2,
+            "LM",
+            request.Article,
+            request.ArticleText,
+            request.TankWarehouse,
+            request.TankWarehouseText,
+            "",
+            first.Batch,
+            request.TankWarehouse,
+            request.TankWarehouseText,
+            "",
+            request.TargetBatch,
+            first.AmountKg,
+            request.ProductionDate));
+
+        // Position 3+: every additional external source joins the same new MIX.
+        for (var i = 1; i < request.Sources.Count; i++)
+        {
+            var source = request.Sources[i];
+            result.Add(new TransferSpec(
+                i + 2,
+                "LM",
+                request.Article,
+                request.ArticleText,
+                source.Warehouse,
+                source.WarehouseText,
+                source.StorageBin ?? "",
+                source.Batch,
+                request.TankWarehouse,
+                request.TankWarehouseText,
+                "",
+                request.TargetBatch,
+                source.AmountKg));
+        }
+
+        return result;
+    }
+
     private static void Validate(FillNewRequest r)
     {
-        if (string.IsNullOrWhiteSpace(r.ClientOperationId) || string.IsNullOrWhiteSpace(r.PersonnelNo) || string.IsNullOrWhiteSpace(r.Article)
-            || string.IsNullOrWhiteSpace(r.TankWarehouse) || string.IsNullOrWhiteSpace(r.TargetBatch))
+        if (string.IsNullOrWhiteSpace(r.ClientOperationId)
+            || string.IsNullOrWhiteSpace(r.PersonnelNo)
+            || string.IsNullOrWhiteSpace(r.Article)
+            || string.IsNullOrWhiteSpace(r.TankWarehouse)
+            || string.IsNullOrWhiteSpace(r.TargetBatch))
             throw new ArgumentException("Operation, personnel, tank, article and target MIX batch are required.");
-        if (r.Sources is null || r.Sources.Count == 0) throw new ArgumentException("At least one powder source is required.");
+
+        if (r.Sources is null || r.Sources.Count == 0)
+            throw new ArgumentException("At least one powder source is required.");
+
         var today = DateOnly.FromDateTime(DateTime.Today);
-        if (r.BookingDate != today || r.ProductionDate != today) throw new ArgumentException("Booking and MIX production date must be today.");
+        if (r.BookingDate != today || r.ProductionDate != today)
+            throw new ArgumentException("Booking and MIX production date must be today.");
         if (!ReplenishmentRules.IsValidGeneratedMixBatch(r.Article, r.TargetBatch, r.ProductionDate))
             throw new ArgumentException("Target MIX batch does not match the confirmed generated MIX schema.");
+
         foreach (var s in r.Sources)
         {
             if (s.AmountKg <= 0 || string.IsNullOrWhiteSpace(s.Warehouse) || string.IsNullOrWhiteSpace(s.Batch))
@@ -100,5 +220,10 @@ public sealed class FillNewService
     }
 
     private async Task SaveEventAsync(SeparateOperation tx, string stage, string message, CancellationToken ct)
-    { tx.Stage = stage; tx.Message = message; tx.Events.Add(new TransactionEvent(DateTimeOffset.UtcNow, stage, message)); await _store.SaveAsync(tx, ct); }
+    {
+        tx.Stage = stage;
+        tx.Message = message;
+        tx.Events.Add(new TransactionEvent(DateTimeOffset.UtcNow, stage, message));
+        await _store.SaveAsync(tx, ct);
+    }
 }
