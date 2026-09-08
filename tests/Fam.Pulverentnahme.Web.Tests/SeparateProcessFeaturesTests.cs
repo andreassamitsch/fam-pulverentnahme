@@ -45,6 +45,24 @@ public sealed class SeparateProcessFeaturesTests
     public void AdditionalConsumptionBuildsNewActualTotal() =>
         Assert.Equal(15.430m, FaMaterialService.TargetConsumed(15.420m, 0.010m));
 
+    [Theory]
+    [InlineData(10, 15.420, 9, 10, 15.420, true)]
+    [InlineData(10, 15.419, 9, 10, 15.420, false)]
+    [InlineData(10, 15.420, 0, 10, 15.420, false)]
+    [InlineData(20, 15.420, 9, 10, 15.420, false)]
+    public void FaConsumptionSuccessRequiresExactPositionQuantityAndStatus(
+        int actualPosition, double actualConsumed, int actualStatus,
+        int expectedPosition, double expectedConsumed, bool expected)
+    {
+        var row = new FaMaterialPositionResult(
+            "FA25FK00001", actualPosition, "RP.00010", "AlSi10Mg", 15.410m,
+            (decimal)actualConsumed, "KGM", actualStatus,
+            actualStatus == 9 ? "Komplett abgebucht" : "Eingeplant / Reserviert",
+            FaMaterialService.MkStatusAllowed(actualStatus), DateTimeOffset.UtcNow);
+
+        Assert.Equal(expected, FaConsumptionService.IsExactMkResult(row, expectedPosition, (decimal)expectedConsumed));
+    }
+
     [Fact]
     public void TankOutVerificationRequiresExactLfLePair()
     {
