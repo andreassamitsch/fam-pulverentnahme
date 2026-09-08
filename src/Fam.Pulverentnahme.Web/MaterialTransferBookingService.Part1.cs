@@ -58,7 +58,17 @@ public sealed partial class MaterialTransferBookingService
             for (var i = 0; i < specs.Count; i++)
             {
                 var spec = specs[i];
-                var validated = await AddPositionAsync(session, tx, context.Ssid, previous, bookingDate, op, spec, ct);
+
+                // A first LF position on an empty material document is not a normal continuation
+                // position. The successful 2026-09-08 JET trace requires LB20115J *LOAD plus the
+                // dedicated source/target validation replay. Using generic *NEW here reproduced
+                // BEL1422 after the header had already been created.
+                var validated = i == 0
+                    && spec.Position == 1
+                    && string.Equals(spec.BookingKey, "LF", StringComparison.Ordinal)
+                    ? await AddFirstLfPositionAsync(session, tx, context.Ssid, bookingDate, op, spec, ct)
+                    : await AddPositionAsync(session, tx, context.Ssid, previous, bookingDate, op, spec, ct);
+
                 if (i + 1 < specs.Count)
                 {
                     var refreshed = await ReadDocumentListAsync(session, context.Ssid, ct);
