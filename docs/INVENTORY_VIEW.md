@@ -1,6 +1,6 @@
 # Lagerbestandsansicht fuer RP.* Pulverartikel
 
-Stand: 07.09.2026
+Stand: 08.09.2026
 
 ## Ziel
 
@@ -25,28 +25,114 @@ Damit ist technisch nachgewiesen:
 - `TIDF/I_TIDF` der Unterprogramme erhalten nur konkrete Artikelnummern wie `RP.00010`;
 - der direkte Wildcard-Abstieg wird nicht weiter verwendet.
 
-## Verbindlicher Ablauf: `Chargen je Firma` als gefilterter Index
+## Bestaetigter Filterablauf vom 08.09.2026
 
-### 1. Gefilterter Einstieg ueber `Chargen je Firma`
+Der Mitschnitt `chargen pro firma RP und ungleich null filter.7z` bestaetigt jetzt auch den zuvor offenen Filterweg fuer `Chargen je Firma`.
 
-Als Einstieg dient wieder:
+### Listenstart
 
 ```text
 MN10209J *CHKCMD
 CHKCMD = CF
--> LB30210R - Chargen je Firma
+-> LB30210R
 ```
 
-Die Liste soll in Oxaion auf folgende Bedingungen eingeschraenkt werden:
+Danach:
 
 ```text
-Artikelnummer: RP.*
-Lagerbestand:  <> 0
+LB30210R *GETHDR
+SSID      = <von CHKCMD>
+NOHWPgm   = LB30210
 ```
 
-Der vorhandene Referenzmitschnitt einer bereits so eingeschraenkten `LB30210R *FIRSTLIST` lieferte nur eine kleine RP-Pulverliste und endete mit `<STOP/>`.
+Im Referenzmitschnitt liefert der Header:
 
-Aus dieser Liste werden fuer die weitere Verarbeitung ausschliesslich verwendet:
+```text
+_FILTERTITLE_ = mit Bestand
+```
+
+Die anschliessende ungefilterte beziehungsweise nur mit dem aktiven Bestandsfilter versehene
+
+```text
+LB30210R *FIRSTLIST
+mode = reset
+```
+
+lieferte 50 Zeilen verschiedener Artikel und noch kein `<STOP/>`. Diese erste Liste wird von der WebApp **nicht** als vollstaendiger RP-Bestand verwendet; sie dient nur zum Aufbau des bestaetigten Listenkontexts.
+
+### Artikelbereich `RP.*` setzen
+
+Der entscheidende, im Mitschnitt bestaetigte Aufruf ist:
+
+```text
+LB30210 *SAVALLSLT
+
+SSID       = <Listen-SSID>
+NAME       = IDNR.TLIDNR
+V_TLIDNR   = RP.*
+B_TLIDNR   = <leer>
+```
+
+Damit wird `RP.*` als Listen-Selektion auf die Artikelnummer gesetzt. Es wird **nicht** als `TIDF/I_TIDF` an ein Artikelprogramm uebergeben.
+
+Der JET-Dialog ruft beim manuellen Oeffnen der Selektionsmaske zusaetzlich `*CRTSLTUID` und `*GETSLT` auf. Diese Aufrufe dienen der UI-/Selektionsdialogdarstellung. Fuer die Backend-Logik ist der fachlich relevante, vollstaendig parametrisierte Speicherschritt `*SAVALLSLT`; dessen Wirkung wird anschliessend durch die neu geladene Liste streng verifiziert.
+
+Besonderheit des Referenzmitschnitts:
+
+- `LB30210 *SAVALLSLT` wird HTTP-/JET-seitig erfolgreich ausgefuehrt,
+- die Antwort enthaelt jedoch nur die XML-Deklaration und kein parsebares Dokumentelement.
+
+Analog zum bereits bestaetigten Personal-Sonderfall wird deshalb **nur** der spezifische XML-Parsefehler dieses einen Schritts toleriert. Transport-/HTTP-Fehler werden nicht toleriert. Danach muessen `GETU01`, die neue `FIRSTLIST` und die Ergebnispruefung erfolgreich sein.
+
+Anschliessend:
+
+```text
+LB30210R *GETU01
+SSID = <Listen-SSID>
+
+LB30210R *FIRSTLIST
+SSID = <Listen-SSID>
+mode = replace
+```
+
+Der Mitschnitt vom 08.09.2026 liefert danach:
+
+- 21 Zeilen,
+- ausschliesslich konkrete Artikel `RP.xxxxx`,
+- ausschliesslich Lagerbestand `<> 0`,
+- abschliessendes `<STOP/>`.
+
+Damit ist der zuvor offene alphanumerische `RP.*`-Filterweg fuer diesen Index technisch bestaetigt.
+
+### Bestand `<> 0`
+
+Der Mitschnitt bestaetigt zusaetzlich die interne Oxaion-Listenfilterdarstellung fuer `UPOWEP.POLABE`:
+
+```text
+LB30210 *SAVLSTA
+COLUMN = UPOWEP.POLABE
+LFNU   = 0
+OPER   = =
+V_     = ,000
+```
+
+Die `A`-Selektion schliesst damit Bestand `= 0` aus und bildet fachlich `<> 0` ab.
+
+Der aktuelle generische WebApp-HTTP-Client uebertraegt einfache DTA-Felder, aber keine verschachtelten JET-`TABLE`-Strukturen. Fuer die Lagerbestandsansicht ist kein erfundener TABLE-Transport erforderlich: Im bestaetigten Listenkontext ist bereits der Filter `mit Bestand` aktiv, und direkt nach `SAVALLSLT RP.*` liefert Oxaion die kleine vollstaendige RP-Liste mit Bestand `<> 0` und `<STOP/>`.
+
+Das Backend prueft die Antwort trotzdem defensiv und bricht ab, wenn:
+
+- `<STOP/>` fehlt,
+- ein Artikel ausserhalb `RP.*` geliefert wird,
+- ein Nullbestand geliefert wird.
+
+Negative Bestaende sind `<> 0`, bleiben deshalb bewusst enthalten und werden spaeter als Klaerungsfall angezeigt.
+
+## Verbindlicher Ablauf: `Chargen je Firma` als gefilterter Index
+
+### 1. Konkrete RP-Artikel aus `Chargen je Firma`
+
+Aus der bestaetigten gefilterten `LB30210R *FIRSTLIST` werden fuer die weitere Verarbeitung ausschliesslich verwendet:
 
 ```text
 KEY/POIDNR bzw. IDNR.TLIDNR   konkrete Artikelnummer
@@ -59,8 +145,9 @@ Mehrere Chargenzeilen desselben Artikels werden zu genau einer konkreten Artikel
 Das Backend prueft zusaetzlich defensiv:
 
 - Artikel beginnt mit `RP.`;
+- kein Wildcardwert wird als Artikel weitergegeben;
 - Bestand ist `<> 0`;
-- negative Bestaende bleiben enthalten und werden spaeter als Klaerungsfall sichtbar gemacht.
+- negative Bestaende bleiben enthalten.
 
 ### 2. `_CALC.W_LAGO` wird nicht verwendet
 
@@ -114,11 +201,11 @@ LB30430R - Lagerplaetze pro Artikel und -ort
 Relevante Schluessel/Felder:
 
 ```text
-KEY/LPLAGO   Lagerort
-KEY/LPIDNR   Artikel
-KEY/LPLAPL   interner Lagerplatzschluessel
-KEY/LPPONR   Charge
-LLPWEP.LPLABE Bestand
+KEY/LPLAGO     Lagerort
+KEY/LPIDNR     Artikel
+KEY/LPLAPL     interner Lagerplatzschluessel
+KEY/LPPONR     Charge
+LLPWEP.LPLABE  Bestand
 ```
 
 Der interne Lagerplatzschluessel wird ausschliesslich aus Oxaion uebernommen und niemals aus einer optisch formatierten Anzeige nachgebildet.
@@ -173,21 +260,14 @@ Sichtbare Felder:
 Verbindlich:
 
 - `RP.*` wird ausschliesslich als Filter der `Chargen je Firma`-Liste verwendet, niemals als konkrete Identnummer in `TIDF/I_TIDF` der Unterprogramme;
+- der bestaetigte Filteraufruf ist `LB30210 *SAVALLSLT` mit `NAME=IDNR.TLIDNR`, `V_TLIDNR=RP.*`, leerem `B_TLIDNR` und derselben Listen-SSID;
 - `Chargen je Firma` dient nur als Artikelindex, nicht als Lagerortquelle;
 - `_CALC.W_LAGO` wird ignoriert;
 - alle Unterprogramme werden je konkreter `RP.xxxxx`-Artikelnummer aufgerufen;
 - Nullbestaende werden nicht angezeigt;
 - negative Bestaende werden nicht herausgefiltert, sondern auffaellig markiert;
 - `LB30340R`, `LB30430R` und `LB30230R` werden auf den bereits bestaetigten Wegen bis `<STOP/>` gelesen;
-- eine unvollstaendige `LB30210R`-Indexliste wird nicht als vollstaendige Lagerbestandsansicht akzeptiert.
-
-## Noch technisch offen: Setzen des `RP.*`-Listenfilters per HTTP/JET
-
-Der vorhandene Mitschnitt beweist die bereits gefilterte `LB30210R *FIRSTLIST`. Der exakte HTTP/JET-Datenstrom, mit dem der Benutzer in `Chargen je Firma` den alphanumerischen Artikelnummernfilter `RP.*` setzt und anwendet, ist jedoch noch nicht aufgezeichnet.
-
-Die generische Oxaion-Listenfiltermechanik und der Bestandfilter `<>` sind aus anderen Listendialogen bekannt. Die genaue Kodierung des `RP.*`-Werts fuer `LB30210` wird trotzdem nicht geraten.
-
-Bis dieser kurze Mitschnitt vorliegt, blockiert das Backend eine `LB30210R`-Antwort ohne `<STOP/>`, statt eine unvollstaendige RP-Liste als vollstaendig auszugeben oder eine nicht bestaetigte Pagination beziehungsweise Filterfolge zu erfinden.
+- die nach `SAVALLSLT` neu geladene `LB30210R`-Indexliste muss selbst `<STOP/>` enthalten und darf weder Fremdartikel noch Nullbestaende enthalten; andernfalls wird keine scheinbar vollstaendige Bestandsansicht erzeugt.
 
 ## Sicherheitsregel
 
