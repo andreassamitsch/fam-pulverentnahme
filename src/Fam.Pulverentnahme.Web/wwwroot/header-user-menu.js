@@ -79,9 +79,20 @@
           alert('Dieser Vorgang ist noch offen. Zuerst Buchungsstatus klären.');
           return;
         }
+        const hasPreparedInput=document.body.classList.contains('processShellProcess')||Boolean(document.querySelector('.processChoice.active'));
+        if(hasPreparedInput&&!confirm('Abmelden? Nicht gebuchte Eingaben des aktuellen Vorgangs werden verworfen.'))return;
         if(typeof logoutPersonnel!=='function')return;
         logout.disabled=true;
-        try{await logoutPersonnel()}finally{closeMenu();sync();}
+        try{
+          await logoutPersonnel();
+          closeMenu();
+          // Reload after the server-side logout so no unsent process input of the previous operator
+          // can remain hidden in the DOM for the next login. Open/recovery transactions are blocked above.
+          location.reload();
+        }catch{
+          logout.disabled=false;
+          sync();
+        }
       });
     }
     return true;
