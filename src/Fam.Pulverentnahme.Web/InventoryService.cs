@@ -20,10 +20,10 @@ public sealed class InventoryService
     {
         await using var session = await _oxaion.ConnectAsync(ct);
 
-        // Important: RP.* is a list filter, not an Oxaion article key. A live STAGING test on
-        // 07.09.2026 proved that passing RP.* as TIDF/I_TIDF to LB30340R is rejected with IDN1823.
-        // Therefore Chargen je Firma (LB30210R) is used only as the filtered index from which
-        // concrete article numbers are taken. _CALC.W_LAGO is deliberately ignored.
+        // RP.* is a list filter in Chargen je Firma, never an Oxaion article key for the
+        // detail programs. The 2026-09-08 capture confirms the scalar LB30210 *SAVALLSLT
+        // sequence used to set IDNR.TLIDNR=RP.*. The resulting compact LB30210R list is used
+        // only to discover concrete article numbers. _CALC.W_LAGO is deliberately ignored.
         var articles = await ReadRpArticleIndexAsync(session, ct);
         var result = new List<InventoryPosition>();
         foreach (var article in articles)
@@ -53,22 +53,100 @@ public sealed class InventoryService
         if (string.IsNullOrWhiteSpace(ssid))
             throw new InvalidOperationException("MN10209J *CHKCMD CF did not return SSID for LB30210R.");
 
-        // The confirmed compact reference list was already filtered in Oxaion to RP.* and stock <> 0
-        // and ended in STOP. The exact JET/HTTP requests that APPLY these two list filters are not yet
-        // captured. Until they are, never invent pagination or accept an incomplete company-batch list.
-        var list = await session.CallAsync("LB30210R", "*FIRSTLIST", Dict(
+        // Exact sequence from the 2026-09-08 STAGING capture:
+        //   LB30210R *GETHDR
+        //   LB30210R *FIRSTLIST (reset)
+        //   LB30210  *SAVALLSLT NAME=IDNR.TLIDNR, V_TLIDNR=RP.*
+        //   LB30210R *GETU01
+        //   LB30210R *FIRSTLIST (replace)
+        // The capture also showed _FILTERTITLE_=mit Bestand and no zero-stock rows. We still
+        // validate RP.* and quantity <> 0 defensively before using the result.
+        var header = await session.CallAsync("LB30210R", "*GETHDR", Dict(
+            ("SSID", ssid),
+            ("NOHWPgm", "LB30210")), ct);
+        OxaionSession.AssertNoFcod(header);
+
+        var initial = await session.CallAsync("LB30210R", "*FIRSTLIST", Dict(
+            ("FLD", ""),
+            ("SSID", ssid),
+            ("PFLD", ""),
+            ("MC-Modus", ""),
+            ("mode", "reset")), ct);
+        OxaionSession.AssertNoFcod(initial);
+
+        await SaveRpArticleSelectionAsync(session, ssid, ct);
+
+        var userContext = await session.CallAsync("LB30210R", "*GETU01", Dict(("SSID", ssid)), ct);
+        OxaionSession.AssertNoFcod(userContext);
+
+        var filtered = await session.CallAsync("LB30210R", "*FIRSTLIST", Dict(
             ("FLD", ""),
             ("SSID", ssid),
             ("PFLD", ""),
             ("MC-Modus", ""),
             ("mode", "replace")), ct);
-        OxaionSession.AssertNoFcod(list);
+        OxaionSession.AssertNoFcod(filtered);
 
-        if (!MachineStockService.HasStop(list.Xml))
+        ValidateFilteredRpArticleIndex(filtered.Xml);
+        return ParseRpArticleIndex(filtered.Xml);
+    }
+
+    private static async Task SaveRpArticleSelectionAsync(
+        OxaionSession session,
+        string ssid,
+        CancellationToken ct)
+    {
+        try
+        {
+            var saved = await session.CallAsync("LB30210", "*SAVALLSLT", BuildRpArticleSelection(ssid), ct);
+            OxaionSession.AssertNoFcod(saved);
+        }
+        catch (InvalidOperationException ex) when (IsToleratedSaveAllSelectionNonXmlResponse(ex))
+        {
+            // The captured *SAVALLSLT response is HTTP-successful but contains only the XML
+            // declaration and therefore has no parseable document element. Continue only for this
+            // exact parse failure. GETU01 + the final FIRSTLIST + strict result validation must then
+            // prove that the filter really took effect.
+        }
+    }
+
+    internal static Dictionary<string, string> BuildRpArticleSelection(string ssid) =>
+        Dict(
+            ("B_TLIDNR", ""),
+            ("SSID", ssid),
+            ("V_TLIDNR", "RP.*"),
+            ("NAME", "IDNR.TLIDNR"));
+
+    internal static bool IsToleratedSaveAllSelectionNonXmlResponse(Exception ex) =>
+        ex is InvalidOperationException &&
+        string.Equals(ex.Message, "Oxaion response was not valid XML.", StringComparison.Ordinal);
+
+    internal static void ValidateFilteredRpArticleIndex(XDocument xml)
+    {
+        if (!MachineStockService.HasStop(xml))
             throw new InvalidOperationException(
-                "LB30210R Chargen je Firma ist nicht vollstaendig. Fuer die Lagerbestandsansicht muss die Oxaion-Liste vor FIRSTLIST auf Artikel RP.* und Lagerbestand <> 0 gefiltert werden. Die exakte HTTP/JET-Folge zum Setzen des RP.*-Listenfilters ist noch nicht bestaetigt; deshalb wird weder ein unvollstaendiger Bestand angezeigt noch eine Pagination erfunden.");
+                "LB30210R Chargen je Firma returned no STOP after applying article filter RP.*. " +
+                "The list is not accepted as a complete inventory index.");
 
-        return ParseRpArticleIndex(list.Xml);
+        foreach (var row in xml.Descendants("ROW"))
+        {
+            var key = row.Element("KEY");
+            var article = key?.Element("POIDNR")?.Value.Trim()
+                          ?? row.Element("IDNR.TLIDNR")?.Value.Trim()
+                          ?? "";
+            if (string.IsNullOrWhiteSpace(article))
+                continue;
+
+            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase) || article.Contains('*'))
+                throw new InvalidOperationException(
+                    $"LB30210R article filter RP.* was not applied exactly; unexpected article '{article}' was returned.");
+
+            var quantityText = row.Element("UPOWEP.POLABE")?.Value.Trim() ?? "";
+            var (quantity, _) = MachineStockService.ParseQuantity(quantityText);
+            if (quantity == 0m)
+                throw new InvalidOperationException(
+                    $"LB30210R stock filter <> 0 was not active; article '{article}' returned zero stock.");
+        }
     }
 
     internal static IReadOnlyList<InventoryArticleIndexRow> ParseRpArticleIndex(XDocument xml)
@@ -81,7 +159,7 @@ public sealed class InventoryService
             var article = key?.Element("POIDNR")?.Value.Trim()
                           ?? row.Element("IDNR.TLIDNR")?.Value.Trim()
                           ?? "";
-            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase))
+            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase) || article.Contains('*'))
                 continue;
 
             var quantityText = row.Element("UPOWEP.POLABE")?.Value.Trim() ?? "";
