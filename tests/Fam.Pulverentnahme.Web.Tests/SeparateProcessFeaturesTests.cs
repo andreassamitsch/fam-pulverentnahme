@@ -42,8 +42,8 @@ public sealed class SeparateProcessFeaturesTests
         Assert.Equal(allowed, FaMaterialService.MkStatusAllowed(status));
 
     [Fact]
-    public void AdditionalConsumptionBuildsNewActualTotal() =>
-        Assert.Equal(15.430m, FaMaterialService.TargetConsumed(15.420m, 0.010m));
+    public void EnteredActualConsumptionIsTheTargetAndIsNotAddedAgain() =>
+        Assert.Equal(15.430m, FaMaterialService.TargetConsumed(15.420m, 15.430m));
 
     [Theory]
     [InlineData(10, 15.420, 9, 10, 15.420, true)]
