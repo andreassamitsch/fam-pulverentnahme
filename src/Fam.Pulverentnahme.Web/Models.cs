@@ -14,6 +14,11 @@ public sealed class SyncosOptions
     public string ConnectionString { get; set; } = "";
 }
 
+public sealed class OxaionSqlOptions
+{
+    public string ConnectionString { get; set; } = "";
+}
+
 public sealed class PrototypeOptions
 {
     public bool EnableFailureSimulation { get; set; } = true;
