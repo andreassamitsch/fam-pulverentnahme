@@ -20,7 +20,7 @@ public sealed class TargetLocationLookupServiceTests
     }
 
     [Fact]
-    public void StorageBinLookupIsReadOnlyAndReturnsInternalBinKeys()
+    public void StorageBinLookupIsReadOnlyAndReturnsInternalBinKeysWithoutPowderOrStockFilter()
     {
         var sql = TargetLocationLookupService.StorageBinQueryText;
         Assert.Contains("FROM OXAION.LLPLAP AS LP", sql);
@@ -28,6 +28,9 @@ public sealed class TargetLocationLookupServiceTests
         Assert.Contains("LP.LPLAGO = @warehouse", sql);
         Assert.Contains("LP.LPLAPL", sql);
         Assert.Contains("@prefix", sql);
+        Assert.DoesNotContain("RP.%", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("LPLABE", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("LLPWEP", sql, StringComparison.OrdinalIgnoreCase);
         AssertReadOnly(sql);
     }
 
