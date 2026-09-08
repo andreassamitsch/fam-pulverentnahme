@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v20-oxaion-sql-focus';
+const CACHE='fam-pulver-staging-v21-location-errors';
 const ASSETS=[
   '/',
   '/index.html',
@@ -10,6 +10,7 @@ const ASSETS=[
   '/article-colors.js?v=20260903-recognition-colors',
   '/process-mode.js?v=20260904-four-processes-1',
   '/process-mode-focus-fix.js?v=20260908-focus-stable-1',
+  '/target-location.js?v=20260908-location-ajax-1',
   '/personnel-auth.js?v=20260903-guided-worker',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
