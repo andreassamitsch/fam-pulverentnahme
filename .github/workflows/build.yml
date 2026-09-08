@@ -41,6 +41,7 @@ jobs:
             '.\src\Fam.Pulverentnahme.Web\wwwroot\app.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\article-colors.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\process-mode.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-mode-focus-fix.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\personnel-auth.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\nfc.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\qr-scanner.js',
