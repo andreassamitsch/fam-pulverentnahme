@@ -1,426 +1,165 @@
-using System.Xml.Linq;
+using System.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 
 namespace Fam.Pulverentnahme.Web;
 
 public sealed class InventoryService
 {
-    private readonly OxaionClient _oxaion;
-    private readonly OxaionOptions _options;
-    private readonly MachineStockService _machineStock;
+    private readonly SyncosOptions _sql;
+    private readonly OxaionOptions _oxaion;
 
-    public InventoryService(OxaionClient oxaion, IOptions<OxaionOptions> options, MachineStockService machineStock)
+    public InventoryService(IOptions<SyncosOptions> sql, IOptions<OxaionOptions> oxaion)
     {
-        _oxaion = oxaion;
-        _options = options.Value;
-        _machineStock = machineStock;
+        _sql = sql.Value;
+        _oxaion = oxaion.Value;
     }
+
+    internal const string QueryText = """
+SELECT
+ X.Firma,
+ X.Lagerort,
+ X.Lagerplatz,
+ CAST(X.Artikel as nvarchar(12)) AS Artikel,
+ CAST(X.Artikelbezeichnung as nvarchar(20)) AS Artikelbezeichnung,
+ TRIM(X.Charge) AS Charge,
+ X.Bestand,
+ X.Einheit,
+ X.ChargeDatum
+FROM
+(
+ /* Lagerorte MIT Lagerplatzorganisation */
+ SELECT
+  LP.LPFIRM AS Firma,
+  LP.LPLAGO AS Lagerort,
+  LP.LPLAPL AS Lagerplatz,
+  LP.LPIDNR AS Artikel,
+  P.POCHBZ AS Artikelbezeichnung,
+  LP.LPPONR AS Charge,
+  B.LPLABE AS Bestand,
+  A.TLMEK1 AS Einheit,
+  P.POPRDT AS ChargeDatum
+ FROM OXAION.LLPLAP AS LP
+ INNER JOIN OXAION.LLPWEP AS B
+  ON B.LPFIRM = LP.LPFIRM
+ AND B.LPLAGO = LP.LPLAGO
+ AND B.LPLAPL = LP.LPLAPL
+ AND B.LPPONR = LP.LPPONR
+ AND B.LPIDNR = LP.LPIDNR
+ INNER JOIN OXAION.ULGSTP AS L
+  ON L.LGFIRM = LP.LPFIRM
+ AND L.LGBFRM = LP.LPFIRM
+ AND L.LGLAGO = LP.LPLAGO
+ AND L.LGLOKZ = N''
+ AND L.LGKLPL = N'J'
+ LEFT JOIN OXAION.UTLSTP AS A
+  ON A.TLFIRM = LP.LPFIRM
+ AND A.TLIDNR = LP.LPIDNR
+ LEFT JOIN OXAION.UPOSTP AS P
+  ON P.POFIRM = LP.LPFIRM
+ AND P.POIDNR = LP.LPIDNR
+ AND P.POPONR = LP.LPPONR
+ WHERE LP.LPFIRM = @firm
+ AND LP.LPPONR <> N''
+ AND LP.LPIDNR LIKE N'RP.%'
+ AND B.LPLABE <> 0
+
+ UNION ALL
+
+ /* Lagerorte OHNE Lagerplatzorganisation */
+ SELECT
+  LA.LAFIRM AS Firma,
+  LA.LALAGO AS Lagerort,
+  N'' AS Lagerplatz,
+  LA.LAIDNR AS Artikel,
+  P.POCHBZ AS Artikelbezeichnung,
+  LA.LAPONR AS Charge,
+  LA.LALABE AS Bestand,
+  A.TLMEK1 AS Einheit,
+  P.POPRDT AS ChargeDatum
+ FROM OXAION.LLAWEP AS LA
+ INNER JOIN OXAION.ULGSTP AS L
+  ON L.LGFIRM = LA.LAFIRM
+ AND L.LGBFRM = LA.LAFIRM
+ AND L.LGLAGO = LA.LALAGO
+ AND L.LGLOKZ = N''
+ AND L.LGKLPL = N'N'
+ LEFT JOIN OXAION.UTLSTP AS A
+  ON A.TLFIRM = LA.LAFIRM
+ AND A.TLIDNR = LA.LAIDNR
+ LEFT JOIN OXAION.UPOSTP AS P
+  ON P.POFIRM = LA.LAFIRM
+ AND P.POIDNR = LA.LAIDNR
+ AND P.POPONR = LA.LAPONR
+ WHERE LA.LAFIRM = @firm
+ AND LA.LAPONR <> N''
+ AND LA.LAIDNR LIKE N'RP.%'
+ AND LA.LALABE <> 0
+ AND LA.LAGRKZ <> N'J'
+) AS X
+ORDER BY
+ X.Firma,
+ X.Lagerort,
+ X.Lagerplatz,
+ X.Artikel,
+ X.Charge;
+""";
 
     public async Task<IReadOnlyList<InventoryPosition>> ReadRpStockAsync(CancellationToken ct)
     {
-        await using var session = await _oxaion.ConnectAsync(ct);
-
-        // RP.* is a list filter in Chargen je Firma, never an Oxaion article key for the
-        // detail programs. The 2026-09-08 capture confirms the scalar LB30210 *SAVALLSLT
-        // sequence used to set IDNR.TLIDNR=RP.*. The resulting compact LB30210R list is used
-        // only to discover concrete article numbers. _CALC.W_LAGO is deliberately ignored.
-        var articles = await ReadRpArticleIndexAsync(session, ct);
-        var result = new List<InventoryPosition>();
-        foreach (var article in articles)
-            result.AddRange(await ReadArticleAsync(session, article.Article, article.ArticleText, ct));
-
-        return result
-            .Where(x => x.Article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase) && x.QuantityKg != 0m)
-            .GroupBy(InventoryKey, StringComparer.Ordinal)
-            .Select(g => g.First())
-            .OrderBy(x => x.Article, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Warehouse, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.StorageBin, StringComparer.Ordinal)
-            .ThenBy(x => x.Batch, StringComparer.Ordinal)
-            .ToList();
-    }
-
-    internal async Task<IReadOnlyList<InventoryArticleIndexRow>> ReadRpArticleIndexAsync(
-        OxaionSession session,
-        CancellationToken ct)
-    {
-        var command = await session.CallAsync("MN10209J", "*CHKCMD", Dict(
-            ("CHKCMD", "CF"),
-            ("_father_", "CMDLINE")), ct);
-        OxaionSession.AssertNoFcod(command);
-
-        var ssid = Get(command.Dta, "SSID");
-        if (string.IsNullOrWhiteSpace(ssid))
-            throw new InvalidOperationException("MN10209J *CHKCMD CF did not return SSID for LB30210R.");
-
-        // Exact sequence from the 2026-09-08 STAGING capture:
-        //   LB30210R *GETHDR
-        //   LB30210R *FIRSTLIST (reset)
-        //   LB30210  *SAVALLSLT NAME=IDNR.TLIDNR, V_TLIDNR=RP.*
-        //   LB30210R *GETU01
-        //   LB30210R *FIRSTLIST (replace)
-        // The capture also showed _FILTERTITLE_=mit Bestand and no zero-stock rows. We still
-        // validate RP.* and quantity <> 0 defensively before using the result.
-        var header = await session.CallAsync("LB30210R", "*GETHDR", Dict(
-            ("SSID", ssid),
-            ("NOHWPgm", "LB30210")), ct);
-        OxaionSession.AssertNoFcod(header);
-
-        var initial = await session.CallAsync("LB30210R", "*FIRSTLIST", Dict(
-            ("FLD", ""),
-            ("SSID", ssid),
-            ("PFLD", ""),
-            ("MC-Modus", ""),
-            ("mode", "reset")), ct);
-        OxaionSession.AssertNoFcod(initial);
-
-        await SaveRpArticleSelectionAsync(session, ssid, ct);
-
-        var userContext = await session.CallAsync("LB30210R", "*GETU01", Dict(("SSID", ssid)), ct);
-        OxaionSession.AssertNoFcod(userContext);
-
-        var filtered = await session.CallAsync("LB30210R", "*FIRSTLIST", Dict(
-            ("FLD", ""),
-            ("SSID", ssid),
-            ("PFLD", ""),
-            ("MC-Modus", ""),
-            ("mode", "replace")), ct);
-        OxaionSession.AssertNoFcod(filtered);
-
-        ValidateFilteredRpArticleIndex(filtered.Xml);
-        return ParseRpArticleIndex(filtered.Xml);
-    }
-
-    private static async Task SaveRpArticleSelectionAsync(
-        OxaionSession session,
-        string ssid,
-        CancellationToken ct)
-    {
-        try
-        {
-            var saved = await session.CallAsync("LB30210", "*SAVALLSLT", BuildRpArticleSelection(ssid), ct);
-            OxaionSession.AssertNoFcod(saved);
-        }
-        catch (InvalidOperationException ex) when (IsToleratedSaveAllSelectionNonXmlResponse(ex))
-        {
-            // The captured *SAVALLSLT response is HTTP-successful but contains only the XML
-            // declaration and therefore has no parseable document element. Continue only for this
-            // exact parse failure. GETU01 + the final FIRSTLIST + strict result validation must then
-            // prove that the filter really took effect.
-        }
-    }
-
-    internal static Dictionary<string, string> BuildRpArticleSelection(string ssid) =>
-        Dict(
-            ("B_TLIDNR", ""),
-            ("SSID", ssid),
-            ("V_TLIDNR", "RP.*"),
-            ("NAME", "IDNR.TLIDNR"));
-
-    internal static bool IsToleratedSaveAllSelectionNonXmlResponse(Exception ex) =>
-        ex is InvalidOperationException &&
-        string.Equals(ex.Message, "Oxaion response was not valid XML.", StringComparison.Ordinal);
-
-    internal static void ValidateFilteredRpArticleIndex(XDocument xml)
-    {
-        if (!MachineStockService.HasStop(xml))
+        if (string.IsNullOrWhiteSpace(_sql.ConnectionString))
             throw new InvalidOperationException(
-                "LB30210R Chargen je Firma returned no STOP after applying article filter RP.*. " +
-                "The list is not accepted as a complete inventory index.");
+                "SQL-Verbindung ist nicht konfiguriert. Syncos__ConnectionString muss gesetzt sein.");
+        if (string.IsNullOrWhiteSpace(_oxaion.Firm))
+            throw new InvalidOperationException("Oxaion-Firma ist nicht konfiguriert.");
 
-        foreach (var row in xml.Descendants("ROW"))
+        var result = new List<InventoryPosition>();
+        await using var connection = new SqlConnection(_sql.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = QueryText;
+        command.CommandType = CommandType.Text;
+        command.Parameters.Add("@firm", SqlDbType.NVarChar, 3).Value = _oxaion.Firm;
+
+        await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, ct);
+        while (await reader.ReadAsync(ct))
         {
-            var key = row.Element("KEY");
-            var article = key?.Element("POIDNR")?.Value.Trim()
-                          ?? row.Element("IDNR.TLIDNR")?.Value.Trim()
-                          ?? "";
-            if (string.IsNullOrWhiteSpace(article))
-                continue;
-
-            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase) || article.Contains('*'))
-                throw new InvalidOperationException(
-                    $"LB30210R article filter RP.* was not applied exactly; unexpected article '{article}' was returned.");
-
-            var quantityText = row.Element("UPOWEP.POLABE")?.Value.Trim() ?? "";
-            var (quantity, _) = MachineStockService.ParseQuantity(quantityText);
-            if (quantity == 0m)
-                throw new InvalidOperationException(
-                    $"LB30210R stock filter <> 0 was not active; article '{article}' returned zero stock.");
-        }
-    }
-
-    internal static IReadOnlyList<InventoryArticleIndexRow> ParseRpArticleIndex(XDocument xml)
-    {
-        var result = new Dictionary<string, InventoryArticleIndexRow>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var row in xml.Descendants("ROW"))
-        {
-            var key = row.Element("KEY");
-            var article = key?.Element("POIDNR")?.Value.Trim()
-                          ?? row.Element("IDNR.TLIDNR")?.Value.Trim()
-                          ?? "";
-            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase) || article.Contains('*'))
-                continue;
-
-            var quantityText = row.Element("UPOWEP.POLABE")?.Value.Trim() ?? "";
-            var (quantity, _) = MachineStockService.ParseQuantity(quantityText);
-            if (quantity == 0m)
-                continue;
-
-            var articleText = row.Element("IDNR.TLBEZG")?.Value.Trim() ?? "";
-            if (!result.ContainsKey(article))
-                result[article] = new InventoryArticleIndexRow(article, articleText);
-        }
-
-        return result.Values
-            .OrderBy(x => x.Article, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    internal static IReadOnlyList<InventoryBinRow> ParseInventoryBinRows(XDocument xml, string warehouseText)
-    {
-        var rows = new List<InventoryBinRow>();
-        foreach (var row in xml.Descendants("ROW"))
-        {
-            var key = row.Element("KEY");
-            if (key is null)
-                continue;
-
-            var warehouse = key.Element("LPLAGO")?.Value.Trim() ?? "";
-            var article = key.Element("LPIDNR")?.Value.Trim() ?? "";
-            var storageBin = key.Element("LPLAPL")?.Value.Trim()
-                             ?? row.Element("LLPWEP.LPLAPL")?.Value.Trim()
-                             ?? "";
-            var batch = key.Element("LPPONR")?.Value.Trim()
-                        ?? row.Element("LLPWEP.LPPONR")?.Value.Trim()
-                        ?? "";
-            var quantityText = row.Element("LLPWEP.LPLABE")?.Value.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(warehouse)
-                || string.IsNullOrWhiteSpace(article)
+            var article = Text(reader, "Artikel");
+            var warehouse = Text(reader, "Lagerort");
+            var batch = Text(reader, "Charge");
+            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(warehouse)
                 || string.IsNullOrWhiteSpace(batch))
                 continue;
 
-            var (quantity, unit) = MachineStockService.ParseQuantity(quantityText);
-            if (string.Equals(unit, "kg", StringComparison.OrdinalIgnoreCase))
-                unit = "KGM";
+            var quantity = Decimal(reader, "Bestand");
+            if (quantity == 0m) continue;
 
-            rows.Add(new InventoryBinRow(
-                warehouse,
-                warehouseText,
+            result.Add(new InventoryPosition(
                 article,
-                row.Element("IDNR.TLBEZG")?.Value.Trim() ?? "",
-                storageBin,
+                Text(reader, "Artikelbezeichnung"),
+                warehouse,
+                warehouse,
+                Text(reader, "Lagerplatz"),
                 batch,
                 quantity,
-                unit));
-        }
-
-        return rows;
-    }
-
-    private async Task<IReadOnlyList<InventoryPosition>> ReadArticleAsync(
-        OxaionSession session,
-        string article,
-        string articleText,
-        CancellationToken ct)
-    {
-        if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase) || article.Contains('*'))
-            throw new InvalidOperationException($"Inventory descent requires a concrete RP article number, got '{article}'.");
-
-        var warehouseRows = await ReadWarehouseRowsAsync(session, article, ct);
-        var result = new List<InventoryPosition>();
-
-        foreach (var warehouse in warehouseRows
-                     .Where(x => x.QuantityKg != 0m)
-                     .Select(x => x.Warehouse)
-                     .Where(x => !string.IsNullOrWhiteSpace(x))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var warehouseText = await ResolveWarehouseTextAsync(session, warehouse, ct);
-            try
-            {
-                var positions = await ReadBinRowsAsync(session, article, warehouse, warehouseText, ct);
-                result.AddRange(positions
-                    .Where(x => x.QuantityKg != 0m)
-                    .Select(x => new InventoryPosition(
-                        article,
-                        string.IsNullOrWhiteSpace(x.ArticleText) ? articleText : x.ArticleText,
-                        x.Warehouse,
-                        x.WarehouseText,
-                        x.StorageBin,
-                        x.Batch,
-                        x.QuantityKg,
-                        x.Unit,
-                        x.QuantityKg < 0m)));
-            }
-            catch (OxaionRejectedException ex) when (string.Equals(ex.Code, "LAG1626", StringComparison.OrdinalIgnoreCase))
-            {
-                var stock = await _machineStock.ReadAsync(session, warehouse, article, warehouseText, articleText, ct);
-                result.AddRange(stock.Rows
-                    .Where(x => string.Equals(x.Article, article, StringComparison.OrdinalIgnoreCase) && x.QuantityKg != 0m)
-                    .Select(x => new InventoryPosition(
-                        article,
-                        string.IsNullOrWhiteSpace(x.ArticleText) ? articleText : x.ArticleText,
-                        warehouse,
-                        warehouseText,
-                        "",
-                        x.Batch,
-                        x.QuantityKg,
-                        x.Unit,
-                        x.QuantityKg < 0m)));
-            }
+                Text(reader, "Einheit"),
+                quantity < 0m));
         }
 
         return result;
     }
 
-    private async Task<IReadOnlyList<(string Warehouse, string Batch, decimal QuantityKg)>> ReadWarehouseRowsAsync(
-        OxaionSession session,
-        string article,
-        CancellationToken ct)
+    private static string Text(SqlDataReader reader, string name)
     {
-        var context = BuildInquiryContext(article, "", "", "CL", "Chargen und Lagerorte pro Artikel", "LB30340R");
-        var ssid = await LaunchAsync(session, context, "LB30340R", "LB30340", ct);
-        var pages = await ReadAllPagesAsync(session, "LB30340R", ssid, ct);
-
-        return pages
-            .SelectMany(SourceStockService.ParseArticleWarehouseRows)
-            .Where(r => string.Equals(r.Article, article, StringComparison.OrdinalIgnoreCase))
-            .Select(r => (r.Warehouse, r.Batch, r.QuantityKg))
-            .ToList();
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? "" : (reader.GetValue(ordinal)?.ToString() ?? "").Trim();
     }
 
-    private async Task<IReadOnlyList<InventoryBinRow>> ReadBinRowsAsync(
-        OxaionSession session,
-        string article,
-        string warehouse,
-        string warehouseText,
-        CancellationToken ct)
+    private static decimal Decimal(SqlDataReader reader, string name)
     {
-        var context = BuildInquiryContext(article, warehouse, warehouseText, "PT", "Lagerplätze pro Artikel und -ort", "LB30430R");
-        var ssid = await LaunchAsync(session, context, "LB30430R", "LB30430", ct);
-        var pages = await ReadAllPagesAsync(session, "LB30430R", ssid, ct);
-
-        return pages
-            .SelectMany(x => ParseInventoryBinRows(x, warehouseText))
-            .Where(x => string.Equals(x.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase))
-            .Where(x => string.Equals(x.Article, article, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var ordinal = reader.GetOrdinal(name);
+        if (reader.IsDBNull(ordinal)) return 0m;
+        return Convert.ToDecimal(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
     }
-
-    private async Task<string> LaunchAsync(
-        OxaionSession session,
-        Dictionary<string, string> context,
-        string program,
-        string noHw,
-        CancellationToken ct)
-    {
-        var launch = await session.CallAsync("US30600J", "", context, ct);
-        OxaionSession.AssertNoFcod(launch);
-
-        var ssid = Get(launch.Dta, "SSID");
-        if (string.IsNullOrWhiteSpace(ssid))
-            throw new InvalidOperationException("US30600J did not return SSID for " + program);
-
-        var hdr = Merge(context, launch.Dta);
-        hdr["SSID"] = ssid;
-        hdr["NOHWPgm"] = noHw;
-        OxaionSession.AssertNoFcod(await session.CallAsync(program, "*GETHDR", hdr, ct));
-        return ssid;
-    }
-
-    private static async Task<IReadOnlyList<XDocument>> ReadAllPagesAsync(
-        OxaionSession session,
-        string program,
-        string ssid,
-        CancellationToken ct)
-    {
-        var pages = new List<XDocument>();
-        var page = await session.CallAsync(program, "*FIRSTLIST", Dict(
-            ("FLD", ""),
-            ("SSID", ssid),
-            ("PFLD", ""),
-            ("MC-Modus", ""),
-            ("mode", "reset")), ct);
-        OxaionSession.AssertNoFcod(page);
-
-        for (var i = 0; i < 100; i++)
-        {
-            pages.Add(page.Xml);
-            if (MachineStockService.HasStop(page.Xml))
-                return pages;
-
-            page = await session.CallAsync(program, "*NEXTLIST", Dict(("SSID", ssid)), ct);
-            OxaionSession.AssertNoFcod(page);
-        }
-
-        throw new InvalidOperationException(program + " did not return STOP within 100 pages.");
-    }
-
-    private async Task<string> ResolveWarehouseTextAsync(
-        OxaionSession session,
-        string warehouse,
-        CancellationToken ct)
-    {
-        var plain = await session.CallAsync("US00006J", "*GETPLAIN", Dict(
-            ("MFLD", "LAGO"),
-            ("PGMN", "US30600J"),
-            ("LAGO", warehouse),
-            ("PFIELD", "TX_LAGO"),
-            ("FIELD", "LAGO")), ct);
-        OxaionSession.AssertNoFcod(plain);
-
-        var text = Get(plain.Dta, "TX_LAGO");
-        return string.IsNullOrWhiteSpace(text) ? warehouse : text;
-    }
-
-    private Dictionary<string, string> BuildInquiryContext(
-        string article,
-        string warehouse,
-        string warehouseText,
-        string format,
-        string formatText,
-        string program) =>
-        new(StringComparer.Ordinal)
-        {
-            ["WRKB"]="", ["DATV"]="", ["LHKZ20"]="", ["KSTB"]="", ["TIDF"]=format=="PT"?article:"", ["BWKZBZ"]="", ["NANW"]="", ["TSAKZ"]="",
-            ["XLFTBZ"]="", ["mode"]="no-attribute-update", ["SNNR20"]="", ["TX_FFMT"]=formatText, ["TX_LAGR"]="", ["LAGR20"]="", ["KOBN"]="", ["TX_LAGO"]=warehouseText,
-            ["DATB"]="", ["KOKO"]="0", ["PONR"]="", ["PONR20"]="", ["ABCK"]="", ["LHKZBZ"]="", ["LHKZ"]="", ["ABCK20"]="", ["TX_KSTT"]="", ["REPORT"]="",
-            ["KSTTV"]="", ["ANWG"]="LBS", ["KOAW"]="", ["TX_BUKR"]="", ["INBR"]="", ["FMANWG"]="LBS", ["BGNR"]="", ["LHMT20"]="", ["XLFT"]="", ["BWKZ"]="",
-            ["B_BBL20"]="", ["FFMT"]=format, ["LAGO20"]="", ["FFMS"]=format, ["LAGR"]="", ["KOPS"]="0", ["LAPL20"]="", ["PGMN"]=program, ["LAGO"]=warehouse,
-            ["KSTTB"]="", ["TX_TIDF"]="", ["SNNR"]="", ["KOVU20"]="", ["BKFM"]="", ["LAPL"]="", ["KEYTYPE"]="P", ["BWKZ20"]="", ["TX_WERK"]="", ["I_TIDF"]=article,
-            ["ABCKBZ"]="", ["XLFT20"]="", ["WRKV"]="", ["LHMT"]="", ["KSTV"]="", ["BUKR"]="", ["SSID"]="", ["LHMTBZ"]="", ["BLNR20"]="", ["DATE20"]="", ["BLNR"]="0",
-            ["STARTUP"]=$"<DUFIRM>{_options.Firm}</DUFIRM><DUIDNV>{article}</DUIDNV><DULAGV>{warehouse}</DULAGV>", ["NEXTPGM"]=program
-        };
-
-    private static string InventoryKey(InventoryPosition x) =>
-        $"{x.Article.Trim().ToUpperInvariant()}\u001f{x.Warehouse.Trim().ToUpperInvariant()}\u001f{x.StorageBin.Trim()}\u001f{x.Batch.Trim()}";
-
-    private static Dictionary<string, string> Dict(params (string Key, string Value)[] values) =>
-        values.ToDictionary(x => x.Key, x => x.Value ?? "", StringComparer.Ordinal);
-
-    private static Dictionary<string, string> Merge(
-        IReadOnlyDictionary<string, string> left,
-        IReadOnlyDictionary<string, string> right)
-    {
-        var result = new Dictionary<string, string>(left, StringComparer.Ordinal);
-        foreach (var item in right)
-            result[item.Key] = item.Value ?? "";
-        return result;
-    }
-
-    private static string Get(IReadOnlyDictionary<string, string> values, string key) =>
-        values.TryGetValue(key, out var value) ? value : "";
 }
-
-public sealed record InventoryArticleIndexRow(string Article, string ArticleText);
-
-public sealed record InventoryBinRow(
-    string Warehouse,
-    string WarehouseText,
-    string Article,
-    string ArticleText,
-    string StorageBin,
-    string Batch,
-    decimal QuantityKg,
-    string Unit);
