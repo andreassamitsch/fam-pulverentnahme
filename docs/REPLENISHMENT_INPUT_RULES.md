@@ -72,11 +72,14 @@ Verbindlich gilt fuer die Produktion beim manuellen Nachfuellen:
 
 - Die Produktion muss die auf der Maschine vorhandene alte Mix-Charge nicht kennen oder aufschreiben.
 - Die Produktion muss den aktuellen Oxaion-Tankbestand nicht ermitteln oder aufschreiben.
-- Artikelbezeichnung, neue Mix-Charge, Buchungsdatum und Buchungstext sind ebenfalls keine zusaetzlichen manuellen Produktionsangaben.
-- Die Produktionsleitung ermittelt beim spaeteren manuellen Buchen zuerst den aktuellen beziehungsweise fuer den Vorgang massgeblichen Oxaion-Maschinenbestand und daraus insbesondere alte Mix-Charge und Tankbestand.
+- Artikelbezeichnung, neu zu erzeugende Mix-Charge und Buchungstext sind ebenfalls keine zusaetzlichen manuellen Produktionsangaben.
+- Die Produktion dokumentiert zwingend die tatsaechlich neu eingefuellte Rohmaterial-/Herstellercharge. Diese ist von der spaeter neu erzeugten Mix-Charge zu unterscheiden.
+- Die Produktion dokumentiert fuer jede eingefuellte Charge die tatsaechlich eingefuellte Menge.
+- Die Produktion dokumentiert das tatsaechliche Datum des Einfuellens. Dieses Einfuelldatum ist der physische Vorgangszeitpunkt und kann vom spaeteren manuellen Buchungstag der Produktionsleitung abweichen.
+- Die Produktionsleitung ermittelt beim spaeteren manuellen Buchen zuerst den fuer den Vorgang massgeblichen Oxaion-Maschinenbestand und daraus insbesondere alte Mix-Charge und Tankbestand.
 - Die neue Mix-Charge wird bei der manuellen Buchung nach dem verbindlichen Mix-Chargenschema erzeugt.
-- Die schriftliche Uebergabe der Produktion soll nur die fachlich notwendigen Bediener-/Bewegungsdaten enthalten: Personalnummer, Fertigungsauftrag beziehungsweise die im FA-Kontext benoetigten Identifikationsdaten, tatsaechlich verwendete Maschine sowie je verwendeter Nachfuellquelle Lagerort/Lagerplatz soweit fuer die Produktion eindeutig erkennbar, Charge und eingefuellte Menge.
-- Werden mehrere Nachfuellchargen verwendet, wird jede tatsaechlich verwendete Quelle mit ihrer Menge einzeln dokumentiert.
+- Die schriftliche Uebergabe der Produktion soll die fachlich notwendigen Bediener-/Bewegungsdaten enthalten: Personalnummer, Fertigungsauftrag beziehungsweise die im FA-Kontext benoetigten Identifikationsdaten, tatsaechlich verwendete Maschine sowie je verwendeter Nachfuellquelle Lagerort/Lagerplatz soweit fuer die Produktion eindeutig erkennbar, Rohmaterial-/Herstellercharge, eingefuellte Menge und Einfuelldatum.
+- Werden mehrere Nachfuellchargen verwendet, wird jede tatsaechlich verwendete Charge mit ihrer eigenen Menge dokumentiert. Das Einfuelldatum wird je Vorgang beziehungsweise, falls die Chargen an unterschiedlichen Tagen eingefuellt wurden, je Charge festgehalten.
 - Die Produktionsleitung ergaenzt die fuer die Oxaion-Buchung erforderlichen Systemdaten und kennzeichnet den Vorgang nach erfolgreicher Buchung eindeutig als gebucht, damit keine Doppelbuchung entsteht.
 
 Ziel dieses Uebergangsprozesses ist ausdruecklich, keine zusaetzliche Parallel-Datenerfassung fuer die Produktion aufzubauen, die spaeter mit Einfuehrung der App wieder entfaellt.
