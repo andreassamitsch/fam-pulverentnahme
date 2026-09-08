@@ -99,8 +99,16 @@
   function loadTargetLocationSelector(){
     if(document.querySelector('script[data-target-location-selector]'))return;
     const script=document.createElement('script');
-    script.src='/target-location.js?v=20260908-location-ajax-1';
+    script.src='/target-location.js?v=20260908-location-ajax-2';
     script.dataset.targetLocationSelector='true';
+    document.head.appendChild(script);
+  }
+
+  function loadHeaderUserMenu(){
+    if(document.querySelector('script[data-header-user-menu]'))return;
+    const script=document.createElement('script');
+    script.src='/header-user-menu.js?v=20260908-header-user-1';
+    script.dataset.headerUserMenu='true';
     document.head.appendChild(script);
   }
 
@@ -117,6 +125,7 @@
     window.refreshWorkerFlow=stableRefresh;
     stableRefresh();
     loadTargetLocationSelector();
+    loadHeaderUserMenu();
   }
 
   if(document.readyState==='loading'){
