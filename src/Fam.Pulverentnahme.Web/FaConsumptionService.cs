@@ -35,12 +35,18 @@ public sealed class FaConsumptionService
                 if (existing.RequestJson != json) throw new ProcessConflictException("clientOperationId already belongs to different FA consumption data.");
                 return existing;
             }
+
+            // Compatibility note: the wire property is still named AdditionalConsumptionKg in the
+            // current STAGING frontend. Its binding meaning changed on 2026-09-08: the operator now
+            // enters the actual total consumption (Ist-Verbrauch), not an increment to AMMATV.
+            var targetActualKg = request.AdditionalConsumptionKg;
+            var deltaKg = targetActualKg - request.ExpectedConsumedKg;
             var tx = new SeparateOperation
             {
                 Kind = Kind, ClientOperationId = request.ClientOperationId, RequestJson = json,
                 ExpectedFaConsumedKg = request.ExpectedConsumedKg,
                 ExpectedFaMaterialStatus = request.ExpectedMaterialStatus,
-                TargetFaConsumedKg = FaMaterialService.TargetConsumed(request.ExpectedConsumedKg, request.AdditionalConsumptionKg)
+                TargetFaConsumedKg = targetActualKg
             };
             await SaveEventAsync(tx, "CREATED", "FA consumption transaction created.", ct);
             try
@@ -54,8 +60,10 @@ public sealed class FaConsumptionService
                 var t = tank.Rows[0];
                 if (!t.Article.Equals(request.Article, StringComparison.OrdinalIgnoreCase) || t.Batch != request.TankBatch || Math.Abs(t.QuantityKg - request.TankQuantityKg) >= 0.0005m)
                     throw new ProcessConflictException($"Tankbestand hat sich seit der Anzeige geändert. Aktuell {t.Article}/{t.Batch}/{t.QuantityKg:0.###} kg.");
-                if (request.AdditionalConsumptionKg > t.QuantityKg + 0.0005m)
-                    throw new ProcessConflictException("Zusätzlicher Verbrauch ist größer als der aktuelle Tankbestand.");
+                if (deltaKg <= 0m)
+                    throw new ProcessConflictException($"Der eingegebene Ist-Verbrauch {targetActualKg:0.###} kg muss größer als der bereits gebuchte Verbrauch {request.ExpectedConsumedKg:0.###} kg sein.");
+                if (deltaKg > t.QuantityKg + 0.0005m)
+                    throw new ProcessConflictException($"Die neu zu buchende Verbrauchsdifferenz {deltaKg:0.###} kg ist größer als der aktuelle Tankbestand {t.QuantityKg:0.###} kg.");
 
                 await using var session = await _oxaion.ConnectAsync(ct);
                 var current = await _materials.FindUniqueAsync(session, request.OrderNo, request.Article, ct);
@@ -68,23 +76,23 @@ public sealed class FaConsumptionService
                     throw new ProcessConflictException($"Materialposition {current.MaterialPosition} hat Status {current.MaterialStatus} {current.MaterialStatusText}. MK ist nur bei Status 0, 1 oder 8 zulässig. MU wird in dieser App noch nicht ausgeführt.");
 
                 tx.Status = TransactionStatuses.SendingToOxaion;
-                await SaveEventAsync(tx, "MK_SUBMITTING", $"Submitting additional {request.AdditionalConsumptionKg:0.###} kg to FA {request.OrderNo}, material position {request.MaterialPosition}.", ct);
-                await SubmitMkAsync(session, request, current, tx.TargetFaConsumedKg!.Value, ct);
+                await SaveEventAsync(tx, "MK_SUBMITTING", $"Submitting actual consumption {targetActualKg:0.###} kg (delta {deltaKg:0.###} kg) to FA {request.OrderNo}, material position {request.MaterialPosition}.", ct);
+                await SubmitMkAsync(session, request, current, targetActualKg, ct);
                 await SaveEventAsync(tx, "MK_RESPONSE_RECEIVED",
                     "Oxaion hat die MK-Anfrage ohne FCOD beantwortet. Die Materialposition wird jetzt ausschließlich lesend in frischen Oxaion-Sessions verifiziert.", ct);
 
                 // The successful reference trace proves the final ERP state through PW20201J *READ.
                 // A just-finished write can become visible slightly later than the HTTP response, so
                 // retry only the read. Never repeat PW22031J *PUTNEW here.
-                var verified = await VerifyMkStateAsync(request, tx.TargetFaConsumedKg.Value, ct);
-                if (!IsExactMkResult(verified, request.MaterialPosition, tx.TargetFaConsumedKg.Value))
+                var verified = await VerifyMkStateAsync(request, targetActualKg, ct);
+                if (!IsExactMkResult(verified, request.MaterialPosition, targetActualKg))
                     throw new InvalidOperationException(
                         $"Oxaion hat auf die MK-Buchung geantwortet, der erwartete Endzustand konnte danach aber nicht eindeutig bestätigt werden. " +
                         $"Aktuell: Materialposition {verified.MaterialPosition}, tatsächlich gebucht {verified.ConsumedKg:0.###} kg, " +
                         $"Status {verified.MaterialStatus} {verified.MaterialStatusText}. Nicht erneut buchen. Zuerst 'Status in Oxaion prüfen' verwenden und bei weiter unklarem Zustand die Produktionsleitung informieren.");
 
                 tx.Status = TransactionStatuses.Success;
-                await SaveEventAsync(tx, "SUCCESS", $"FA {request.OrderNo}, material position {request.MaterialPosition}: consumed quantity verified at {verified.ConsumedKg:0.###} kg, status 9.", CancellationToken.None);
+                await SaveEventAsync(tx, "SUCCESS", $"FA {request.OrderNo}, material position {request.MaterialPosition}: actual consumed quantity verified at {verified.ConsumedKg:0.###} kg, status 9.", CancellationToken.None);
             }
             catch (ProcessConflictException ex) { tx.Status = TransactionStatuses.Conflict; await SaveEventAsync(tx, "CONFLICT", ex.Message, ct); }
             catch (OxaionRejectedException ex) { tx.Status = TransactionStatuses.Rejected; await SaveEventAsync(tx, "REJECTED", ex.Message, ct); }
@@ -120,7 +128,7 @@ public sealed class FaConsumptionService
         return tx;
     }
 
-    private async Task<FaMaterialPositionResult> VerifyMkStateAsync(FaConsumptionRequest request, decimal targetTotal, CancellationToken ct)
+    private async Task<FaMaterialPositionResult> VerifyMkStateAsync(FaConsumptionRequest request, decimal targetActualKg, CancellationToken ct)
     {
         FaMaterialPositionResult? last = null;
         // First read immediately, then three short read-only waits. The write is never repeated.
@@ -129,17 +137,17 @@ public sealed class FaConsumptionService
         {
             if (delayMs > 0) await Task.Delay(delayMs, ct);
             last = await _materials.FindUniqueAsync(request.OrderNo, request.Article, ct);
-            if (IsExactMkResult(last, request.MaterialPosition, targetTotal)) return last;
+            if (IsExactMkResult(last, request.MaterialPosition, targetActualKg)) return last;
         }
         return last ?? throw new InvalidOperationException("FA-Materialposition konnte nach der MK-Antwort nicht erneut gelesen werden.");
     }
 
-    internal static bool IsExactMkResult(FaMaterialPositionResult result, int position, decimal targetTotal) =>
+    internal static bool IsExactMkResult(FaMaterialPositionResult result, int position, decimal targetActualKg) =>
         result.MaterialPosition == position
-        && Math.Abs(result.ConsumedKg - targetTotal) < 0.0005m
+        && Math.Abs(result.ConsumedKg - targetActualKg) < 0.0005m
         && result.MaterialStatus == 9;
 
-    private async Task SubmitMkAsync(OxaionSession session, FaConsumptionRequest r, FaMaterialPositionResult current, decimal targetTotal, CancellationToken ct)
+    private async Task SubmitMkAsync(OxaionSession session, FaConsumptionRequest r, FaMaterialPositionResult current, decimal targetActualKg, CancellationToken ct)
     {
         var pos = r.MaterialPosition.ToString(CultureInfo.InvariantCulture);
         var penu = PersonnelService.ToOxaionPersonnelNumber(r.PersonnelNo);
@@ -170,7 +178,7 @@ public sealed class FaConsumptionService
                      ("ARPOSN", pos), ("ARPENU", penu), ("ARFIRM", _options.Firm), ("ARIDNK", r.Article),
                      ("I_ARIDNK", r.Article), ("I_TX_IDNK", r.Article), ("ARLAGO", r.TankWarehouse),
                      ("TX_LAGO", r.TankWarehouseText), ("ARLAPL", ""), ("ARPONR", r.TankBatch),
-                     ("ARVBME2", FormatQty(targetTotal)), ("ARBGDT", DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                     ("ARVBME2", FormatQty(targetActualKg)), ("ARBGDT", DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
                      ("ARVBMK", "KGM"), ("ARMEKZ", "KGM"), ("TX_INKT02", r.ArticleText), ("TX_IDNK02", r.ArticleText))) state[x.Key] = x.Value;
 
         var sn = await session.CallAsync("PW22031J", "*SNPFLICHT", state, ct);
@@ -191,8 +199,13 @@ public sealed class FaConsumptionService
             || string.IsNullOrWhiteSpace(r.TankWarehouse) || string.IsNullOrWhiteSpace(r.Article)
             || string.IsNullOrWhiteSpace(r.TankBatch) || string.IsNullOrWhiteSpace(r.OrderNo) || r.MaterialPosition <= 0)
             throw new ArgumentException("Operation, personnel, tank, article/batch, FA and material position are required.");
-        if (r.TankQuantityKg <= 0 || r.AdditionalConsumptionKg <= 0) throw new ArgumentException("Tank quantity and additional consumption must be > 0.");
-        if (r.AdditionalConsumptionKg > r.TankQuantityKg + 0.0005m) throw new ArgumentException("Additional consumption exceeds prepared tank stock.");
+        if (r.TankQuantityKg <= 0 || r.AdditionalConsumptionKg <= 0)
+            throw new ArgumentException("Tank quantity and actual consumption must be > 0.");
+        if (r.AdditionalConsumptionKg <= r.ExpectedConsumedKg + 0.0005m)
+            throw new ArgumentException("Actual consumption must be greater than the already booked consumption.");
+        var deltaKg = r.AdditionalConsumptionKg - r.ExpectedConsumedKg;
+        if (deltaKg > r.TankQuantityKg + 0.0005m)
+            throw new ArgumentException("The new consumption difference exceeds prepared tank stock.");
         if (!FaMaterialService.MkStatusAllowed(r.ExpectedMaterialStatus))
             throw new ArgumentException("Normal MK booking is allowed only for prepared material status 0, 1 or 8. MU is intentionally not implemented yet.");
     }
