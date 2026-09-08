@@ -9,6 +9,8 @@ public sealed class InventoryService
     private readonly string _connectionString;
     private readonly OxaionOptions _oxaion;
 
+    internal const CommandBehavior ReaderBehavior = CommandBehavior.Default;
+
     public InventoryService(IConfiguration configuration, IOptions<OxaionOptions> oxaion)
     {
         _connectionString = configuration["OxaionSql:ConnectionString"] ?? "";
@@ -121,7 +123,10 @@ ORDER BY
         command.CommandType = CommandType.Text;
         command.Parameters.Add("@firm", SqlDbType.NVarChar, 3).Value = _oxaion.Firm;
 
-        await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, ct);
+        // Do not use SequentialAccess here. The mapper addresses columns by name and therefore
+        // legitimately reads them in a different order than the SELECT projection. SequentialAccess
+        // caused the Android error "Spaltenordinalzahl 1 ... nur 3 oder größer".
+        await using var reader = await command.ExecuteReaderAsync(ReaderBehavior, ct);
         while (await reader.ReadAsync(ct))
         {
             var article = Text(reader, "Artikel");
