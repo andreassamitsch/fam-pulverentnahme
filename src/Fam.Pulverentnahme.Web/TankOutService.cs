@@ -58,10 +58,38 @@ public sealed class TankOutService
                 await _booking.BookAsync(tx, DateOnly.FromDateTime(DateTime.Today), request.PersonnelNo, request.PersonnelName,
                     "Pulver aus Tank auf Lagerplatz", specs, ct);
             }
-            catch (ProcessConflictException ex) { tx.Status = TransactionStatuses.Conflict; await SaveEventAsync(tx, "CONFLICT", ex.Message, ct); }
-            catch (OxaionRejectedException ex) { tx.Status = TransactionStatuses.Rejected; await SaveEventAsync(tx, "REJECTED", ex.Message, ct); }
-            catch (OxaionTransportException ex) { tx.Status = TransactionStatuses.Uncertain; await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct); }
-            catch (Exception ex) { tx.Status = TransactionStatuses.ManualReviewRequired; await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct); }
+            catch (ProcessConflictException ex)
+            {
+                tx.Status = TransactionStatuses.Conflict;
+                await SaveEventAsync(tx, "CONFLICT", ex.Message, ct);
+            }
+            catch (OxaionRejectedException ex)
+            {
+                if (string.IsNullOrWhiteSpace(tx.DocumentNo))
+                {
+                    tx.Status = TransactionStatuses.Rejected;
+                    await SaveEventAsync(tx, "REJECTED", ex.Message, ct);
+                }
+                else
+                {
+                    // Once a material document number exists, a later FCOD is not enough evidence
+                    // that no movement was persisted. Preserve the operation for reconciliation.
+                    tx.Status = TransactionStatuses.ManualReviewRequired;
+                    await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED",
+                        $"Oxaion hat den Vorgang nach Anlage des Belegs {tx.DocumentNo} abgelehnt: {ex.Code}. " +
+                        "Der Buchungsausgang wird deshalb nicht als sicher abgelehnt angenommen. Nicht erneut buchen; zuerst 'Status in Oxaion prüfen' verwenden.", ct);
+                }
+            }
+            catch (OxaionTransportException ex)
+            {
+                tx.Status = TransactionStatuses.Uncertain;
+                await SaveEventAsync(tx, "UNCERTAIN", ex.Message, ct);
+            }
+            catch (Exception ex)
+            {
+                tx.Status = TransactionStatuses.ManualReviewRequired;
+                await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED", ex.Message, ct);
+            }
             return tx;
         }
         finally { gate.Release(); }
