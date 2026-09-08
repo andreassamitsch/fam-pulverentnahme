@@ -20,7 +20,13 @@ Nullbestaende werden nicht angezeigt. Negative Bestaende bleiben sichtbar und we
 
 ## Verbindliche technische Entscheidung ab 08.09.2026
 
-Fuer diese **rein lesende Lagerbestandsansicht** wird der bereits vorhandene serverseitige SQL-Zugang wiederverwendet. Die Konfiguration bleibt aus Kompatibilitaetsgruenden `Syncos__ConnectionString`; derselbe SQL-Login kann neben der Syncos-Personalzuordnung auch die bestaetigten Oxaion-Lesetabellen erreichen.
+Fuer diese **rein lesende Lagerbestandsansicht** wird ein eigener serverseitiger SQL-Zugang zur Oxaion-Datenbank verwendet. Die Laufzeitkonfiguration lautet `OxaionSql__ConnectionString`.
+
+`OxaionSql__ConnectionString` ist bewusst von `Syncos__ConnectionString` getrennt:
+
+- `Syncos__ConnectionString` bleibt fuer Syncos-Personalwege wie RFID und Passwort-Fallback bestimmt.
+- `OxaionSql__ConnectionString` muss auf die richtige Oxaion-Datenbank zeigen und wird ausschliesslich fuer die hier dokumentierte lesende RP.*-Bestandsansicht verwendet.
+- Im STAGING-Startskript werden beide Connection Strings getrennt und verdeckt abgefragt, sofern sie nicht bereits als Umgebungsvariable gesetzt sind.
 
 Wichtig:
 
@@ -29,6 +35,7 @@ Wichtig:
 - Alle produktiven Materialbuchungen laufen weiterhin ausschliesslich ueber die bestaetigte Oxaion-Fachlogik/HTTP-Schnittstelle.
 - Firma wird als SQL-Parameter `@firm` aus `Oxaion__Firm` uebergeben und nicht fuer andere Firmen frei aus dem Browser gesetzt.
 - Connection String, Benutzer und Passwort verbleiben ausschliesslich im Backend/Runtime-Environment.
+- Der Connection String wird weder im Frontend noch in Health-Antworten oder Logs ausgegeben.
 
 ## Bestaetigte SQL-Sicht
 
