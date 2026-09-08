@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v19-separate-processes-live';
+const CACHE='fam-pulver-staging-v20-oxaion-sql-focus';
 const ASSETS=[
   '/',
   '/index.html',
@@ -9,6 +9,7 @@ const ASSETS=[
   '/app.js?v=20260904-scan-safety',
   '/article-colors.js?v=20260903-recognition-colors',
   '/process-mode.js?v=20260904-four-processes-1',
+  '/process-mode-focus-fix.js?v=20260908-focus-stable-1',
   '/personnel-auth.js?v=20260903-guided-worker',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
