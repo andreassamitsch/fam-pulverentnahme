@@ -12,20 +12,21 @@
         | HTTPS / REST / JSON
         v
 [ASP.NET Core Backend]
-        |                       \
-        | Oxaion HTTP            \ rein lesend: Personal/RFID/Passwort
-        v                         v
-[Oxaion Application Server]    [Syncos SQL]
+        |                 |                    |
+        | Oxaion HTTP     | Syncos SQL         | Oxaion SQL
+        | Buchung/ERP     | Personal read-only | RP.* Bestand read-only
+        v                 v                    v
+[Oxaion App Server]   [Syncos DB]          [Oxaion DB]
         |
         v
-[Oxaion DB]
+    [Oxaion DB]
 
 Optional, ausschliesslich fuer die WebApp:
 
 [WebApp Transaction DB]
 ```
 
-Syncos SQL wird in diesem Projekt nur fuer die bestaetigten rein lesenden Personalwege genutzt, derzeit RFID-Zuordnung und Passwort-Fallback. Oxaion bleibt fuer ERP-Stammdaten und Materialbuchungen fachlich fuehrend. Es gibt keine direkten Oxaion-Buchungen per SQL.
+Syncos SQL und Oxaion SQL sind getrennte serverseitige Laufzeitverbindungen. `Syncos__ConnectionString` wird fuer die bestaetigten rein lesenden Personalwege genutzt, derzeit RFID-Zuordnung und Passwort-Fallback. `OxaionSql__ConnectionString` wird ausschliesslich fuer die rein lesende RP.*-Lagerbestandsansicht verwendet und muss auf die richtige Oxaion-Datenbank zeigen. Oxaion bleibt fuer ERP-Stammdaten und Materialbuchungen fachlich fuehrend. Es gibt keine direkten Oxaion-Buchungen per SQL.
 
 ## Komponenten und Verantwortlichkeiten
 
@@ -50,7 +51,7 @@ Syncos SQL wird in diesem Projekt nur fuer die bestaetigten rein lesenden Person
 - klare Trennung zwischen lokalem Sync-Status und serverseitigem Buchungsstatus
 - kontrollierte Synchronisation nach Wiederherstellung der Backend-Verbindung
 - kontrollierte PWA-Aktualisierung ohne Datenverlust und ohne erzwungenen Reload waehrend kritischer Vorgaenge
-- keine Oxaion-Zugangsdaten, Syncos-Connection-Strings, Passworttransformationen, Buchungsschluessel oder vertrauenswuerdige Buchungslogik im Frontend
+- keine Oxaion-Zugangsdaten, Syncos-/Oxaion-SQL-Connection-Strings, Passworttransformationen, Buchungsschluessel oder vertrauenswuerdige Buchungslogik im Frontend
 - Nachfuellquellen werden nicht als freie Lagerort-/Lagerplatz-/Chargenschluessel eingegeben, sondern aus den vom Backend gelieferten aktuellen Oxaion-Bestandspositionen bestimmt
 - dieselbe Chargennummer darf auf mehreren unterschiedlichen positiven Bestandspositionen verwendet werden; Duplicate Prevention bezieht sich auf die exakte Kombination aus Lagerort, internem Lagerplatz und Charge
 
@@ -108,9 +109,10 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - eindeutige Zuordnung der `clientOperationId` zu einer serverseitigen Transaktion
 - serverseitige Idempotenz, Duplicate Prevention und Statusverwaltung
 - erneute fachliche Validierung nach Reconnect, bevor eine produktive Oxaion-Buchung erfolgt
-- Aufruf ausschliesslich freigegebener Oxaion HTTP-Schnittstellen
+- Aufruf ausschliesslich freigegebener Oxaion HTTP-Schnittstellen fuer schreibende ERP-Vorgaenge
 - sichere technische Protokollierung ohne Secrets
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
+- `GET /api/inventory/rp-stock`: rein lesende RP.*-Lagerbestandsansicht ueber die separate Laufzeitverbindung `OxaionSql__ConnectionString`; Details in `docs/INVENTORY_VIEW.md`
 - fuer den STAGING-Nachfuellprototyp: lesender Maschinenbestand aus der bestaetigten `LB30230R`-Auflistung `Chargen pro Lagerort`; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
 - der Maschinenbestand ist nicht von einem gespeicherten Oxaion-Filter abhaengig: das Backend liest die vollstaendige `LB30230R`-Liste des Lagerorts und wertet direkt die bestaetigte Bedingung `LLAWEP.LALABE != 0` aus
 - EFA01/EFA02 werden nach Artikelableitung ueber den bestaetigten Sachmerkmals-Leseweg geladen und als reine Erkennungshilfe an das Frontend geliefert
@@ -130,9 +132,18 @@ Der aktuelle bestaetigte Einsatz ist rein lesend:
 - RFID -> aktiver/sichtbarer `ITSUSER` -> `ObjectKey` als Personalnummer
 - Passwort-Fallback -> vorhandenes `ITSUSER.PASSWORD`
 
-Die SQL-Verbindung wird nur serverseitig als Laufzeit-Secret bereitgestellt. Der Browser erhaelt weder Connection String noch gespeicherten Passwortwert.
+Die Verbindung wird separat als `Syncos__ConnectionString` beziehungsweise fuer die Authentifizierung als `PersonnelAuthentication__ConnectionString` nur serverseitig als Laufzeit-Secret bereitgestellt. Der Browser erhaelt weder Connection String noch gespeicherten Passwortwert.
 
-Diese Integration ist keine Freigabe fuer Material-, ERP- oder sonstige Oxaion-Buchungen per SQL.
+### Oxaion SQL
+
+Der direkte SQL-Zugriff auf Oxaion ist auf genau die dokumentierte rein lesende Informationsfunktion begrenzt:
+
+- RP.*-Chargenbestaende aller Lagerorte und Lagerplaetze fuer die konfigurierte Firma
+- Connection String: `OxaionSql__ConnectionString`
+- separate Laufzeitverbindung zur richtigen Oxaion-Datenbank; keine Wiederverwendung des Syncos-Connection-Strings
+- keine `INSERT`, `UPDATE`, `DELETE`, `MERGE` oder andere schreibende ERP-Manipulationen
+
+Die SQL-Verbindung ist kein Ersatz fuer Oxaion HTTP/Fachlogik und darf nie fuer Materialbuchungen verwendet werden.
 
 ### Oxaion Application Server
 
@@ -145,7 +156,8 @@ Diese Integration ist keine Freigabe fuer Material-, ERP- oder sonstige Oxaion-B
 ### Oxaion-Datenbank
 
 - bleibt unter Kontrolle der Oxaion-Applikation
-- keine direkten ERP-Buchungen oder Tabellenmanipulationen durch die WebApp
+- die RP.*-Bestandsansicht darf die bestaetigten Tabellen rein lesend abfragen
+- keine direkten ERP-Buchungen, Bestandskorrekturen oder sonstigen Tabellenmanipulationen durch die WebApp
 
 ### Optionale WebApp Transaction DB
 
@@ -177,6 +189,8 @@ Das Backend liest sowohl Maschinenbestand als auch alle ausgewaehlten Nachfuellb
 
 Die aktuelle Personal-Anmeldung ist ebenfalls online: NFC benoetigt Syncos und Oxaion; der Passwort-Fallback benoetigt Oxaion und Syncos. Verhalten einer abgelaufenen Personal-Session waehrend spaeterer Offline-Prozesse ist weiterhin gesondert festzulegen.
 
+Die allgemeine RP.*-Bestandsansicht benoetigt online die separate Oxaion-SQL-Verbindung. Ein SQL-Ausfall ist kein Nachweis fuer Leerbestand und darf keine Buchungsentscheidung freigeben.
+
 Offline darf ein zuvor serverseitig bestaetigter Maschinenzustand nur nach den Regeln aus `docs/OFFLINE_PWA.md` verwendet werden. Insbesondere benoetigt er einen Abfragezeitpunkt und muss innerhalb einer noch festzulegenden maximalen Gueligkeitsdauer liegen. Die aktuelle Auswahl einer Nachfuellquelle aus Oxaion ist ein Online-Schritt; eine produktive Buchung wird offline nicht aus einem veralteten Quellenbestand freigegeben.
 
 Nach Wiederherstellung der Verbindung wird der aktuelle serverseitige Zustand erneut validiert. Ein Konflikt wird nicht automatisch aufgeloest oder ueberschrieben.
@@ -205,7 +219,8 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Kommunikation erfolgt produktiv verschluesselt per HTTPS; Web NFC benoetigt bereits technisch einen sicheren Kontext.
 - Secrets werden ueber eine noch festzulegende sichere Laufzeitkonfiguration bereitgestellt und niemals im Repository gespeichert.
 - Der Oxaion-Laufzeitbenutzer ist nicht fest im Anwendungscode konfiguriert; der STAGING-Starter fragt Benutzer und Passwort interaktiv ab.
-- Der STAGING-Starter verwendet denselben zur Laufzeit eingegebenen Syncos-Connection-String fuer RFID-Lookup und Passwort-Fallback, ohne ihn im Repository zu speichern.
+- Der STAGING-Starter fragt `Syncos__ConnectionString` und `OxaionSql__ConnectionString` getrennt und verdeckt ab, sofern sie nicht bereits als Umgebungsvariablen vorhanden sind.
+- `PersonnelAuthentication__ConnectionString` verwendet im STAGING-Starter denselben Syncos-Wert; der Oxaion-SQL-Wert wird nicht dafuer wiederverwendet.
 - PWA-Assets muessen mit einer kontrollierten Cache- und Versionsstrategie ausgeliefert werden.
 
 ## Integrationsgrenzen
@@ -213,6 +228,7 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Keine Oxaion-Endpunkte, Programme, Parameter, Tabellenlogik oder Buchungsschluessel werden ohne Bestaetigung angenommen.
 - Keine direkten ERP-Buchungen per SQL.
 - Syncos-SQL-Zugriff bleibt auf bestaetigte rein lesende Personalzwecke begrenzt.
+- Oxaion-SQL-Zugriff bleibt auf die dokumentierte rein lesende RP.*-Lagerbestandsansicht begrenzt.
 - Bei unklarem Buchungsergebnis bleibt der Vorgang offen beziehungsweise wird zur manuellen Pruefung markiert; er wird nicht blind wiederholt.
 - Offline erfasste Daten sind keine bestaetigten ERP-Buchungen.
 - Weitere konkrete Oxaion-Aufrufe, produktive Session-/Rolloutdetails und noch offene Offline-Grenzen sind in `docs/OPEN_POINTS.md` gefuehrt.
