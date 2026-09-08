@@ -1,4 +1,6 @@
 using Fam.Pulverentnahme.Web;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Fam.Pulverentnahme.Web.Tests;
@@ -39,5 +41,16 @@ public sealed class InventoryServiceTests
         Assert.Contains("Einheit", sql);
         Assert.Contains("Lagerplatz", sql);
         Assert.Contains("TRIM(X.Charge) AS Charge", sql);
+    }
+
+    [Fact]
+    public void InventoryServiceDoesNotReuseSyncosConnectionOptions()
+    {
+        var ctor = Assert.Single(typeof(InventoryService).GetConstructors());
+        var parameters = ctor.GetParameters().Select(p => p.ParameterType).ToArray();
+
+        Assert.Contains(typeof(IConfiguration), parameters);
+        Assert.Contains(typeof(IOptions<OxaionOptions>), parameters);
+        Assert.DoesNotContain(typeof(IOptions<SyncosOptions>), parameters);
     }
 }
