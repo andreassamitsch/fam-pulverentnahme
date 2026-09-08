@@ -1,3 +1,4 @@
+using System.Data;
 using Fam.Pulverentnahme.Web;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -41,6 +42,12 @@ public sealed class InventoryServiceTests
         Assert.Contains("Einheit", sql);
         Assert.Contains("Lagerplatz", sql);
         Assert.Contains("TRIM(X.Charge) AS Charge", sql);
+    }
+
+    [Fact]
+    public void InventoryReaderAllowsNamedColumnsInMapperOrder()
+    {
+        Assert.Equal(CommandBehavior.Default, InventoryService.ReaderBehavior);
     }
 
     [Fact]
