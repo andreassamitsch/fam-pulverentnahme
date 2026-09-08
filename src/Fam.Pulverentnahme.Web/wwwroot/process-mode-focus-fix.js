@@ -96,6 +96,14 @@
     if(panel)el(panel)?.classList.remove('hidden');
   }
 
+  function loadTargetLocationSelector(){
+    if(document.querySelector('script[data-target-location-selector]'))return;
+    const script=document.createElement('script');
+    script.src='/target-location.js?v=20260908-location-ajax-1';
+    script.dataset.targetLocationSelector='true';
+    document.head.appendChild(script);
+  }
+
   function install(){
     document.querySelectorAll('.processChoice').forEach(button=>{
       button.addEventListener('click',()=>{
@@ -108,6 +116,7 @@
     // captured above.
     window.refreshWorkerFlow=stableRefresh;
     stableRefresh();
+    loadTargetLocationSelector();
   }
 
   if(document.readyState==='loading'){
