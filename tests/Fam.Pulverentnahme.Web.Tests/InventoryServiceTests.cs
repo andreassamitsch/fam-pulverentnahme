@@ -7,6 +7,85 @@ namespace Fam.Pulverentnahme.Web.Tests;
 public sealed class InventoryServiceTests
 {
     [Fact]
+    public void BuildsConfirmedRpArticleSelectionForChargenJeFirma()
+    {
+        var fields = InventoryService.BuildRpArticleSelection("ANSA123");
+
+        Assert.Equal("ANSA123", fields["SSID"]);
+        Assert.Equal("IDNR.TLIDNR", fields["NAME"]);
+        Assert.Equal("RP.*", fields["V_TLIDNR"]);
+        Assert.Equal("", fields["B_TLIDNR"]);
+    }
+
+    [Fact]
+    public void ParsesFilteredCompanyBatchIndexToConcreteNonZeroRpArticles()
+    {
+        var xml = XDocument.Parse("""
+            <PARM><TABLE>
+              <ROW><KEY><POIDNR>RP.00010</POIDNR></KEY><IDNR.TLIDNR>RP.00010</IDNR.TLIDNR><IDNR.TLBEZG>AlSi10Mg</IDNR.TLBEZG><UPOWEP.POLABE>1024,389 KGM</UPOWEP.POLABE><_CALC.W_LAGO>FAMLAB, H04KDX</_CALC.W_LAGO></ROW>
+              <ROW><KEY><POIDNR>RP.00010</POIDNR></KEY><IDNR.TLIDNR>RP.00010</IDNR.TLIDNR><IDNR.TLBEZG>AlSi10Mg</IDNR.TLBEZG><UPOWEP.POLABE>149,574 KGM</UPOWEP.POLABE><_CALC.W_LAGO>EOS1</_CALC.W_LAGO></ROW>
+              <ROW><KEY><POIDNR>RP.00012</POIDNR></KEY><IDNR.TLIDNR>RP.00012</IDNR.TLIDNR><IDNR.TLBEZG>316L</IDNR.TLBEZG><UPOWEP.POLABE>-0,250 KGM</UPOWEP.POLABE></ROW>
+              <STOP />
+            </TABLE></PARM>
+            """);
+
+        InventoryService.ValidateFilteredRpArticleIndex(xml);
+        var rows = InventoryService.ParseRpArticleIndex(xml);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, r => r.Article == "RP.00010" && r.ArticleText == "AlSi10Mg");
+        Assert.Contains(rows, r => r.Article == "RP.00012" && r.ArticleText == "316L");
+    }
+
+    [Fact]
+    public void RejectsCompanyBatchIndexWhenRpFilterDidNotTakeEffect()
+    {
+        var xml = XDocument.Parse("""
+            <PARM><TABLE>
+              <ROW><KEY><POIDNR>RP.00010</POIDNR></KEY><UPOWEP.POLABE>1,000 KGM</UPOWEP.POLABE></ROW>
+              <ROW><KEY><POIDNR>VK.00001</POIDNR></KEY><UPOWEP.POLABE>1,000 KGM</UPOWEP.POLABE></ROW>
+              <STOP />
+            </TABLE></PARM>
+            """);
+
+        Assert.Throws<InvalidOperationException>(() => InventoryService.ValidateFilteredRpArticleIndex(xml));
+    }
+
+    [Fact]
+    public void RejectsCompanyBatchIndexWhenStockFilterDidNotTakeEffect()
+    {
+        var xml = XDocument.Parse("""
+            <PARM><TABLE>
+              <ROW><KEY><POIDNR>RP.00010</POIDNR></KEY><UPOWEP.POLABE>0,000 KGM</UPOWEP.POLABE></ROW>
+              <STOP />
+            </TABLE></PARM>
+            """);
+
+        Assert.Throws<InvalidOperationException>(() => InventoryService.ValidateFilteredRpArticleIndex(xml));
+    }
+
+    [Fact]
+    public void RejectsCompanyBatchIndexWithoutStop()
+    {
+        var xml = XDocument.Parse("""
+            <PARM><TABLE>
+              <ROW><KEY><POIDNR>RP.00010</POIDNR></KEY><UPOWEP.POLABE>1,000 KGM</UPOWEP.POLABE></ROW>
+            </TABLE></PARM>
+            """);
+
+        Assert.Throws<InvalidOperationException>(() => InventoryService.ValidateFilteredRpArticleIndex(xml));
+    }
+
+    [Fact]
+    public void ToleratesOnlyKnownSaveAllSelectionXmlParseFailure()
+    {
+        Assert.True(InventoryService.IsToleratedSaveAllSelectionNonXmlResponse(
+            new InvalidOperationException("Oxaion response was not valid XML.")));
+        Assert.False(InventoryService.IsToleratedSaveAllSelectionNonXmlResponse(
+            new InvalidOperationException("other")));
+    }
+
+    [Fact]
     public void ParsesMultipleRpArticlesFromOneWarehouseBinList()
     {
         var xml = XDocument.Parse("""
