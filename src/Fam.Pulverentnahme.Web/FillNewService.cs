@@ -81,11 +81,20 @@ public sealed class FillNewService
             }
             catch (OxaionRejectedException ex)
             {
-                tx.Status = TransactionStatuses.Rejected;
-                var message = string.IsNullOrWhiteSpace(tx.DocumentNo)
-                    ? ex.Message
-                    : $"{ex.Message} Oxaion-Beleg {tx.DocumentNo} wurde bereits angelegt; keine Materialbewegung ist dadurch automatisch bestätigt. Nicht blind erneut buchen, sondern den gespeicherten Vorgang prüfen.";
-                await SaveEventAsync(tx, "REJECTED", message, ct);
+                if (string.IsNullOrWhiteSpace(tx.DocumentNo))
+                {
+                    tx.Status = TransactionStatuses.Rejected;
+                    await SaveEventAsync(tx, "REJECTED", ex.Message, ct);
+                }
+                else
+                {
+                    // A later FCOD after KOBGNR exists cannot prove that no material movement was
+                    // persisted. Preserve the operation and force read-only reconciliation.
+                    tx.Status = TransactionStatuses.ManualReviewRequired;
+                    await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED",
+                        $"Oxaion hat den Vorgang nach Anlage des Belegs {tx.DocumentNo} abgelehnt: {ex.Code}. " +
+                        "Der Buchungsausgang wird deshalb nicht als sicher abgelehnt angenommen. Nicht erneut buchen; zuerst 'Status in Oxaion prüfen' verwenden.", ct);
+                }
             }
             catch (OxaionTransportException ex)
             {
