@@ -68,6 +68,7 @@ Der Prototyp blockiert bei `StagingOnly=true` Oxaion-Port `11108` und erwartet P
 - PWA-, Offline-, Outbox-, Sync- und Update-Regeln stehen in [`docs/OFFLINE_PWA.md`](docs/OFFLINE_PWA.md).
 - Fehler-, Retry- und Idempotenzregeln stehen in [`docs/ERROR_HANDLING.md`](docs/ERROR_HANDLING.md).
 - Der bestaetigte STAGING-Mix-Ablauf steht in [`docs/STAGING_REAL_MIX_PROTOTYPE.md`](docs/STAGING_REAL_MIX_PROTOTYPE.md).
+- Der manuelle Uebergangsprozess inklusive Papier-Zettel fuer Nachfuellen, FA-Verbrauch und Pulverwechsel steht in [`docs/MANUAL_TRANSITION_PROCESS.md`](docs/MANUAL_TRANSITION_PROCESS.md).
 - Ein kopierbarer Repository-first-Projektprompt steht in [`PROJECT_PROMPT.md`](PROJECT_PROMPT.md).
 
 Der Grundsatz lautet: Vor Antworten und Aenderungen zuerst den aktuellen Stand im Repository lesen und gezielt nach bereits vorhandenen Entscheidungen und Implementierungen suchen.
