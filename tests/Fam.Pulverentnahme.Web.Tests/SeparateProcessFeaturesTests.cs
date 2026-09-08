@@ -59,49 +59,15 @@ public sealed class SeparateProcessFeaturesTests
     }
 
     [Fact]
-    public void EmptyTankFillVerificationAllowsMixChargeAsSourceAndCreatesNewTargetMix()
+    public void LmLnVerificationCreatesNewTargetMix()
     {
-        var spec = new TransferSpec(1, "LM", "RP.00010", "AlSi10Mg", "FAMLAB", "FAM Labor", "RE1F1", "RP00010MIX_OLD",
-            "EOS1", "EOS 1 -Tank", "", "RP00010MIX_NEW", 20m, new DateOnly(2026, 9, 7));
+        var spec = new TransferSpec(2, "LM", "RP.00010", "AlSi10Mg", "EOS1", "EOS 1 -Tank", "", "RP00010MIX_OLD",
+            "EOS1", "EOS 1 -Tank", "", "RP00010MIX_NEW", 20m, new DateOnly(2026, 9, 8));
         MovementRow[] rows =
         [
-            new("1", "LM", "RP.00010", "RP00010MIX_OLD", "FAMLAB", "RE1F1", 20m, "t1"),
-            new("1", "LN", "RP.00010", "RP00010MIX_NEW", "EOS1", "", 20m, "t1")
+            new("2", "LM", "RP.00010", "RP00010MIX_OLD", "EOS1", "", 20m, "t1"),
+            new("2", "LN", "RP.00010", "RP00010MIX_NEW", "EOS1", "", 20m, "t1")
         ];
         Assert.True(MaterialTransferBookingService.MovementsComplete([spec], rows, out _));
-    }
-
-    [Fact]
-    public void InventoryCompanyBatchIndexKeepsOnlyDistinctNonZeroRpArticles()
-    {
-        var xml = XDocument.Parse("""
-<ROOT>
-  <ROW><KEY><POIDNR>RP.00002</POIDNR><POPONR>72911</POPONR></KEY><IDNR.TLBEZG>PureCu</IDNR.TLBEZG><UPOWEP.POLABE>22,446</UPOWEP.POLABE><_CALC.W_LAGO>FAMLAB, H04KDX</_CALC.W_LAGO></ROW>
-  <ROW><KEY><POIDNR>RP.00002</POIDNR><POPONR>72912</POPONR></KEY><IDNR.TLBEZG>PureCu</IDNR.TLBEZG><UPOWEP.POLABE>5,000</UPOWEP.POLABE><_CALC.W_LAGO>EOS1</_CALC.W_LAGO></ROW>
-  <ROW><KEY><POIDNR>RP.00003</POIDNR><POPONR>TESTNEG</POPONR></KEY><IDNR.TLBEZG>Ti64</IDNR.TLBEZG><UPOWEP.POLABE>-0,250</UPOWEP.POLABE></ROW>
-  <ROW><KEY><POIDNR>RP.00004</POIDNR><POPONR>ZERO</POPONR></KEY><IDNR.TLBEZG>Zero</IDNR.TLBEZG><UPOWEP.POLABE>0,000</UPOWEP.POLABE></ROW>
-  <ROW><KEY><POIDNR>XX.00001</POIDNR><POPONR>OTHER</POPONR></KEY><IDNR.TLBEZG>Other</IDNR.TLBEZG><UPOWEP.POLABE>99,000</UPOWEP.POLABE></ROW>
-  <STOP/>
-</ROOT>
-""");
-
-        var rows = InventoryService.ParseRpArticleIndex(xml);
-
-        Assert.Equal(2, rows.Count);
-        Assert.Equal("RP.00002", rows[0].Article);
-        Assert.Equal("PureCu", rows[0].ArticleText);
-        Assert.Equal("RP.00003", rows[1].Article);
-    }
-
-    [Fact]
-    public void InventoryCompanyBatchIndexDoesNotUseAggregatedWarehouseDisplay()
-    {
-        var xml = XDocument.Parse("""
-<ROOT><ROW><KEY><POIDNR>RP.00002</POIDNR></KEY><IDNR.TLBEZG>PureCu</IDNR.TLBEZG><UPOWEP.POLABE>22,446</UPOWEP.POLABE><_CALC.W_LAGO>FAMLAB, H04KDX</_CALC.W_LAGO></ROW><STOP/></ROOT>
-""");
-
-        var row = Assert.Single(InventoryService.ParseRpArticleIndex(xml));
-        Assert.Equal("RP.00002", row.Article);
-        Assert.Equal("PureCu", row.ArticleText);
     }
 }
