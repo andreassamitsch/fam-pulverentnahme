@@ -64,6 +64,23 @@ Die Anzeige `Mix Charge erstellt am` zeigt den Erzeugungszeitpunkt. Fuer das bis
 
 Editierbare Pflichtfelder werden optisch deutlich von automatisch aus Oxaion beziehungsweise aus Prozessregeln abgeleiteten Informationsfeldern getrennt. Nicht nutzbare Kind-Dropdowns werden bis zur Wahl des Elternfelds ausgeblendet.
 
+## Manueller Uebergangsprozess bis zur produktiven App
+
+Bis der produktive App-Ablauf die Oxaion-Buchung uebernimmt, soll die Produktion den Nachfuellvorgang schriftlich mit moeglichst denselben Bedienerangaben erfassen, die spaeter auch in der App bewusst ausgewaehlt oder eingegeben werden. Systemdaten werden nicht zusaetzlich von der Produktion verlangt.
+
+Verbindlich gilt fuer die Produktion beim manuellen Nachfuellen:
+
+- Die Produktion muss die auf der Maschine vorhandene alte Mix-Charge nicht kennen oder aufschreiben.
+- Die Produktion muss den aktuellen Oxaion-Tankbestand nicht ermitteln oder aufschreiben.
+- Artikelbezeichnung, neue Mix-Charge, Buchungsdatum und Buchungstext sind ebenfalls keine zusaetzlichen manuellen Produktionsangaben.
+- Die Produktionsleitung ermittelt beim spaeteren manuellen Buchen zuerst den aktuellen beziehungsweise fuer den Vorgang massgeblichen Oxaion-Maschinenbestand und daraus insbesondere alte Mix-Charge und Tankbestand.
+- Die neue Mix-Charge wird bei der manuellen Buchung nach dem verbindlichen Mix-Chargenschema erzeugt.
+- Die schriftliche Uebergabe der Produktion soll nur die fachlich notwendigen Bediener-/Bewegungsdaten enthalten: Personalnummer, Fertigungsauftrag beziehungsweise die im FA-Kontext benoetigten Identifikationsdaten, tatsaechlich verwendete Maschine sowie je verwendeter Nachfuellquelle Lagerort/Lagerplatz soweit fuer die Produktion eindeutig erkennbar, Charge und eingefuellte Menge.
+- Werden mehrere Nachfuellchargen verwendet, wird jede tatsaechlich verwendete Quelle mit ihrer Menge einzeln dokumentiert.
+- Die Produktionsleitung ergaenzt die fuer die Oxaion-Buchung erforderlichen Systemdaten und kennzeichnet den Vorgang nach erfolgreicher Buchung eindeutig als gebucht, damit keine Doppelbuchung entsteht.
+
+Ziel dieses Uebergangsprozesses ist ausdruecklich, keine zusaetzliche Parallel-Datenerfassung fuer die Produktion aufzubauen, die spaeter mit Einfuehrung der App wieder entfaellt.
+
 ## Backend-Sicherheitsregeln
 
 Vor einer neuen Materialbuchung bestaetigt das Backend weiterhin Maschinenbestand, Mitarbeiter und jede Nachfuellquelle erneut. Bei der Mitarbeiterpruefung wird die ausgewaehlte Personalnummer ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` exakt gelesen; danach werden `PEPENU` und `PEPENA` gegen die Browserauswahl geprueft. Die freie `US14090J *SEARCH`-Suche ist fuer diese Sicherheitspruefung nicht ausreichend. Zusaetzlich werden Ziel=Maschine, Ausschluss des Maschinenlagers als Quelle, dynamischer Buchungstext, aktuelles Buchungs-/Erstellungsdatum und Mix-Chargenschema serverseitig geprueft. Bei Abweichungen wird keine schreibende Oxaion-Materialbuchung gestartet.
