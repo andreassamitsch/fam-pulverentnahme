@@ -70,12 +70,19 @@ public sealed class FaConsumptionService
                 tx.Status = TransactionStatuses.SendingToOxaion;
                 await SaveEventAsync(tx, "MK_SUBMITTING", $"Submitting additional {request.AdditionalConsumptionKg:0.###} kg to FA {request.OrderNo}, material position {request.MaterialPosition}.", ct);
                 await SubmitMkAsync(session, request, current, tx.TargetFaConsumedKg!.Value, ct);
+                await SaveEventAsync(tx, "MK_RESPONSE_RECEIVED",
+                    "Oxaion hat die MK-Anfrage ohne FCOD beantwortet. Die Materialposition wird jetzt ausschließlich lesend in frischen Oxaion-Sessions verifiziert.", ct);
 
-                var verified = await _materials.FindUniqueAsync(session, request.OrderNo, request.Article, ct);
-                if (verified.MaterialPosition != request.MaterialPosition
-                    || Math.Abs(verified.ConsumedKg - tx.TargetFaConsumedKg.Value) >= 0.0005m
-                    || verified.MaterialStatus != 9)
-                    throw new InvalidOperationException($"MK response returned, but final material-position verification is not exact. Current consumed {verified.ConsumedKg:0.###} kg, status {verified.MaterialStatus} {verified.MaterialStatusText}. Do not rebook blindly.");
+                // The successful reference trace proves the final ERP state through PW20201J *READ.
+                // A just-finished write can become visible slightly later than the HTTP response, so
+                // retry only the read. Never repeat PW22031J *PUTNEW here.
+                var verified = await VerifyMkStateAsync(request, tx.TargetFaConsumedKg.Value, ct);
+                if (!IsExactMkResult(verified, request.MaterialPosition, tx.TargetFaConsumedKg.Value))
+                    throw new InvalidOperationException(
+                        $"Oxaion hat auf die MK-Buchung geantwortet, der erwartete Endzustand konnte danach aber nicht eindeutig bestätigt werden. " +
+                        $"Aktuell: Materialposition {verified.MaterialPosition}, tatsächlich gebucht {verified.ConsumedKg:0.###} kg, " +
+                        $"Status {verified.MaterialStatus} {verified.MaterialStatusText}. Nicht erneut buchen. Zuerst 'Status in Oxaion prüfen' verwenden und bei weiter unklarem Zustand die Produktionsleitung informieren.");
+
                 tx.Status = TransactionStatuses.Success;
                 await SaveEventAsync(tx, "SUCCESS", $"FA {request.OrderNo}, material position {request.MaterialPosition}: consumed quantity verified at {verified.ConsumedKg:0.###} kg, status 9.", CancellationToken.None);
             }
@@ -113,6 +120,25 @@ public sealed class FaConsumptionService
         return tx;
     }
 
+    private async Task<FaMaterialPositionResult> VerifyMkStateAsync(FaConsumptionRequest request, decimal targetTotal, CancellationToken ct)
+    {
+        FaMaterialPositionResult? last = null;
+        // First read immediately, then three short read-only waits. The write is never repeated.
+        int[] delaysMs = [0, 250, 750, 1500];
+        foreach (var delayMs in delaysMs)
+        {
+            if (delayMs > 0) await Task.Delay(delayMs, ct);
+            last = await _materials.FindUniqueAsync(request.OrderNo, request.Article, ct);
+            if (IsExactMkResult(last, request.MaterialPosition, targetTotal)) return last;
+        }
+        return last ?? throw new InvalidOperationException("FA-Materialposition konnte nach der MK-Antwort nicht erneut gelesen werden.");
+    }
+
+    internal static bool IsExactMkResult(FaMaterialPositionResult result, int position, decimal targetTotal) =>
+        result.MaterialPosition == position
+        && Math.Abs(result.ConsumedKg - targetTotal) < 0.0005m
+        && result.MaterialStatus == 9;
+
     private async Task SubmitMkAsync(OxaionSession session, FaConsumptionRequest r, FaMaterialPositionResult current, decimal targetTotal, CancellationToken ct)
     {
         var pos = r.MaterialPosition.ToString(CultureInfo.InvariantCulture);
@@ -149,6 +175,12 @@ public sealed class FaConsumptionService
 
         var sn = await session.CallAsync("PW22031J", "*SNPFLICHT", state, ct);
         OxaionSession.AssertNoFcod(sn);
+        var tcode = FirstText(sn.Xml, "TCODE");
+        if (!string.Equals(tcode, "ELSE", StringComparison.Ordinal))
+            throw new ProcessConflictException(
+                $"Oxaion fordert vor der MK-Buchung einen nicht bestätigten Zusatzdialog an (TCODE={tcode}). " +
+                "Es wurde keine PW22031J *PUTNEW-Buchung gesendet. Vorgang in Oxaion prüfen.");
+
         var put = await session.CallAsync("PW22031J", "*PUTNEW", state, ct);
         OxaionSession.AssertNoFcod(put);
     }
@@ -170,5 +202,6 @@ public sealed class FaConsumptionService
     private static Dictionary<string, string> Dict(params (string Key, string Value)[] values) => values.ToDictionary(x => x.Key, x => x.Value ?? "", StringComparer.Ordinal);
     private static Dictionary<string, string> Merge(IReadOnlyDictionary<string, string> a, IReadOnlyDictionary<string, string> b)
     { var r = new Dictionary<string, string>(a, StringComparer.Ordinal); foreach (var x in b) r[x.Key] = x.Value ?? ""; return r; }
+    private static string FirstText(XDocument xml, string name) => xml.Descendants(name).FirstOrDefault()?.Value.Trim() ?? "";
     private static string FormatQty(decimal v) => v.ToString("0.000", CultureInfo.GetCultureInfo("de-AT"));
 }
