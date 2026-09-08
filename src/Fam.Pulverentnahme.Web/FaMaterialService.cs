@@ -103,7 +103,9 @@ public sealed class FaMaterialService
     }
 
     public static bool MkStatusAllowed(int status) => status is 0 or 1 or 8;
-    public static decimal TargetConsumed(decimal alreadyConsumed, decimal additional) => alreadyConsumed + additional;
+
+    // The second value is the operator-entered actual total consumption. It is not added to AMMATV.
+    public static decimal TargetConsumed(decimal alreadyConsumed, decimal actualConsumption) => actualConsumption;
 
     internal static decimal ParseQty(string value)
     {
