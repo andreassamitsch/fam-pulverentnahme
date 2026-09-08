@@ -17,6 +17,7 @@ public static class SeparateProcessFeatureExtensions
         services.AddSingleton<FaMaterialService>();
         services.AddSingleton<FaConsumptionService>();
         services.AddSingleton<InventoryService>();
+        services.AddSingleton<TargetLocationLookupService>();
         return services;
     }
 
@@ -47,6 +48,32 @@ public static class SeparateProcessFeatureExtensions
         {
             if (!SessionAuthenticated(http, out var auth)) return auth!;
             try { return Results.Ok(await service.ReadRpStockAsync(ct)); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/target-locations/warehouses", async (
+            string? q,
+            string? excludeWarehouse,
+            HttpContext http,
+            TargetLocationLookupService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.SearchWarehousesAsync(q, excludeWarehouse, ct)); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/target-locations/storage-bins", async (
+            string warehouse,
+            string? q,
+            HttpContext http,
+            TargetLocationLookupService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.SearchStorageBinsAsync(warehouse, q, ct)); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
             catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
         });
 
