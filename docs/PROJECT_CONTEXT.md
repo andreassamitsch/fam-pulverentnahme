@@ -23,7 +23,7 @@ Die WebApp soll mit Oxaion kommunizieren. Das Frontend bleibt bewusst einfach. K
 
 Die WebApp schreibt nicht direkt auf die Oxaion-Datenbank.
 
-Grundsaetzlicher Kommunikationsweg:
+Grundsaetzlicher Kommunikationsweg fuer ERP-Fachlogik und Buchungen:
 
 ```text
 Android Webbrowser / PWA
@@ -34,6 +34,19 @@ Android Webbrowser / PWA
 ```
 
 Fuer Materialbuchungen soll nach Moeglichkeit die vorhandene Oxaion BDE-/PPS-Logik ueber die HTTP-Schnittstelle verwendet werden.
+
+### Rein lesende Oxaion-SQL-Lagerbestandsansicht
+
+Fuer die allgemeine Informationsansicht der RP.*-Chargenbestaende ist ab 08.09.2026 ein direkter **rein lesender** SQL-Zugriff des Backends auf die Oxaion-Datenbank freigegeben. Diese Ausnahme gilt nur fuer die in `docs/INVENTORY_VIEW.md` dokumentierte Bestandsabfrage und ist keine Freigabe fuer ERP-Buchungen per SQL.
+
+Verbindlich:
+
+- eigene Laufzeitkonfiguration `OxaionSql__ConnectionString` fuer die Oxaion-Datenbank;
+- `Syncos__ConnectionString` bleibt davon getrennt und wird fuer Syncos-Personalwege verwendet;
+- der Oxaion-SQL-Connection-String muss beim STAGING-Start auf die richtige Oxaion-Datenbank gesetzt beziehungsweise verdeckt eingegeben werden;
+- Connection Strings und Zugangsdaten bleiben ausschliesslich im Backend/Runtime-Environment und werden weder im Frontend noch im Repository gespeichert;
+- Oxaion-SQL-Zugriff fuer die PWA bleibt auf `SELECT`/rein lesende Bestandsinformation begrenzt;
+- Materialbuchungen, Bestandskorrekturen und sonstige ERP-Aenderungen laufen weiterhin ausschliesslich ueber Oxaion-Fachlogik/HTTP.
 
 ## PWA und Offline-Faehigkeit
 
@@ -58,6 +71,8 @@ Der Bediener soll moeglichst wenige, klar verstaendliche Hauptfunktionen sehen. 
 
 1. Pulver nachfuellen
 2. Pulver tauschen
+
+Die neuere Aufteilung in separate sichtbare Vorgaenge ist in `docs/SEPARATE_TANK_PROCESSES.md` verbindlich detailliert und ersetzt fuer den aktuellen Entwicklungsstand diese aeltere Zweier-Kurzliste.
 
 ## 1. Pulver nachfuellen / Pulver fuer Fertigungsauftrag vorbereiten
 
@@ -182,6 +197,8 @@ Verbindlich:
 - Backend-Health, Roh-JSON, interne Mix-Daten und Fehler-Simulationen sind Dev-Informationen.
 - Fachlich notwendige Recovery-/Fehlermassnahmen duerfen nicht als Dev-Info verborgen werden.
 - Der Schalter `Dev-Infos` veraendert ausschliesslich die Sichtbarkeit und niemals Authentifizierung, Backend-Pruefungen, Oxaion-Buchungen, Idempotenz oder Recovery-Regeln.
+- Ein einmal bewusst ausgewaehlter Vorgang bleibt bei normalen UI-/Status-Refreshes aktiv. Ein Refresh darf den Bediener nicht wieder zu `Vorgang auswählen` zurueckwerfen oder den Fokus wiederholt aus dem aktuellen Arbeitsschritt ziehen.
+- Eine voruebergehende Session-/Auth-Neubestaetigung darf den gewaehlten Vorgang fuer dieselbe Person nur voruebergehend ausblenden, nicht verwerfen. Meldet sich eine andere Person an, muss die vorherige Vorgangsauswahl aus Sicherheitsgruenden neu getroffen werden.
 
 Der verbindliche Mitarbeiterablauf ist:
 
@@ -401,6 +418,8 @@ Die Oberflaeche soll fuer Produktionsmitarbeiter moeglichst einfach sein. Die be
 - Pulver nachfuellen
 - Pulver tauschen
 
+Die aktuelle separate Prozessauswahl ist in `docs/SEPARATE_TANK_PROCESSES.md` beschrieben.
+
 Im Normalfall gibt es so wenig manuelle Eingaben wie moeglich. Daten werden bevorzugt aus QR-Codes, NFC, Oxaion und dem vorhandenen Maschinentankbestand ermittelt. Manuelle Eingaben sind nur vorgesehen, wo sie fachlich wirklich notwendig sind. Nicht editierbare Systeminformationen werden optisch klar von wichtigen Eingabefeldern getrennt.
 
 Der aktuelle Mitarbeitermodus ist schrittgefuehrt und blendet nicht benoetigte technische Informationen standardmaessig aus. `Dev-Infos` kann dieselben technischen Informationen fuer Entwicklung und Diagnose auf derselben Seite sichtbar machen, ohne die fachliche Logik zu veraendern.
@@ -408,6 +427,7 @@ Der aktuelle Mitarbeitermodus ist schrittgefuehrt und blendet nicht benoetigte t
 Fuer den aktuellen Nachfuellablauf bedeutet das insbesondere:
 
 - Mitarbeiter bevorzugt per NFC anmelden; ohne NFC Personalnummer und SYNCOS-Passwort verwenden.
+- Vorgang `Pulver nachfuellen` bewusst auswaehlen; die Auswahl bleibt waehrend normaler Refreshes stabil.
 - Maschinentank physisch per QR scannen.
 - Artikel-Erkennungsfarben und bekannte passende Lagerorte/Lagerplaetze als Suchhilfe anzeigen.
 - Nachfuellcharge physisch per QR scannen.
