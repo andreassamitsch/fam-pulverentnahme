@@ -37,14 +37,15 @@ if ([string]::IsNullOrWhiteSpace($syncosConnectionString)) {
 $oxaionSqlConnectionString = $env:OxaionSql__ConnectionString
 if ([string]::IsNullOrWhiteSpace($oxaionSqlConnectionString)) {
     Write-Host ""
-    Write-Host "Fuer die RP.* Lagerbestandsansicht wird eine separate, rein lesende SQL-Verbindung zur richtigen Oxaion STAGING Datenbank benoetigt." -ForegroundColor Cyan
+    Write-Host "Fuer die RP.* Lagerbestandsansicht und die rein lesende Ziel-Lagerort/Lagerplatz-Suche wird eine separate SQL-Verbindung zur richtigen Oxaion STAGING Datenbank benoetigt." -ForegroundColor Cyan
+    Write-Host "Diese Verbindung wird nur fuer SELECT-Abfragen verwendet; Materialbuchungen laufen weiterhin ueber Oxaion HTTP/Fachlogik." -ForegroundColor DarkGray
     Write-Host "Bitte den vollstaendigen Oxaion SQL-Connection-String eingeben/einfuegen. Die Eingabe wird nicht angezeigt." -ForegroundColor DarkGray
-    $secureOxaionSql = Read-Host "OXAION STAGING SQL connection string (read-only inventory)" -AsSecureString
+    $secureOxaionSql = Read-Host "OXAION STAGING SQL connection string (read-only)" -AsSecureString
     $oxaionSqlCredential = New-Object System.Management.Automation.PSCredential("oxaion-sql", $secureOxaionSql)
     $oxaionSqlConnectionString = $oxaionSqlCredential.GetNetworkCredential().Password
 }
 if ([string]::IsNullOrWhiteSpace($oxaionSqlConnectionString)) {
-    throw "Oxaion SQL connection string must not be empty for the RP.* inventory view."
+    throw "Oxaion SQL connection string must not be empty for the read-only inventory and target-location lookups."
 }
 
 try {
@@ -59,7 +60,7 @@ try {
     Write-Host "Keine lokale .NET-Installation erforderlich." -ForegroundColor DarkGray
     Write-Host "Oxaion HTTP: http://oxapp.cnc-domain.fuchshofer:11118 / Firma 103 / User $oxaionUser" -ForegroundColor DarkGray
     Write-Host "Syncos RFID + Passwortpruefung: konfiguriert" -ForegroundColor DarkGray
-    Write-Host "Oxaion SQL Lagerbestandsansicht: konfiguriert (read-only)" -ForegroundColor DarkGray
+    Write-Host "Oxaion SQL Bestand + Zielortsuche: konfiguriert (read-only)" -ForegroundColor DarkGray
     Write-Host "WebApp lokal: http://localhost:$Port" -ForegroundColor Green
     Write-Host "Android/PWA mit Web NFC: HTTPS ist erforderlich. Manueller Login kann in STAGING auch ueber HTTP getestet werden." -ForegroundColor Yellow
     Write-Host ""
