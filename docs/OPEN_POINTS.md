@@ -2,6 +2,20 @@
 
 Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details duerfen nicht erfunden oder ohne Bestaetigung als Implementierungsgrundlage verwendet werden.
 
+## Aktueller STAGING-Korrekturstand 08.09.2026
+
+Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/STAGING_TEST_FIXES_2026-09-08.md`.
+
+- [x] Ziel-Lagerort und interner Ziel-Lagerplatz fuer `Pulver aus Tank auslagern` werden per AJAX aus serverseitig rein lesenden Oxaion-SQL-Treffern ausgewaehlt; frei getippter Text wird nicht als kanonischer Buchungsschluessel uebernommen. Die wirksame LF-Buchung validiert Lagerort und Lagerplatz weiterhin unmittelbar vor dem Schreiben ueber die bestaetigten Oxaion-F4-Wege `US16601R` beziehungsweise `LB13210R`.
+- [x] Die bisher nur fuer die RP.*-Bestandsansicht dokumentierte Oxaion-SQL-Ausnahme wurde fuer diese spezifische rein lesende Zielort-/Lagerplatzsuche erweitert. SQL bleibt eine Bedienhilfe; Materialbuchungen erfolgen weiterhin ausschliesslich ueber Oxaion HTTP/Fachlogik.
+- [x] `BEL1422` bei der ersten LF-Position eines leeren Materialbelegs technisch behoben: `BookAsync` und `BookFillNewAsync` verwenden fuer Position 1 den aus dem erfolgreichen JET-Mitschnitt bestaetigten `LB20115J *LOAD/*NEW`-First-LF-Ablauf.
+- [x] RP.*-Lagerbestand: `CommandBehavior.SequentialAccess` entfernt, weil die Mapper-Spalten per Namen ausserhalb strenger Projektionsreihenfolge gelesen werden. `CommandBehavior.Default` verhindert den im Android-Test beobachteten Spaltenordinalfehler.
+- [x] FA-MK-Endpruefung verschaerft: vor `PW22031J *PUTNEW` wird der bestaetigte `TCODE=ELSE`-Zustand verlangt; nach `PUTNEW` wird nur lesend und begrenzt erneut geprueft. Die MK-Buchung selbst wird dabei niemals wiederholt.
+- [ ] Tankauslagerung mit AJAX-ausgewaehltem Ziel bis zur erfolgreichen LF/LE-Verifikation erneut live in STAGING bestaetigen.
+- [ ] Neue Tankbefuellung mit der kombinierten Ein-Beleg-Kette `LF/LE -> LM/LN` nach dem First-LF-Fix erneut live in STAGING bestaetigen.
+- [ ] FA-MK-Buchung mit `TCODE=ELSE`-Gate und verzoegerter rein lesender Endzustandspruefung erneut live in STAGING bestaetigen.
+- [ ] RP.*-Lagerbestandsansicht auf Android nach dem SQL-Reader-Fix erneut live bestaetigen.
+
 ## Oxaion-Integration
 
 - [x] HTTP-Buchungsfolge fuer den getesteten Vorgang `alte Mix-Charge + neue Pulvercharge -> neue Mix-Charge` bestaetigt und im STAGING-Prototyp umgesetzt; Details siehe `docs/STAGING_REAL_MIX_PROTOTYPE.md`
@@ -32,13 +46,14 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [ ] NFC-Login im kombinierten Stand mit direkt gesetzter Backend-Personal-Session nach der bereits bestaetigten RFID-/Oxaion-Pruefung nochmals live bestaetigen.
 - [ ] Zusaetzlich mindestens einen realen Syncos-RFID-Wert mit Buchstaben `A-F` im End-to-End-Test bestaetigen; die Implementierung behandelt RFID bereits verbindlich als alphanumerischen String ohne Hex-Konvertierung.
 - [ ] Sperrfreigabe nach erfolgreicher Abschlussverifikation live bestaetigen: am 02.09.2026 blieb der von der App erfolgreich gebuchte Lagerbeleg nach dem erneuten `*OPEN` zur Verifikation gesperrt. Der Backend-Fix sendet nach der finalen `FIRSTLIST`-Pruefung ein zweites explizites `LB20100J *END` und setzt erst danach `SUCCESS`. Der erfolgreiche 3-Positions-Test vom 04.09.2026 bestaetigt, dass das explizite Schliessen ohne Fehler zurueckkam; weiterhin separat pruefen, dass der Beleg unmittelbar danach im Oxaion-Dialog tatsaechlich nicht mehr gesperrt ist.
-- [ ] Konkrete Oxaion HTTP-Aufrufe fuer die noch fehlenden Materialbuchungen identifizieren, insbesondere FA-Materialrueckmeldung und Pulverwechsel/Ruecklagerung
-- [ ] Konkretes Oxaion BDE-/PPS-Programm fuer die spaetere FA-Materialrueckmeldung identifizieren
-- [ ] Oxaion Buchungsschluessel Maschinenlager -> Pulverlager fuer den Pulverwechsel ermitteln
-- [ ] Oxaion Buchungsschluessel Pulverlager -> Maschine fuer noch nicht durch den bestaetigten Mix-Ablauf abgedeckte Faelle ermitteln
+- [x] Normale FA-Materialrueckmeldung `MK` technisch identifiziert und im Backend umgesetzt: `PW22000J`/`PW22031J`, Pre-Write-Revalidierung von Tank, `AMMATV` und `AMMPST`, Statusgate 0/1/8 und exakte Endzustandspruefung. Details siehe `docs/FA_CONSUMPTION_PROCESS.md` und `docs/STAGING_TEST_FIXES_2026-09-08.md`.
+- [ ] Vollstaendig erfolgreichen `MU`-Mitschnitt aufnehmen und Pflichtfelder/Recovery bestaetigen, bevor ungeplanter Materialverbrauch schreibend implementiert wird.
+- [x] Tanklager -> Pulverlager fuer den bestaetigten Tankauslagerungsfall technisch als `LF` mit automatisch erzeugter `LE`-Gegenbewegung identifiziert; Position 1 verwendet den bestaetigten First-LF-Ablauf.
+- [x] Pulverlager -> leerer Tank fuer die erste Befuellposition technisch als `LF` mit automatisch erzeugter `LE`-Gegenbewegung identifiziert; die Charge bleibt in diesem ersten Schritt erhalten.
+- [ ] Kombinierte Neubefuellung `LF/LE -> LM/LN` in einem Beleg nach dem First-LF-Fix live End-to-End bestaetigen; danach bei Mehrfachquellen Position 3 ff. ebenfalls live bestaetigen.
 - [x] Chargenumbuchung fuer den getesteten Nachfuell-/Mix-Vorgang mit `LM` und automatisch erzeugtem `LN` bestaetigt
 - [x] Geeignete WebApp-/Backend-Transaktionsreferenz fuer den STAGING-Prototyp in den vorhandenen Oxaion-Freitextfeldern dokumentiert; finale produktive Referenz-/Suchstrategie noch bewerten
-- [x] Belastbare Ergebnisabfrage fuer den getesteten Mix-Beleg ueber erneutes Oeffnen und `LB20110R *FIRSTLIST` umgesetzt; fuer andere Buchungsarten weiterhin offen
+- [x] Belastbare Ergebnisabfrage fuer den getesteten Mix-Beleg ueber erneutes Oeffnen und `LB20110R *FIRSTLIST` umgesetzt; fuer die FA-MK-Buchung bleibt mangels eindeutiger WebApp-Transaktionsreferenz bei unklarem Ausgang weiterhin manuelle Klaerung erforderlich.
 - [x] Bewusster neuer Versuch nach eindeutigem `REJECTED` umgesetzt: neue `clientOperationId`, identische Buchungsdaten und Verknuepfung ueber `retryOfClientOperationId`; kein Retry derselben abgelehnten Transaktion
 
 ## Fachliche Entscheidungen
