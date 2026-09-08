@@ -59,6 +59,7 @@
             <b id="headerPersonnelMenuName"></b>
           </div>
         </div>
+        <div id="headerPersonnelMenuHint" class="headerPersonnelMenuHint hidden"></div>
         <button id="headerPersonnelLogout" class="secondary" type="button">Abmelden</button>`;
       document.body.appendChild(menu);
     }
@@ -79,15 +80,17 @@
           alert('Dieser Vorgang ist noch offen. Zuerst Buchungsstatus klären.');
           return;
         }
-        const hasPreparedInput=document.body.classList.contains('processShellProcess')||Boolean(document.querySelector('.processChoice.active'));
-        if(hasPreparedInput&&!confirm('Abmelden? Nicht gebuchte Eingaben des aktuellen Vorgangs werden verworfen.'))return;
+        if(document.body.classList.contains('processShellProcess')){
+          alert('Zum Abmelden zuerst über „Vorgänge“ zur Vorgangsübersicht zurückkehren.');
+          return;
+        }
         if(typeof logoutPersonnel!=='function')return;
         logout.disabled=true;
         try{
           await logoutPersonnel();
           closeMenu();
-          // Reload after the server-side logout so no unsent process input of the previous operator
-          // can remain hidden in the DOM for the next login. Open/recovery transactions are blocked above.
+          // Reload after the server-side logout so no unsent UI state of the previous operator
+          // remains in the DOM for the next login. Open/recovery transactions are blocked above.
           location.reload();
         }catch{
           logout.disabled=false;
@@ -103,6 +106,7 @@
     const ok=auth();
     const current=person();
     const fullName=current?.fullName||'';
+    const onProcessPage=document.body.classList.contains('processShellProcess');
     document.body.classList.toggle('shellUserAuthenticated',ok);
 
     const trigger=el('headerPersonnelName');
@@ -113,8 +117,13 @@
       trigger.setAttribute('aria-label',ok&&fullName?`${fullName}. Menü öffnen.`:'Angemeldeten Mitarbeiter anzeigen');
     }
     const name=el('headerPersonnelMenuName');if(name)name.textContent=fullName;
+    const hint=el('headerPersonnelMenuHint');
+    if(hint){
+      hint.textContent=onProcessPage?'Zum Abmelden zuerst „Vorgänge“ öffnen.':'';
+      hint.classList.toggle('hidden',!onProcessPage);
+    }
     const logout=el('headerPersonnelLogout');
-    if(logout)logout.disabled=!ok||Boolean(typeof active!=='undefined'&&active)||Boolean(typeof personnelAuthLoading!=='undefined'&&personnelAuthLoading);
+    if(logout)logout.disabled=!ok||onProcessPage||Boolean(typeof active!=='undefined'&&active)||Boolean(typeof personnelAuthLoading!=='undefined'&&personnelAuthLoading);
     if(!ok)closeMenu();
   }
 
@@ -123,7 +132,7 @@
     const style=document.createElement('style');
     style.id='headerPersonnelMenuStyles';
     style.textContent=`
-.shellPersonnelInteractive{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:56vw;margin-top:4px;padding:4px 7px;border-radius:8px;cursor:pointer;color:#e6f4ff;background:rgba(255,255,255,.08);outline:none}.shellPersonnelInteractive:before{content:'👤';font-size:14px;line-height:1}.shellPersonnelInteractive:after{content:'▾';font-size:10px;opacity:.8}.shellPersonnelInteractive:hover,.shellPersonnelInteractive:focus{background:rgba(255,255,255,.16);box-shadow:0 0 0 2px rgba(255,255,255,.18)}.headerPersonnelMenu{position:fixed;z-index:1200;top:68px;right:12px;width:min(330px,calc(100vw - 24px));padding:14px;background:#fff;color:#17212b;border:1px solid #cbd8e0;border-radius:14px;box-shadow:0 16px 45px rgba(0,0,0,.28)}.headerPersonnelIdentity{display:flex;align-items:center;gap:12px;margin-bottom:12px}.headerPersonnelAvatar{display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:50%;background:#e8f3fb;font-size:25px}.headerPersonnelIdentity span{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#71808b}.headerPersonnelIdentity b{display:block;margin-top:2px;font-size:17px;line-height:1.2;overflow-wrap:anywhere}.headerPersonnelMenu button{width:100%;min-height:46px}.processShellHome.shellUserAuthenticated #loginStep{display:none!important}@media(max-width:680px){.shellPersonnelInteractive{max-width:48vw;font-size:12px;padding:3px 6px}.headerPersonnelMenu{top:64px;right:8px;width:calc(100vw - 16px)}}
+.shellPersonnelInteractive{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:56vw;margin-top:4px;padding:4px 7px;border-radius:8px;cursor:pointer;color:#e6f4ff;background:rgba(255,255,255,.08);outline:none}.shellPersonnelInteractive:before{content:'👤';font-size:14px;line-height:1}.shellPersonnelInteractive:after{content:'▾';font-size:10px;opacity:.8}.shellPersonnelInteractive:hover,.shellPersonnelInteractive:focus{background:rgba(255,255,255,.16);box-shadow:0 0 0 2px rgba(255,255,255,.18)}.headerPersonnelMenu{position:fixed;z-index:1200;top:68px;right:12px;width:min(330px,calc(100vw - 24px));padding:14px;background:#fff;color:#17212b;border:1px solid #cbd8e0;border-radius:14px;box-shadow:0 16px 45px rgba(0,0,0,.28)}.headerPersonnelIdentity{display:flex;align-items:center;gap:12px;margin-bottom:12px}.headerPersonnelAvatar{display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:50%;background:#e8f3fb;font-size:25px}.headerPersonnelIdentity span{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#71808b}.headerPersonnelIdentity b{display:block;margin-top:2px;font-size:17px;line-height:1.2;overflow-wrap:anywhere}.headerPersonnelMenuHint{margin:-2px 0 10px;padding:8px 10px;border-radius:8px;background:#f3f6f8;color:#596b77;font-size:12px;font-weight:700;line-height:1.35}.headerPersonnelMenu button{width:100%;min-height:46px}.processShellHome.shellUserAuthenticated #loginStep{display:none!important}@media(max-width:680px){.shellPersonnelInteractive{max-width:48vw;font-size:12px;padding:3px 6px}.headerPersonnelMenu{top:64px;right:8px;width:calc(100vw - 16px)}}
 `;
     document.head.appendChild(style);
 
