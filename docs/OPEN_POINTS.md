@@ -8,9 +8,10 @@ Details zu den aktuellen Android-Korrekturen stehen in `docs/STAGING_TEST_FIXES_
 
 - [x] AJAX-Zielsuche fuer Tankauslagerung explizit case-insensitive umgesetzt.
 - [x] SQL-Begrenzungen `TOP (50)`/`TOP (100)` aus der rein lesenden Lagerort-/Lagerplatzsuche entfernt; die Auswahl darf nicht nach den ersten 100 internen Lagerplaetzen enden.
-- [x] Replenishment-Router gegen den beobachteten Refresh-Race stabilisiert: Solange die Prozess-Shell auf `Nachfuellen` steht, darf ein kurzzeitig fehlender `.processChoice.active`-Marker die Nachfuellkarten nicht mehr ausblenden.
-- [ ] Lagerort mit mehr als 100 Lagerplaetzen auf Android live pruefen und bestaetigen, dass Eintraege nach dem bisherigen Listenende (z. B. nach `LL324`) sichtbar und auswaehlbar sind.
-- [ ] `Nachfuellen` mehrfach mit Tankscan testen und bestaetigen, dass die Oberflaeche waehrend/nach den asynchronen Oxaion-Leseabfragen nicht mehr leer wird und nicht auf `Vorgang auswählen.` zurueckfaellt.
+- [x] Replenishment-Router gegen die beobachteten Refresh-Races stabilisiert: Solange die Prozess-Shell auf `Nachfuellen` steht, darf ein kurzzeitig fehlender `.processChoice.active`-Marker beziehungsweise ein temporaerer Auth-/Besitzerabgleich die Nachfuellkarten nicht mehr ausblenden.
+- [x] Lagerort mit mehr als 100 Lagerplaetzen auf Android live bestaetigt: Fuer `H04KDX` werden im aktuellen STAGING-Stand auch die Lagerplaetze nach dem frueheren Listenende `LL324` vollstaendig angezeigt.
+- [x] Deterministische Ursache der weiterhin leeren `Nachfuellen`-Seite nach Tankscan gefunden und technisch behoben: `process-mode.js` wurde zusaetzlich zu `index.html` noch ein zweites Mal dynamisch aus `article-colors.js` geladen. Der Alt-Bootstrap ist entfernt; ein Regressionstest erzwingt genau eine Einbindung des Prozess-Routers.
+- [ ] `Nachfuellen` mit dem Single-Router-/Service-Worker-v29-Stand auf Android mehrfach mit Tankscan testen und bestaetigen, dass die Oberflaeche waehrend/nach den asynchronen Oxaion-Leseabfragen sichtbar bleibt.
 
 ## Aktueller STAGING-Korrekturstand 08.09.2026
 
