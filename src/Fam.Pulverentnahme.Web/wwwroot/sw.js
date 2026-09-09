@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v27-connectivity-pcl-bins-auth-grace-20260909';
+const CACHE='fam-pulver-staging-v28-connectivity-race-bin-diagnostics-20260909';
 const ASSETS=[
   '/',
   '/index.html',
