@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v28-connectivity-race-bin-diagnostics-20260909';
+const CACHE='fam-pulver-staging-v29-replenish-single-router-20260909';
 const ASSETS=[
   '/',
   '/index.html',
@@ -8,7 +8,7 @@ const ASSETS=[
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20260904-scan-safety',
-  '/article-colors.js?v=20260903-recognition-colors',
+  '/article-colors.js?v=20260909-single-process-mode',
   '/process-mode.js?v=20260908-process-ui-2',
   '/process-mode-focus-fix.js?v=20260909-auth-grace-3',
   '/target-location.js?v=20260909-pcl-targets-1',
