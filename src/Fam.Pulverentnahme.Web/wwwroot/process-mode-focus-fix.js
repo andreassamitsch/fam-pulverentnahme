@@ -95,10 +95,15 @@
     }
 
     const currentOwner=personKey();
-    let selected=activeMode();
+    const selected=activeMode();
     if(selected&&modeOwnerKey&&currentOwner&&modeOwnerKey!==currentOwner){
-      clearForeignMode();
-      selected=null;
+      // Do not clear every process card here. process-shell.js owns the confirmed employee-change
+      // transition and will return to the home/login page safely. Clearing retainedMode in this
+      // refresh layer first leaves body.processShellProcess active with no visible panel at all,
+      // which is the observed transient blank page on Android.
+      showRetainedPanel(selected);
+      setInstruction('Anmeldung wird geprüft. Der aktuelle Vorgang bleibt erhalten.');
+      return;
     }
 
     if(!selected){
@@ -125,7 +130,7 @@
   function loadTargetLocationSelector(){
     if(document.querySelector('script[data-target-location-selector]'))return;
     const script=document.createElement('script');
-    script.src='/target-location.js?v=20260909-pcl-targets-1';
+    script.src='/target-location.js?v=20260909-pcl-targets-2';
     script.dataset.targetLocationSelector='true';
     document.head.appendChild(script);
   }
