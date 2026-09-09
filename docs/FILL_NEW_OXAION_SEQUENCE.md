@@ -56,6 +56,10 @@ Die erwartete Kette besteht deshalb nur aus:
 
 Es gibt in diesem Fall **kein** anschliessendes `LM -> LN` und damit keine neue Mix-Charge.
 
+Technische Korrektur vom 09.09.2026: Der erste STAGING-Stand leitete auch diesen Ein-Positions-Fall an `BookFillNewAsync` weiter. Diese Methode war absichtlich fuer die erzeugte-Mix-Kette geschrieben und verlangte mindestens `LF` plus eine folgende MIX-Position. Dadurch wurde der Vorgang bereits vor Anlage eines Oxaion-Belegs mit `Fill-new requires LF position 1 followed by the generated-MIX chain.` auf `MANUAL_REVIEW_REQUIRED` gesetzt. Der zugehoerige WebApp-Log hatte `documentNo = null`, `lastMovements = []` und nur die Events `CREATED` sowie `MANUAL_REVIEW_REQUIRED`; es wurde in diesem Versuch also kein Oxaion-Materialbeleg erzeugt.
+
+Der korrigierte Ablauf verwendet fuer genau eine vorhandene Mix-Charge den allgemeinen, bereits bestaetigten Materialtransferpfad `BookAsync` mit genau einem `LF`-`TransferSpec`. Dieser Pfad behandelt eine erste `LF`-Position ueber dieselbe bestaetigte First-LF-Sequenz und verifiziert anschliessend exakt das erwartete `LF/LE`-Bewegungspaar. Die generierte-Mix-spezifische `BookFillNewAsync`-Kette bleibt nur fuer Faelle mit mindestens anschliessender `LM/LN`-Position aktiv.
+
 ### Nicht-Mix-Quelle oder mehrere Quellen
 
 Sobald die finale Quellenliste nicht aus genau einer vorhandenen Mix-Charge besteht, gilt:
@@ -86,6 +90,6 @@ Die einzelnen Buchungsarten und ihre Bewegungssemantik sind real bestaetigt. Die
 
 ## Noch offen
 
-- Live-STAGING-Bestaetigung `eine eingelagerte Mix-Charge -> leerer Tank` mit ausschliesslich `LF/LE` aus der WebApp.
+- Live-STAGING-Bestaetigung `eine eingelagerte Mix-Charge -> leerer Tank` mit ausschliesslich `LF/LE` aus der WebApp nach der Routing-Korrektur vom 09.09.2026.
 - Live-STAGING-Bestaetigung der kombinierten Ein-Beleg-Kette `LF/LE -> LM/LN` fuer eine Nicht-Mix-Quelle beziehungsweise mehrere Quellen.
 - Danach bei Mehrfachquelle zusaetzlich Position 3 ff. im selben Vorgang live bestaetigen.
