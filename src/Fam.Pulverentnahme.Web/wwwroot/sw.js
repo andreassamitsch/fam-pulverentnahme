@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v24-process-ux-20260909';
+const CACHE='fam-pulver-staging-v25-tank-ux-hotfix-20260909';
 const ASSETS=[
   '/',
   '/index.html',
@@ -14,6 +14,7 @@ const ASSETS=[
   '/process-shell.js?v=20260908-process-shell-1',
   '/header-user-menu.js?v=20260909-header-user-2',
   '/process-ux-optimizations.js?v=20260909-process-ux-1',
+  '/process-hotfix-20260909.js?v=20260909-tank-ux-2',
   '/personnel-auth.js?v=20260903-guided-worker',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
