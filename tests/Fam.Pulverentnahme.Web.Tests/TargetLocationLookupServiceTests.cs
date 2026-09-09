@@ -6,7 +6,7 @@ namespace Fam.Pulverentnahme.Web.Tests;
 public sealed class TargetLocationLookupServiceTests
 {
     [Fact]
-    public void WarehouseLookupIsReadOnlyAndUsesConfirmedWarehouseMaster()
+    public void WarehouseLookupIsReadOnlyCaseInsensitiveAndUsesConfirmedWarehouseMaster()
     {
         var sql = TargetLocationLookupService.WarehouseQueryText;
         Assert.Contains("FROM OXAION.ULGSTP AS L", sql);
@@ -15,19 +15,20 @@ public sealed class TargetLocationLookupServiceTests
         Assert.Contains("L.LGLOKZ = N''", sql);
         Assert.Contains("L.LGKLPL = N'J'", sql);
         Assert.Contains("@excludeWarehouse", sql);
-        Assert.Contains("@prefix", sql);
+        Assert.Contains("UPPER(L.LGLAGO) <> UPPER(@excludeWarehouse)", sql);
+        Assert.Contains("UPPER(L.LGLAGO) LIKE UPPER(@prefix)", sql);
         AssertReadOnly(sql);
     }
 
     [Fact]
-    public void StorageBinLookupIsReadOnlyAndReturnsInternalBinKeysWithoutPowderOrStockFilter()
+    public void StorageBinLookupIsReadOnlyCaseInsensitiveAndReturnsInternalBinKeysWithoutPowderOrStockFilter()
     {
         var sql = TargetLocationLookupService.StorageBinQueryText;
         Assert.Contains("FROM OXAION.LLPLAP AS LP", sql);
         Assert.Contains("LP.LPFIRM = @firm", sql);
-        Assert.Contains("LP.LPLAGO = @warehouse", sql);
+        Assert.Contains("UPPER(LP.LPLAGO) = UPPER(@warehouse)", sql);
         Assert.Contains("LP.LPLAPL", sql);
-        Assert.Contains("@prefix", sql);
+        Assert.Contains("UPPER(LP.LPLAPL) LIKE UPPER(@prefix)", sql);
         Assert.DoesNotContain("RP.%", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("LPLABE", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("LLPWEP", sql, StringComparison.OrdinalIgnoreCase);
