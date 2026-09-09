@@ -14,6 +14,17 @@
 
   const el=id=>document.getElementById(id);
 
+  // Register/update the service worker as early as possible. app.js also registers it later for
+  // backwards compatibility, but that happens only after its startup API work. This early,
+  // non-blocking call lets Android discover a newer cache-first worker without waiting for Oxaion
+  // initialization. We deliberately do NOT call skipWaiting: a new version must not take over an
+  // already running booking process uncontrolled.
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'})
+      .then(registration=>registration.update().catch(()=>{}))
+      .catch(()=>{});
+  }
+
   async function fetchWithTimeout(url,timeoutMs){
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),timeoutMs);
