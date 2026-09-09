@@ -7,7 +7,7 @@
   let initialized=false,warehouseTimer=null,binTimer=null,warehouseToken=0,binToken=0;
   let warehouseMatches=new Map(),binMatches=new Map();
   const el=id=>document.getElementById(id);
-  const escText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const escText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[c]));
 
   function canonicalInput(original,value){
     original.value=value||'';
@@ -90,13 +90,22 @@
     const token=++binToken;
     setStatus('outStorageBinLookupStatus','Lagerplätze werden geladen …');
     try{
-      const query=new URLSearchParams({warehouse,q:String(search||'').trim()});
+      const searchText=String(search||'').trim();
+      const query=new URLSearchParams({warehouse,q:searchText});
       const response=await api('/api/target-locations/storage-bins?'+query);
       if(token!==binToken)return;
       if(!response.ok)throw new Error(response.body?.detail||response.body?.error||'Lagerplätze konnten nicht geladen werden.');
       const rows=Array.isArray(response.body)?response.body:[];
       renderBinResults(rows);
-      setStatus('outStorageBinLookupStatus',rows.length?'Lagerplatz aus der Trefferliste auswählen.':'Kein passender Lagerplatz gefunden.',rows.length?'neutral':'bad');
+      const values=[...binMatches.values()];
+      const last=values.length?String(values[values.length-1]?.storageBin||'').trim():'';
+      if(values.length){
+        const scope=searchText?` für „${searchText}“`:'';
+        const lastInfo=last?` · letzter geladener Treffer: ${last}`:'';
+        setStatus('outStorageBinLookupStatus',`${values.length} Lagerplätze${scope} aus Oxaion geladen${lastInfo}. Lagerplatz auswählen.`,'neutral');
+      }else{
+        setStatus('outStorageBinLookupStatus','Kein passender Lagerplatz gefunden.','bad');
+      }
     }catch(error){
       if(token!==binToken)return;
       renderBinResults([]);
