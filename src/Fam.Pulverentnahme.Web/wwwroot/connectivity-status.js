@@ -6,7 +6,7 @@
 (function(){
   const CHECK_INTERVAL_MS=60000;
   const BACKEND_TIMEOUT_MS=4000;
-  const OXAION_TIMEOUT_MS=12000;
+  const OXAION_TIMEOUT_MS=6000;
   let checking=false;
   let initialized=false;
   let lastState='checking';
@@ -86,18 +86,21 @@
 
       if(!initialized)setBanner('checking','Backend erreichbar. Verbindung zu Oxaion wird geprüft …',{force:true});
 
+      // The periodic operator lamp uses the lightweight tunnel-connect probe. The much heavier
+      // /api/health/oxaion dialog smoke test remains a Dev-Info/manual diagnostic and must not
+      // delay normal app startup or foreground checks.
       let oxaion;
-      try{oxaion=await fetchWithTimeout('/api/health/oxaion',OXAION_TIMEOUT_MS)}catch{oxaion=null}
+      try{oxaion=await fetchWithTimeout('/api/connectivity/oxaion',OXAION_TIMEOUT_MS)}catch{oxaion=null}
       if(!oxaion?.ok){
         const text='Backend erreichbar, aber aktuell keine Verbindung zu Oxaion.';
-        setLamp('bad','Oxaion','Oxaion nicht erreichbar. '+`Letzte Prüfung: ${stamp()}`);
+        setLamp('bad','Oxaion offline','Oxaion nicht erreichbar. '+`Letzte Prüfung: ${stamp()}`);
         setBanner('bad',text,{force:true});
         scheduleFailureRetry();
         return;
       }
 
       clearTimeout(retryTimer);
-      setLamp('ok','Oxaion',`Oxaion erreichbar. Letzte Prüfung: ${stamp()}`);
+      setLamp('ok','Oxaion','Oxaion erreichbar. '+`Letzte Prüfung: ${stamp()}`);
       const text=wasBad?'Verbindung zu Oxaion wiederhergestellt.':'Oxaion-Verbindung aktiv.';
       setBanner('ok',text,{force:!initialized||wasBad,autoHide:true});
     }finally{
