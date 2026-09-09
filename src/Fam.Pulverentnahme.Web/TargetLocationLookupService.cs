@@ -18,7 +18,7 @@ public sealed class TargetLocationLookupService
     private readonly OxaionOptions _oxaion;
 
     internal const string WarehouseQueryText = """
-SELECT DISTINCT TOP (50)
+SELECT DISTINCT
     TRIM(L.LGLAGO) AS Warehouse,
     TRIM(L.LGKLPL) AS BinManaged
 FROM OXAION.ULGSTP AS L
@@ -33,7 +33,7 @@ ORDER BY Warehouse;
 """;
 
     internal const string StorageBinQueryText = """
-SELECT DISTINCT TOP (100)
+SELECT DISTINCT
     TRIM(LP.LPLAPL) AS StorageBin
 FROM OXAION.LLPLAP AS LP
 WHERE LP.LPFIRM = @firm
