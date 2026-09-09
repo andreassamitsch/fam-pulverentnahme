@@ -47,7 +47,7 @@ public sealed class FillNewService
                 ClientOperationId = request.ClientOperationId,
                 RequestJson = json
             };
-            await SaveEventAsync(tx, "CREATED", "Fill-new transaction created.", ct);
+            await SaveEventAsync(tx, "CREATED", "Neue Tankbefuellung wurde als WebApp-Vorgang angelegt.", ct);
 
             try
             {
@@ -126,13 +126,32 @@ public sealed class FillNewService
         return tx;
     }
 
+    /// <summary>
+    /// A stored MIX batch already represents a mixed powder identity. If it is the only source
+    /// of an empty-tank fill, the confirmed LF -> LE transfer preserves that batch and no
+    /// additional LM -> LN rebatch is required. As soon as any second source is part of the
+    /// final request, a new generated MIX is required again.
+    /// </summary>
+    internal static bool PreserveSingleStoredMix(FillNewRequest request) =>
+        request.Sources is { Count: 1 }
+        && IsStoredMixBatch(request.Article, request.Sources[0].Batch);
+
+    internal static bool IsStoredMixBatch(string article, string batch)
+    {
+        var prefix = ReplenishmentRules.BatchArticlePrefix(article) + "MIX_";
+        return prefix.Length > 4
+            && !string.IsNullOrWhiteSpace(batch)
+            && batch.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && batch.Length > prefix.Length;
+    }
+
     // Confirmed building blocks:
     // 1) empty warehouse target is filled with LF -> LE while preserving the source batch;
     // 2) an existing tank batch can be converted into a newly generated MIX with LM -> LN;
     // 3) further external batches can be added to the same MIX with LM -> LN.
-    // The combined chain is intentionally kept in one Oxaion material document so the final
-    // movement verification sees every step. This chain still requires a live STAGING end-to-end
-    // confirmation after the 2026-09-08 LF/LE capture.
+    // Business decision 2026-09-09: one already stored MIX source alone keeps its batch. All other
+    // final source sets create a new MIX. The decision is derived from the final request so adding
+    // and subsequently removing a second source cannot leave stale MIX logic behind.
     internal static IReadOnlyList<TransferSpec> BuildTransferSpecs(FillNewRequest request)
     {
         if (request.Sources is null || request.Sources.Count == 0)
@@ -158,8 +177,12 @@ public sealed class FillNewService
             "",
             first.AmountKg));
 
-        // Position 2: the tank now contains the first source batch. Convert exactly that amount
-        // into the mandatory newly generated MIX batch using the already confirmed LM -> LN path.
+        // If this is exactly one already stored MIX source, preserving the LF/LE batch is the
+        // complete intended result. No new MIX is written to Oxaion.
+        if (PreserveSingleStoredMix(request))
+            return result;
+
+        // Otherwise convert the first tank batch into the newly generated MIX.
         result.Add(new TransferSpec(
             2,
             "LM",
@@ -204,9 +227,8 @@ public sealed class FillNewService
         if (string.IsNullOrWhiteSpace(r.ClientOperationId)
             || string.IsNullOrWhiteSpace(r.PersonnelNo)
             || string.IsNullOrWhiteSpace(r.Article)
-            || string.IsNullOrWhiteSpace(r.TankWarehouse)
-            || string.IsNullOrWhiteSpace(r.TargetBatch))
-            throw new ArgumentException("Operation, personnel, tank, article and target MIX batch are required.");
+            || string.IsNullOrWhiteSpace(r.TankWarehouse))
+            throw new ArgumentException("Operation, personnel, tank and article are required.");
 
         if (r.Sources is null || r.Sources.Count == 0)
             throw new ArgumentException("At least one powder source is required.");
@@ -214,8 +236,15 @@ public sealed class FillNewService
         var today = DateOnly.FromDateTime(DateTime.Today);
         if (r.BookingDate != today || r.ProductionDate != today)
             throw new ArgumentException("Booking and MIX production date must be today.");
-        if (!ReplenishmentRules.IsValidGeneratedMixBatch(r.Article, r.TargetBatch, r.ProductionDate))
-            throw new ArgumentException("Target MIX batch does not match the confirmed generated MIX schema.");
+
+        var preserveSingleMix = PreserveSingleStoredMix(r);
+        if (!preserveSingleMix)
+        {
+            if (string.IsNullOrWhiteSpace(r.TargetBatch))
+                throw new ArgumentException("A target MIX batch is required for this source combination.");
+            if (!ReplenishmentRules.IsValidGeneratedMixBatch(r.Article, r.TargetBatch, r.ProductionDate))
+                throw new ArgumentException("Target MIX batch does not match the confirmed generated MIX schema.");
+        }
 
         foreach (var s in r.Sources)
         {
@@ -223,8 +252,8 @@ public sealed class FillNewService
                 throw new ArgumentException("Every source requires warehouse, batch and amount > 0.");
             if (string.Equals(s.Warehouse, r.TankWarehouse, StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Machine tank cannot be a fill source.");
-            if (string.Equals(s.Batch, r.TargetBatch, StringComparison.Ordinal))
-                throw new ArgumentException("A new MIX batch must always differ from every source batch.");
+            if (!preserveSingleMix && string.Equals(s.Batch, r.TargetBatch, StringComparison.Ordinal))
+                throw new ArgumentException("A new MIX batch must differ from every source batch.");
         }
     }
 
