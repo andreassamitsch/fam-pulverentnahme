@@ -53,6 +53,18 @@
     modeOwnerKey='';
     retainedMode='';
   }
+  function showRetainedPanel(selected){
+    restoreActiveMarker(selected);
+    el('processSelected')?.classList.remove('hidden');
+    hideProcessPanels();
+    if(selected==='replenish'){
+      hideLegacy(false);
+      return;
+    }
+    hideLegacy(true);
+    const panel=panelByMode[selected];
+    if(panel)el(panel)?.classList.remove('hidden');
+  }
 
   function stableRefresh(){
     const authenticated=auth();
@@ -65,13 +77,20 @@
     choice.classList.toggle('lockedStep',!authenticated);
     document.querySelectorAll('.processChoice').forEach(button=>button.disabled=!authenticated);
 
-    // A short-lived auth/session refresh must never throw away the selected process.
-    // We only hide process content until the same authenticated person is confirmed again.
+    // A short-lived client-side auth/session refresh must never turn a selected process into an
+    // empty page. While the process shell still owns a retained mode we keep its cards visible;
+    // the underlying controls remain disabled by the authentication-aware worker/process logic.
     if(!authenticated){
-      hideLegacy(true);
-      hideProcessPanels();
-      el('processSelected')?.classList.add('hidden');
-      setInstruction('Bitte anmelden.');
+      const selected=activeMode();
+      if(selected&&document.body.classList.contains('processShellProcess')){
+        showRetainedPanel(selected);
+        setInstruction('Anmeldung wird geprüft. Der aktuelle Vorgang bleibt erhalten.');
+      }else{
+        hideLegacy(true);
+        hideProcessPanels();
+        el('processSelected')?.classList.add('hidden');
+        setInstruction('Bitte anmelden.');
+      }
       return;
     }
 
@@ -93,28 +112,20 @@
     // On Android the worker refresh can run while another UI layer is briefly mutating the
     // process-choice classes. Retain the process while the shell is still on the process page;
     // otherwise a replenishment scan can leave the header on "Nachfüllen" but hide every card.
-    restoreActiveMarker(selected);
+    showRetainedPanel(selected);
     if(!modeOwnerKey)modeOwnerKey=currentOwner;
-    el('processSelected')?.classList.remove('hidden');
-    hideProcessPanels();
 
     if(selected==='replenish'){
-      hideLegacy(false);
       // Exactly one worker-flow refresh. The old process-mode wrapper invoked this twice,
       // which repeatedly pulled focus/scroll while the operator was working.
       if(baseWorkerRefresh)baseWorkerRefresh();
-      return;
     }
-
-    hideLegacy(true);
-    const panel=panelByMode[selected];
-    if(panel)el(panel)?.classList.remove('hidden');
   }
 
   function loadTargetLocationSelector(){
     if(document.querySelector('script[data-target-location-selector]'))return;
     const script=document.createElement('script');
-    script.src='/target-location.js?v=20260908-location-ajax-2';
+    script.src='/target-location.js?v=20260909-pcl-targets-1';
     script.dataset.targetLocationSelector='true';
     document.head.appendChild(script);
   }
@@ -122,7 +133,7 @@
   function loadHeaderUserMenu(){
     if(document.querySelector('script[data-header-user-menu]'))return;
     const script=document.createElement('script');
-    script.src='/header-user-menu.js?v=20260908-header-user-1';
+    script.src='/header-user-menu.js?v=20260909-header-user-2';
     script.dataset.headerUserMenu='true';
     document.head.appendChild(script);
   }
