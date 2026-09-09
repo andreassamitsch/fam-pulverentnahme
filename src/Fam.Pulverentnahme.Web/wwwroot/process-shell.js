@@ -6,9 +6,15 @@
   let page='home';
   let fillScanContext=false;
   let installed=false;
+  let processOwnerKey='';
+  let authLossTimer=null;
 
   const el=id=>document.getElementById(id);
   const auth=()=>typeof personnelSessionMatchesSelection==='function'&&personnelSessionMatchesSelection();
+  const authKey=()=>{
+    if(!auth()||typeof selectedPersonnel==='undefined'||!selectedPersonnel)return '';
+    return `${selectedPersonnel.personnelNo||''}\u001f${selectedPersonnel.fullName||''}`;
+  };
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const parseNumber=text=>{
     const match=String(text||'').replace(/\s/g,'').match(/-?\d+(?:[.,]\d+)?/);
@@ -57,9 +63,11 @@
   }
 
   function applyPage(){
-    if(!auth())page='home';
+    // Do not immediately destroy the process page when client-side auth state is briefly being
+    // refreshed. Backend authorization remains authoritative; handleAuthState() returns to the
+    // login/home page only if the missing client auth persists beyond the grace period.
     document.body.classList.toggle('processShellHome',page==='home');
-    document.body.classList.toggle('processShellProcess',page==='process'&&auth());
+    document.body.classList.toggle('processShellProcess',page==='process');
     syncHeader();
     if(page==='home'){
       const instruction=el('workerNextInstruction');
@@ -68,6 +76,8 @@
   }
 
   function showHome(){
+    clearTimeout(authLossTimer);authLossTimer=null;
+    processOwnerKey='';
     page='home';
     document.querySelectorAll('.processChoice.active').forEach(button=>button.classList.remove('active'));
     el('processSelected')?.classList.add('hidden');
@@ -75,7 +85,32 @@
     setTimeout(()=>{try{(auth()?el('processChoiceStep'):el('loginStep'))?.scrollIntoView({behavior:'smooth',block:'start'})}catch{}},30);
   }
 
-  function showProcess(){page='process';applyPage()}
+  function showProcess(){
+    clearTimeout(authLossTimer);authLossTimer=null;
+    page='process';
+    processOwnerKey=authKey();
+    applyPage();
+  }
+
+  function handleAuthState(){
+    const current=authKey();
+    if(current){
+      clearTimeout(authLossTimer);authLossTimer=null;
+      if(page==='process'&&processOwnerKey&&current!==processOwnerKey){
+        clearProcessDisplay(true);
+        showHome();
+      }
+      return;
+    }
+    if(page!=='process'||authLossTimer)return;
+    authLossTimer=setTimeout(()=>{
+      authLossTimer=null;
+      if(page==='process'&&!auth()){
+        clearProcessDisplay(false);
+        showHome();
+      }
+    },5000);
+  }
 
   function clearProcessDisplay(clearLegacy=false){
     for(const id of ['outWarehouse','outStorageBin','outWarehouseLookup','outStorageBinLookup','faConsumptionAmount'])if(el(id))el(id).value='';
@@ -258,12 +293,12 @@
     el('faConsumptionAmount')?.addEventListener('input',()=>setTimeout(syncFaActualUi,0));
     const faOrder=el('faOrderData');if(faOrder)new MutationObserver(()=>setTimeout(syncFaActualUi,0)).observe(faOrder,{childList:true,subtree:true});
     const processModal=el('processModal');if(processModal)new MutationObserver(()=>normalizeFaConfirm()).observe(processModal,{childList:true,subtree:true,characterData:true});
-    const personnel=el('personnelSelectedText');if(personnel)new MutationObserver(()=>{if(!auth())page='home';syncHeader();applyPage()}).observe(personnel,{childList:true,subtree:true,characterData:true});
+    const personnel=el('personnelSelectedText');if(personnel)new MutationObserver(()=>{handleAuthState();syncHeader();applyPage()}).observe(personnel,{childList:true,subtree:true,characterData:true});
 
     wrapFillScanner();
     syncFaActualUi();
     applyPage();
-    setInterval(()=>{syncHeader();if(!auth()&&page!=='home'){page='home';applyPage()}},750);
+    setInterval(()=>{syncHeader();handleAuthState()},750);
   }
 
   function start(){
