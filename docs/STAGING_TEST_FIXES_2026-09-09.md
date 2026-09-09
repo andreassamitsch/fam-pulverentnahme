@@ -30,46 +30,122 @@ Wichtig: Auch ein SQL-Treffer aus `LPCLAP` ist nur eine Bedienhilfe. Direkt vor 
 
 und liest die F4-Liste seitenweise bis zum eindeutigen `<STOP/>`. Oxaion bleibt damit die verbindliche Buchungsprüfung.
 
-## 2. Nachfüllen – deterministische leere Prozessseite nach Tankscan
+## 2. Nachfüllen – leere Prozessseite nach Tankscan
 
-### Bisherige Schutzmechanismen
+### Bisherige Korrekturen
 
-Die erste Korrektur hielt den bewusst gewählten Prozess als `retainedMode`, damit ein kurzzeitig fehlender `.processChoice.active`-Marker die Nachfüllkarten nicht mehr entfernt.
+Mehrere frühere Ursachen beziehungsweise Race-Conditions wurden bereits technisch beseitigt:
 
-Die zweite Korrektur ergänzte in `process-shell.js` eine fünfsekündige Auth-Grace-Phase. Ein kurzzeitig fehlender clientseitiger Auth-Abgleich setzt die Prozess-Shell dadurch nicht mehr sofort auf die Vorgangsübersicht; der aktuelle Vorgang bleibt sichtbar, während auth-abhängige Aktionen gesperrt bleiben.
+- ein kurzzeitig fehlender `.processChoice.active`-Marker darf den bewusst gewählten Nachfüllprozess nicht mehr sofort verwerfen;
+- `process-shell.js` besitzt eine fünfsekündige Auth-Grace-Phase, damit ein kurzzeitiger Client-Auth-Abgleich die Prozessseite nicht sofort verlässt;
+- `process-mode-focus-fix.js` löscht bei einem kurzfristigen Besitzer-Mismatch nicht mehr vorzeitig alle Prozesskarten;
+- ein alter zweiter Bootstrap von `process-mode.js` aus `article-colors.js` wurde entfernt. `process-mode.js` wird im aktuellen App-Shell nur noch einmal aus `index.html` geladen.
 
-Die dritte Korrektur verhinderte, dass `process-mode-focus-fix.js` bei einem kurzfristigen Besitzer-Mismatch bereits alle Prozesskarten löscht, während `process-shell.js` noch auf der Prozessseite steht.
+Der letzte Punkt war eine reale technische Abweichung und musste behoben werden. Der erneute Android-Test mit geleerten App-Daten zeigt jedoch eindeutig, dass dieser Doppel-Bootstrap **nicht die alleinige Ursache** der weiterhin reproduzierbaren leeren Nachfüllseite war. Die frühere Formulierung „deterministische Ursache“ wird deshalb hiermit korrigiert.
 
-Diese Schutzmechanismen bleiben bestehen.
+### Video-Nachweis des verbleibenden Zustands
 
-### Reproduzierbarer Restfehler und nachgewiesene Ursache
+Im vom Bediener aufgenommenen Android-Video ist der Fehler reproduzierbar direkt nach dem Maschinentank-Scan sichtbar:
 
-Der aktuelle Live-Test vom 09.09.2026 grenzt den Restfehler eindeutig ein: Nach dem Scan des Maschinentanks wird die Seite bei **`Pulver nachfüllen` immer leer**; die anderen Prozesse sind nicht betroffen.
+- die Kopfzeile bleibt auf **`Nachfüllen`**;
+- der Prozess-Shell-Zustand bleibt damit erkennbar im gewählten Vorgang;
+- die Schrittzeile springt gleichzeitig auf **`Vorgang auswählen.`**;
+- darunter sind `machineStep`, `sourcesSection` und `bookingStep` nicht mehr sichtbar.
 
-Die Codeanalyse zeigt eine deterministische Ursache: `process-mode.js` wurde im bisherigen App-Shell **zweimal geladen**:
+Dieser Zustand ist besonders aussagekräftig: Der sichtbare Prozessmarker und die Shell kennen weiterhin `replenish`, während eine zweite interne Zustandsvariable bereits auf „kein Modus“ zurückgefallen ist.
 
-1. einmal regulär und beabsichtigt über `index.html`;
-2. ein zweites Mal über einen alten dynamischen Bootstrap am Ende von `article-colors.js`.
+### Konkrete Codeursache
 
-Jede Ausführung von `process-mode.js` besitzt ihren eigenen lokalen `mode`-Zustand. Nur die Instanz, deren Prozesswahl-Handler tatsächlich verwendet wurde, kennt den ausgewählten Modus `replenish`. Die zweite Instanz bleibt bei `mode === null`.
+`process-mode.js` verwaltet zusätzlich zum sichtbaren `.processChoice.active`-Marker eine private Variable:
 
-Der Nachfüllprozess verwendet im Gegensatz zu den neueren Prozessarten weiterhin die vorhandenen Legacy-Karten `machineStep`, `sourcesSection`, `mixSection`, `bookingStep` und `result`. Nach einem Tankscan führen die asynchronen Bestands- und Quellenabfragen mehrere `refreshWorkerFlow()`-Aufrufe aus. Dabei konnte die zweite `process-mode.js`-Instanz mit `mode === null` `hideLegacy(true)` ausführen und die Nachfüllkarten ausblenden. Gleichzeitig blieb `process-shell.js` auf `processShellProcess`, wodurch Login und Vorgangsauswahl ebenfalls verborgen waren. Das Ergebnis war die vollständig leere Prozessseite.
+```text
+let mode = null
+```
 
-Damit ist auch erklärt, warum der Fehler nur bei `Nachfüllen` auftrat: Die anderen Prozessarten verwenden eigene `.processPanel`-Bereiche und hängen nicht von den ausgeblendeten Legacy-Nachfüllkarten ab.
+In `refreshAuth()` stand bislang sinngemäß:
 
-### Korrektur
+```text
+wenn Auth-Abgleich gerade nicht gültig ist:
+    mode = null
+    Nachfüllkarten ausblenden
+```
 
-- Der veraltete dynamische Bootstrap von `process-mode.js` wurde vollständig aus `article-colors.js` entfernt.
-- `index.html` ist damit die einzige autoritative Einbindestelle von `process-mode.js`.
-- `article-colors.js` erhält einen neuen Cache-Key im App-Shell.
-- Der Service-Worker-Cache wurde auf `fam-pulver-staging-v29-replenish-single-router-20260909` angehoben, damit die korrigierte Datei auf Android in den neuen App-Shell übernommen wird.
-- Ein neuer Regressionstest `FrontendBootstrapTests.ProcessModeRouterIsLoadedExactlyOnce` prüft statisch, dass `index.html` genau eine `process-mode.js`-Einbindung enthält und `article-colors.js` keinen zweiten Bootstrap mehr enthält.
+Ein kurzfristiger Client-Auth-/Session-Abgleich während der asynchronen Tank-/Quellbestandsaktualisierung kann deshalb den **privaten** Routermodus auf `null` setzen. Der separate Focus-/Shell-Schutz lässt den sichtbaren aktiven Button jedoch absichtlich bestehen. Sobald der Auth-Abgleich wieder gültig ist, sieht `process-mode.js` weiterhin `mode == null` und setzt die Anweisung `Vorgang auswählen.` beziehungsweise blendet die Legacy-Nachfüllkarten aus.
 
-Diese Korrektur betrifft ausschließlich Frontend-Bootstrap und Sichtbarkeitssteuerung. Backend-Session, Oxaion-Prüfungen, Transaktions-IDs, Idempotenz, Pre-Write-Revalidierung und die Regel „kein Blind-Retry“ bleiben unverändert.
+Das erklärt exakt die im Video sichtbare Kombination:
 
-Der neue Stand muss noch einmal auf dem Android-Gerät live bestätigt werden. Wegen des kontrollierten Service-Worker-Lebenszyklus ohne `skipWaiting` soll die installierte PWA nach dem Serverupdate vollständig geschlossen und neu gestartet werden, damit der neue App-Shell aktiv werden kann.
+- Header: `Nachfüllen`
+- Schrittzeile: `Vorgang auswählen.`
+- keine Nachfüllkarten
 
-## 3. Langsamer PWA-Start / nur Logo sichtbar
+und weiterhin, warum nur `Nachfüllen` betroffen ist: Dieser Vorgang verwendet noch die vorhandenen Legacy-Karten `machineStep`, `sourcesSection`, `mixSection`, `bookingStep` und `result`. Die neueren Prozessarten besitzen eigene `.processPanel`-Container.
+
+### Korrektur – Replenishment Router Guard
+
+Der neue `replenish-router-guard.js` merkt sich ausschließlich den gewählten **UI-Prozessmodus** in `sessionStorage`. Das ist kein fachlicher Buchungszustand und enthält weder Mengen, Chargen, Transaktions-IDs noch Zugangsdaten.
+
+Der Guard erkennt genau den beobachteten Inkonsistenzzustand:
+
+- Shell steht weiterhin auf Prozessseite;
+- sichtbarer beziehungsweise zuletzt bewusst gewählter Modus ist `replenish`;
+- Auth-Abgleich ist wieder gültig;
+- gleichzeitig lautet die Anweisung `Vorgang auswählen.` oder alle Legacy-Nachfüllkarten sind ausgeblendet.
+
+Dann wird `Pulver nachfüllen` intern erneut ausgewählt. Dadurch erhält die private `mode`-Variable in `process-mode.js` wieder `replenish`. Beim Nachfüllprozess verwirft `selectMode('replenish')` **keinen** bereits gescannten Tank- oder Quellenzustand; `resetStates()` betrifft nur die Zustandsobjekte der separaten Prozesse `tank-out`, `fill-new` und `fa-consumption`.
+
+Die Wiederherstellung ist reine Frontend-Navigation:
+
+- keine Oxaion-Buchung wird ausgelöst;
+- keine `clientOperationId` wird erzeugt oder verändert;
+- Backend-Session und Autorisierung werden nicht umgangen;
+- Pre-Write-Revalidierung, Idempotenz und Recovery bleiben unverändert.
+
+## 3. Kopierbares In-App-Diagnoseprotokoll
+
+Damit weitere UI-Probleme nicht mehr anhand von Vermutungen analysiert werden müssen, ist `ui-diagnostics.js` hinzugekommen.
+
+### Aufgezeichnet wird
+
+Nur technischer UI-Zustand, unter anderem:
+
+- Zeitstempel;
+- Shell `home/process`;
+- sichtbarer aktiver Prozessmodus und zuletzt gemerkter UI-Modus;
+- aktuelle Schrittanweisung;
+- Auth-Abgleich nur als `true/false`;
+- ob Auswahl/Backend-Authentifizierung vorhanden ist, jeweils nur als `true/false`;
+- Name/Hash der aktuell installierten `refreshWorkerFlow`-Funktion;
+- Anzahl/URLs der geladenen `process-mode.js`-Scripts;
+- Maschinen-Lagerort, Artikel und Maschinenbestandsstatus;
+- `stockLoading` / `sourceLoading`;
+- welche Prozesskarten tatsächlich sichtbar sind;
+- Scanner-/Modal-/Busy-Zustand;
+- Browser `online` und `visibilityState`;
+- JavaScript-Fehler und unbehandelte Promise-Fehler in bereinigter Form;
+- relevante Klicks wie Prozesswahl, Tankscan, Scanner und Buchungsbutton.
+
+### Nicht aufgezeichnet wird
+
+- Passwörter;
+- Tokens oder Cookies;
+- Authorization-Header;
+- Connection Strings;
+- Request-Bodies;
+- Personalnummern;
+- Mitarbeiternamen.
+
+Das Log liegt nur im `sessionStorage` der aktuellen App-Sitzung und ist auf die letzten Einträge begrenzt. Es ist keine ERP-Wahrheit und kein Ersatz für Backend-/Transaktionslogging.
+
+### Bedienung
+
+- Mit aktivierten `Dev-Infos` steht beim Backend-Bereich der Button **`Diagnose kopieren`** zur Verfügung.
+- Erkennt die App länger als kurzzeitig eine Prozessseite ohne sichtbare Prozesskarten, erscheint statt einer vollständig leeren Seite die Karte **`Anzeigeproblem erkannt`**.
+- Diese Karte bietet **`Anzeige wiederherstellen`** und **`Diagnose kopieren`**.
+- Wenn die Clipboard-API nicht verfügbar ist, wird der Diagnosetext in einem markierten Textfeld bereitgestellt.
+
+Der kopierte Text beginnt mit der Diagnoseversion und enthält anschließend den aktuellen Snapshot sowie die zeitlich geordneten Ereignisse. Dieser Text kann direkt in den Projektchat eingefügt werden.
+
+## 4. Langsamer PWA-Start / nur Logo sichtbar
 
 Der frühere Service Worker verwendete für Navigationsrequests `network first`. Bei schlechter oder fehlender Verbindung konnte die installierte Android-PWA deshalb auf den Netzwerk-/TCP-Timeout warten, bevor die bereits lokal vorhandene App-Shell angezeigt wurde. Während dieser Zeit war nur der native PWA-Startbildschirm beziehungsweise das Logo sichtbar.
 
@@ -81,7 +157,7 @@ Bewusst **nicht** verwendet wird `skipWaiting`: Eine neu geladene Frontend-Versi
 
 Wichtig für die Interpretation: Solange Android noch ausschließlich den nativen PWA-Splashscreen zeigt, ist noch kein HTML der App sichtbar; dort kann JavaScript keinen dynamischen Verbindungstext einblenden. Ziel ist deshalb, diese Phase durch den cache-first App-Shell-Start möglichst kurz zu halten. Sobald das HTML gerendert ist, zeigt die App ihren eigenen Start-/Verbindungsstatus.
 
-## 4. Sichtbarer Verbindungsstatus
+## 5. Sichtbarer Verbindungsstatus
 
 Der Produktionsmodus zeigt unabhängig von `Dev-Infos` einen echten Connectivity-Status:
 
@@ -98,11 +174,24 @@ In der Kopfzeile bleibt eine kompakte Statusanzeige sichtbar. Beim Start wird zu
 
 Nach erfolgreicher Prüfung verschwindet der Klartextstatus nach kurzer Zeit; die grüne Anzeige bleibt. Bei einem Fehler bleibt die rote Meldung sichtbar. Die App prüft erneut beim Vordergrundwechsel, beim Browser-`online`-Ereignis und periodisch.
 
-Für die regelmäßige Oxaion-Ampel wird jetzt der leichte Endpunkt `GET /api/connectivity/oxaion` verwendet. Er öffnet und schließt nur eine Oxaion-App-Tunnel-Session. Der deutlich schwerere `/api/health/oxaion`-Dialog-Smoke-Test bleibt für den manuellen Dev-Verbindungstest bestehen und wird nicht mehr periodisch für die Bediener-Ampel ausgeführt.
+Für die regelmäßige Oxaion-Ampel wird der leichte Endpunkt `GET /api/connectivity/oxaion` verwendet. Er öffnet und schließt nur eine Oxaion-App-Tunnel-Session. Der deutlich schwerere `/api/health/oxaion`-Dialog-Smoke-Test bleibt für den manuellen Dev-Verbindungstest bestehen und wird nicht periodisch für die Bediener-Ampel ausgeführt.
 
 Die Ampel ist ausschließlich eine Erreichbarkeitsanzeige. Sie ersetzt keine aktuelle Pre-Write-Revalidierung und keinen Transaktionsstatus.
 
-## 5. Tests und CI
+## 6. Service Worker / App-Shell
+
+Der neue App-Shell verwendet den Cache:
+
+`fam-pulver-staging-v30-replenish-guard-diag-20260909`
+
+Neu gecacht werden insbesondere:
+
+- `/ui-diagnostics.js?v=20260909-ui-diag-1`
+- `/replenish-router-guard.js?v=20260909-replenish-guard-1`
+
+Es wird weiterhin bewusst kein unkontrolliertes `skipWaiting` verwendet.
+
+## 7. Tests und CI
 
 Die automatisierten Tests beziehungsweise CI-Prüfungen decken weiterhin ab:
 
@@ -110,14 +199,20 @@ Die automatisierten Tests beziehungsweise CI-Prüfungen decken weiterhin ab:
 - keine `TOP`-Begrenzung;
 - weiterhin rein lesende SQL-Abfrage ohne Bestands-/RP-Filter;
 - `process-mode.js` darf im Frontend-Bootstrap nur einmal geladen werden;
-- JavaScript-Syntaxprüfung umfasst `connectivity-status.js`, `process-mode-focus-fix.js`, `target-location.js`, Service Worker und die übrigen Worker-/Prozessskripte;
-- .NET Build und Unit-Tests laufen auf jedem Push des Branches `feature/separate-processes`.
+- Diagnose- und Guard-Script müssen in `index.html` eingebunden sein;
+- der Guard muss den beobachteten Zustand `Vorgang auswählen.` im aktiven Nachfüllprozess erkennen und die interne Auswahl wiederherstellen können;
+- der Service Worker muss Diagnose und Guard im App-Shell enthalten;
+- der Diagnoselogger enthält statische Schutzprüfungen gegen die Aufnahme von Personalnummer, Name oder Passwortfeldern;
+- JavaScript-Syntaxprüfung und .NET Build/Tests laufen auf jedem Push des Branches `feature/separate-processes`.
 
-Die Vollständigkeit der realen `H04KDX`-Lagerplätze kann nicht durch einen statischen Unit-Test bewiesen werden; sie wurde deshalb im Android-STAGING-Test bestätigt.
+## 8. Nächster Live-STAGING-Test
 
-## 6. Nächste Live-STAGING-Prüfpunkte
+Nach Bereitstellung dieses Standes:
 
-- Nach Bereitstellung dieses Standes die installierte PWA vollständig schließen und neu starten, damit der neue Service Worker/App-Shell aktiv werden kann.
-- `Nachfüllen` starten, Tank scannen und prüfen, dass anschließend Tankbestand, passende Lagerorte und der Button zum Scannen der Nachfüllcharge sichtbar bleiben.
-- `Nachfüllen` danach mehrfach hintereinander wiederholen, um zu bestätigen, dass die Oberfläche auch während der asynchronen Oxaion-Leseabfragen nicht mehr leer wird.
-- Die bereits bestätigte vollständige H04KDX-Lagerplatzanzeige muss für diesen Fix nicht erneut untersucht werden; die verbindliche F4-Pre-Write-Prüfung bleibt unabhängig davon bestehen.
+1. installierte PWA vollständig schließen und neu starten;
+2. `Nachfüllen` wählen;
+3. Maschinentank scannen;
+4. prüfen, ob Tankbestand und Nachfüllschritt sichtbar bleiben beziehungsweise unmittelbar wiederhergestellt werden;
+5. falls die Seite wieder inkonsistent wird, auf **`Diagnose kopieren`** drücken und den kompletten Text in den Projektchat einfügen.
+
+Für diesen Test muss `H04KDX` nicht erneut untersucht werden; dessen vollständige Lagerplatzanzeige ist im aktuellen Stand live bestätigt.
