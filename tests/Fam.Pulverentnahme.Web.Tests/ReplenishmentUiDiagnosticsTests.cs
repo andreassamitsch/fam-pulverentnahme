@@ -1,0 +1,66 @@
+using Xunit;
+
+namespace Fam.Pulverentnahme.Web.Tests;
+
+public sealed class ReplenishmentUiDiagnosticsTests
+{
+    [Fact]
+    public void IndexLoadsDiagnosticsAndReplenishmentGuard()
+    {
+        var webRoot = WebRoot();
+        var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
+
+        Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", index);
+        Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", index);
+        Assert.True(index.IndexOf("/process-mode.js", StringComparison.Ordinal) <
+                    index.IndexOf("/replenish-router-guard.js", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ReplenishmentGuardRecognizesObservedBlankStateAndCanRestorePrivateMode()
+    {
+        var source = File.ReadAllText(Path.Combine(WebRoot(), "replenish-router-guard.js"));
+
+        Assert.Contains("instruction()==='Vorgang auswählen.'", source);
+        Assert.Contains("selected!=='replenish'", source);
+        Assert.Contains("button.click()", source);
+        Assert.Contains("REPLENISH_ROUTER_RECOVERY_START", source);
+    }
+
+    [Fact]
+    public void DiagnosticLoggerProvidesCopyableBlankStateWithoutCredentialFields()
+    {
+        var source = File.ReadAllText(Path.Combine(WebRoot(), "ui-diagnostics.js"));
+
+        Assert.Contains("BLANK_PROCESS_DETECTED", source);
+        Assert.Contains("Diagnose kopieren", source);
+        Assert.Contains("navigator.clipboard", source);
+        Assert.DoesNotContain("personnelNo:", source);
+        Assert.DoesNotContain("fullName:", source);
+        Assert.DoesNotContain("password:", source);
+    }
+
+    [Fact]
+    public void ServiceWorkerCachesDiagnosticsAndGuard()
+    {
+        var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
+
+        Assert.Contains("fam-pulver-staging-v30-replenish-guard-diag-20260909", source);
+        Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
+        Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
+    }
+
+    private static string WebRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")))
+                return Path.Combine(directory.FullName, "src", "Fam.Pulverentnahme.Web", "wwwroot");
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Repository root containing AGENTS.md was not found.");
+    }
+}
