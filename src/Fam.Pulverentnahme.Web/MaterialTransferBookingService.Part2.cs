@@ -8,6 +8,8 @@ namespace Fam.Pulverentnahme.Web;
 
 public sealed partial class MaterialTransferBookingService
 {
+    private const int MaxTargetF4Pages = 100;
+
     private async Task ValidateLfDestinationAsync(OxaionSession session, Dictionary<string, string> positionState, TransferSpec spec, CancellationToken ct)
     {
         var warehouseF4 = Merge(positionState, Dict(
@@ -21,13 +23,14 @@ public sealed partial class MaterialTransferBookingService
         OxaionSession.AssertNoFcod(await session.CallAsync("US16601R", "*GETHDR", Dict(
             ("FLD", "TX_LAG2"), ("CPY-FRSSID", ""), ("NOHWPgm", "US16601"),
             ("SSID", warehouseSsid), ("PFLD", "TX_LAGO2")), ct));
-        var warehouses = await session.CallAsync("US16601R", "*FIRSTLIST", Dict(
-            ("FLD", "TX_LAG2"), ("SSID", warehouseSsid), ("PFLD", "TX_LAGO2"), ("mode", "replace")), ct);
-        OxaionSession.AssertNoFcod(warehouses);
-        if (!MachineStockService.HasStop(warehouses.Xml))
-            throw new InvalidOperationException("US16601R target-warehouse list did not return STOP; incomplete target validation is not accepted.");
+        var warehouseRows = await ReadCompleteF4RowsAsync(
+            session,
+            "US16601R",
+            warehouseSsid,
+            Dict(("FLD", "TX_LAG2"), ("SSID", warehouseSsid), ("PFLD", "TX_LAGO2"), ("mode", "replace")),
+            ct);
 
-        var warehouseMatches = warehouses.Xml.Descendants("ROW").Where(row =>
+        var warehouseMatches = warehouseRows.Where(row =>
             string.Equals(row.Element("KEY")?.Element("TX_LAG2")?.Value.Trim(), spec.ToWarehouse, StringComparison.OrdinalIgnoreCase)).ToList();
         if (warehouseMatches.Count != 1)
             throw new ProcessConflictException($"Ziel-Lagerort {spec.ToWarehouse} wurde in der bestätigten Oxaion-Lagerortliste nicht eindeutig gefunden.");
@@ -53,16 +56,57 @@ public sealed partial class MaterialTransferBookingService
         OxaionSession.AssertNoFcod(await session.CallAsync("LB13210R", "*GETHDR", Dict(
             ("FLD", noFields), ("CPY-FRSSID", ""), ("NOHWPgm", "LB13210"),
             ("SSID", binSsid), ("PFLD", parentFields)), ct));
-        var bins = await session.CallAsync("LB13210R", "*FIRSTLIST", Dict(
-            ("FLD", noFields), ("SSID", binSsid), ("PFLD", parentFields), ("mode", "replace")), ct);
-        OxaionSession.AssertNoFcod(bins);
-        if (!MachineStockService.HasStop(bins.Xml))
-            throw new InvalidOperationException("LB13210R target-bin list did not return STOP; incomplete target validation is not accepted.");
-        var binMatches = bins.Xml.Descendants("ROW").Count(row =>
+        var binRows = await ReadCompleteF4RowsAsync(
+            session,
+            "LB13210R",
+            binSsid,
+            Dict(("FLD", noFields), ("SSID", binSsid), ("PFLD", parentFields), ("mode", "replace")),
+            ct);
+
+        var binMatches = binRows.Count(row =>
             string.Equals(row.Element("KEY")?.Element("TX_LAG2")?.Value.Trim(), spec.ToWarehouse, StringComparison.OrdinalIgnoreCase)
             && string.Equals(row.Element("KEY")?.Element("TX_LAP2")?.Value.Trim(), spec.ToStorageBin, StringComparison.Ordinal));
         if (binMatches != 1)
             throw new ProcessConflictException($"Ziel-Lagerplatz {spec.ToWarehouse} / {spec.ToStorageBin} wurde in der bestätigten Oxaion-Lagerplatzliste nicht eindeutig gefunden.");
+    }
+
+    private static async Task<IReadOnlyList<XElement>> ReadCompleteF4RowsAsync(
+        OxaionSession session,
+        string program,
+        string ssid,
+        IReadOnlyDictionary<string, string> firstListContext,
+        CancellationToken ct)
+    {
+        var rows = new List<XElement>();
+        var seenNonTerminalPages = new HashSet<string>(StringComparer.Ordinal);
+        var page = await session.CallAsync(program, "*FIRSTLIST", new Dictionary<string, string>(firstListContext, StringComparer.Ordinal), ct);
+        OxaionSession.AssertNoFcod(page);
+
+        for (var pageNumber = 1; pageNumber <= MaxTargetF4Pages; pageNumber++)
+        {
+            var pageRows = page.Xml.Descendants("ROW").ToList();
+            var terminal = MachineStockService.HasStop(page.Xml);
+            if (!terminal)
+            {
+                if (pageRows.Count == 0)
+                    throw new InvalidOperationException($"{program} target-validation list returned an empty non-terminal page.");
+
+                var signature = string.Join("\n", pageRows.Select(row => row.ToString(SaveOptions.DisableFormatting)));
+                if (!seenNonTerminalPages.Add(signature))
+                    throw new InvalidOperationException($"{program} target-validation pagination did not advance; repeated page detected.");
+            }
+
+            rows.AddRange(pageRows.Select(row => new XElement(row)));
+            if (terminal) return rows;
+
+            // Oxaion R-list pagination with *NEXTLIST + SSID is already confirmed in the project
+            // for paged list programs. Keep the same bounded, fail-closed mechanism here; a target
+            // key is accepted only after a later page returns STOP and the exact key is unique.
+            page = await session.CallAsync(program, "*NEXTLIST", Dict(("SSID", ssid)), ct);
+            OxaionSession.AssertNoFcod(page);
+        }
+
+        throw new InvalidOperationException($"{program} target-validation list did not return STOP within {MaxTargetF4Pages} pages.");
     }
 
     private async Task<Dictionary<string, string>> NewHeaderAsync(OxaionSession session, CancellationToken ct)
