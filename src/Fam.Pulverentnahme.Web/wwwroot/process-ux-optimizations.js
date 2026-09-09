@@ -14,7 +14,6 @@
   const el=id=>document.getElementById(id);
   const activeMode=()=>document.querySelector('.processChoice.active')?.dataset?.mode||'';
   const onProcessPage=()=>document.body.classList.contains('processShellProcess');
-  const auth=()=>typeof personnelSessionMatchesSelection==='function'&&personnelSessionMatchesSelection();
   const shortTitles={
     replenish:'Nachfüllen',
     'tank-out':'Auslagern',
@@ -22,6 +21,16 @@
     'fa-consumption':'Fertigungsauftrag',
     inventory:'Lagerbestand'
   };
+  const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+  function setText(node,text){if(node&&node.textContent!==text)node.textContent=text}
+  function setHtml(node,html){if(node&&node.innerHTML!==html)node.innerHTML=html}
+  function setStatus(node,kind,text){
+    if(!node)return;
+    const cls=`status ${kind}`;
+    if(node.className!==cls)node.className=cls;
+    setText(node,text);
+  }
 
   function stripStepNumbers(root=document){
     for(const h of root.querySelectorAll?.('.stepCard > h2')||[]){
@@ -34,20 +43,24 @@
     const header=document.querySelector('.workerHeader');
     if(!header)return;
     const title=header.querySelector('.title');
-    if(title)title.textContent=onProcessPage()?(shortTitles[activeMode()]||'Pulververwaltung'):'Pulververwaltung';
+    const desired=onProcessPage()?(shortTitles[activeMode()]||'Pulververwaltung'):'Pulververwaltung';
+    setText(title,desired);
     const user=el('headerPersonnelName');
     const dev=header.querySelector('.devSwitch');
     if(user&&user.parentElement!==header){
       if(dev)header.insertBefore(user,dev);else header.appendChild(user);
     }
     el('processHomeBtn')?.classList.add('hidden');
+    const hint=el('headerPersonnelMenuHint');
+    if(hint&&onProcessPage())setText(hint,'Zum Abmelden zuerst mit Zurück zur Vorgangsübersicht wechseln.');
   }
 
   function updateHeaderOffset(){
     const header=document.querySelector('header');
     if(!header)return;
-    const px=Math.ceil(header.getBoundingClientRect().height)+4;
-    document.documentElement.style.setProperty('--fam-header-height',`${px}px`);
+    const value=`${Math.ceil(header.getBoundingClientRect().height)+4}px`;
+    if(document.documentElement.style.getPropertyValue('--fam-header-height')!==value)
+      document.documentElement.style.setProperty('--fam-header-height',value);
   }
 
   function initHistory(){
@@ -68,7 +81,7 @@
       home.click();
       setTimeout(()=>{
         if(onProcessPage())history.pushState({famPulverPage:'process'},'');
-      },80);
+      },100);
     });
   }
 
@@ -104,6 +117,7 @@
         input.dataset.suggestionBound='1';
         input.addEventListener('input',event=>{if(event.isTrusted)input.dataset.autoSuggested='false'});
       }
+      if(input.dataset.autoSuggested==='false')continue;
       if(String(input.value||'').trim()&&input.dataset.autoSuggested!=='true')continue;
       let available='';
       const select=card.querySelector('[data-pos]');
@@ -114,9 +128,9 @@
         available=lastKgText(card.textContent||'');
       }
       if(!available)continue;
+      input.dataset.autoSuggested='true';
       if(input.value!==available){
         input.value=available;
-        input.dataset.autoSuggested='true';
         input.dispatchEvent(new Event('input',{bubbles:true}));
       }
     }
@@ -133,8 +147,7 @@
   }
   function preserveSingleMix(){
     const cards=[...(el('fillSources')?.querySelectorAll('.processSource')||[])];
-    if(cards.length!==1)return false;
-    return isStoredMix(fillArticle(),sourceBatch(cards[0]));
+    return cards.length===1&&isStoredMix(fillArticle(),sourceBatch(cards[0]));
   }
   function singleMixBatch(){const card=el('fillSources')?.querySelector('.processSource');return card?sourceBatch(card):''}
 
@@ -158,26 +171,24 @@
     if(part?.value){
       if(!panel.dataset.generatedMixBatch&&/Neue Mix-Charge/i.test(part.text.data||''))panel.dataset.generatedMixBatch=part.value.textContent.trim();
       if(preserveSingleMix()){
-        part.text.data='Mix-Charge bleibt: ';
-        part.value.textContent=singleMixBatch();
+        if(part.text.data!=='Mix-Charge bleibt: ')part.text.data='Mix-Charge bleibt: ';
+        setText(part.value,singleMixBatch());
       }else{
-        part.text.data='Neue Mix-Charge: ';
-        if(panel.dataset.generatedMixBatch)part.value.textContent=panel.dataset.generatedMixBatch;
+        if(part.text.data!=='Neue Mix-Charge: ')part.text.data='Neue Mix-Charge: ';
+        if(panel.dataset.generatedMixBatch)setText(part.value,panel.dataset.generatedMixBatch);
       }
     }
 
     if(preserveSingleMix()){
       const summary=el('fillSummary');
-      if(summary){
-        const batch=singleMixBatch();
-        summary.innerHTML=summary.innerHTML.replace(/Neue Mix-Charge:\s*<b>.*?<\/b>/i,`Mix-Charge bleibt: <b>${escapeHtml(batch)}</b>`);
+      if(summary&&/Neue Mix-Charge:/i.test(summary.innerHTML)){
+        const corrected=summary.innerHTML.replace(/Neue Mix-Charge:\s*<b>.*?<\/b>/i,`Mix-Charge bleibt: <b>${escapeHtml(singleMixBatch())}</b>`);
+        setHtml(summary,corrected);
       }
     }
     const choice=document.querySelector('.processChoice[data-mode="fill-new"] span');
-    if(choice)choice.textContent='Leeren Tank mit Charge(n) befüllen; Mix-Charge wird aus der finalen Quellwahl bestimmt';
+    setText(choice,'Leeren Tank mit Charge(n) befüllen; Mix-Charge wird aus der finalen Quellwahl bestimmt');
   }
-
-  function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 
   function detailValue(label){
     for(const row of el('faOrderData')?.querySelectorAll('.processDetailGrid>div')||[]){
@@ -210,36 +221,35 @@
     const delta=actual-already;
     const valid=Number.isFinite(actual)&&actual>already+.0005&&delta<=tankQty+.0005;
     const status=el('faAmountStatus');
-    if(status){
-      if(!Number.isFinite(actual)||actual<=0){status.className='status bad';status.textContent='⛔ Ist-Verbrauch muss größer als 0 kg sein.'}
-      else if(actual<=already+.0005){status.className='status bad';status.textContent=`⛔ Ist-Verbrauch muss größer als bereits gebucht ${formatKgNumber(already)} kg sein. Soll-Vorschlag bitte mit dem tatsächlichen Verbrauch prüfen.`}
-      else if(delta>tankQty+.0005){status.className='status bad';status.textContent=`⛔ Neu zu buchende Differenz ${formatKgNumber(delta)} kg ist größer als der Tankbestand ${formatKgNumber(tankQty)} kg.`}
-      else if(input.dataset.sollSuggested==='true'){status.className='status warn';status.textContent=`Vorschlag aus Soll: ${formatKgNumber(required)} kg. Bitte mit dem tatsächlichen Ist-Verbrauch prüfen und bei Abweichung korrigieren. Tankbestand: ${formatKgNumber(tankQty)} kg.`}
-      else{status.className='status ok';status.textContent=`✓ Ist-Verbrauch ${formatKgNumber(actual)} kg. Neu zu buchen: ${formatKgNumber(delta)} kg. Tankbestand: ${formatKgNumber(tankQty)} kg.`}
-    }
+    if(!Number.isFinite(actual)||actual<=0)setStatus(status,'bad','⛔ Ist-Verbrauch muss größer als 0 kg sein.');
+    else if(actual<=already+.0005)setStatus(status,'bad',`⛔ Ist-Verbrauch muss größer als bereits gebucht ${formatKgNumber(already)} kg sein. Soll-Vorschlag bitte mit dem tatsächlichen Verbrauch prüfen.`);
+    else if(delta>tankQty+.0005)setStatus(status,'bad',`⛔ Neu zu buchende Differenz ${formatKgNumber(delta)} kg ist größer als der Tankbestand ${formatKgNumber(tankQty)} kg.`);
+    else if(input.dataset.sollSuggested==='true')setStatus(status,'warn',`Vorschlag aus Soll: ${formatKgNumber(required)} kg. Bitte mit dem tatsächlichen Ist-Verbrauch prüfen und bei Abweichung korrigieren. Tankbestand: ${formatKgNumber(tankQty)} kg.`);
+    else setStatus(status,'ok',`✓ Ist-Verbrauch ${formatKgNumber(actual)} kg. Neu zu buchen: ${formatKgNumber(delta)} kg. Tankbestand: ${formatKgNumber(tankQty)} kg.`);
+
     const orderNo=detailValue('Fertigungsauftrag'),position=detailValue('Materialposition');
     const summary=el('faSummary');
-    if(summary)summary.innerHTML=`<b>Fertigungsauftrag ${escapeHtml(orderNo)} · Materialposition ${escapeHtml(position)}</b><br>Soll: ${formatKgNumber(required)} kg · bereits gebucht: <b>${formatKgNumber(already)} kg</b><br>Ist-Verbrauch: <b>${Number.isFinite(actual)?formatKgNumber(actual)+' kg':'fehlt'}</b>${Number.isFinite(delta)?`<br>Neu zu buchen: <b>${formatKgNumber(delta)} kg</b>`:''}<br>Tankbestand: <b>${formatKgNumber(tankQty)} kg</b>`;
-    if(onProcessPage()&&activeMode()==='fa-consumption'){
-      const instruction=el('workerNextInstruction');
-      if(instruction)instruction.textContent=valid?'Pulververbrauch prüfen und buchen.':'Pulververbrauch prüfen und korrigieren.';
-    }
+    const summaryHtml=`<b>Fertigungsauftrag ${escapeHtml(orderNo)} · Materialposition ${escapeHtml(position)}</b><br>Soll: ${formatKgNumber(required)} kg · bereits gebucht: <b>${formatKgNumber(already)} kg</b><br>Ist-Verbrauch: <b>${Number.isFinite(actual)?formatKgNumber(actual)+' kg':'fehlt'}</b>${Number.isFinite(delta)?`<br>Neu zu buchen: <b>${formatKgNumber(delta)} kg</b>`:''}<br>Tankbestand: <b>${formatKgNumber(tankQty)} kg</b>`;
+    setHtml(summary,summaryHtml);
+    if(onProcessPage()&&activeMode()==='fa-consumption')setText(el('workerNextInstruction'),valid?'Pulververbrauch prüfen und buchen.':'Pulververbrauch prüfen und korrigieren.');
   }
 
-  function normalizeFaConfirmation(){
+  function normalizeConfirmations(){
     const title=el('processModalTitle'),body=el('processModalBody');
     if(!title||!body)return;
     if(/FA-Verbrauch bestätigen|Pulververbrauch auf Fertigungsauftrag bestätigen/.test(title.textContent||'')){
-      title.textContent='Pulververbrauch auf Fertigungsauftrag bestätigen';
-      body.innerHTML=body.innerHTML
+      setText(title,'Pulververbrauch auf Fertigungsauftrag bestätigen');
+      const corrected=body.innerHTML
         .replace(/\bFA\s+(?=<b>)/g,'Fertigungsauftrag ')
         .replace(/Materialpos\./g,'Materialposition')
         .replace(/Zusätzlich jetzt:/g,'Ist-Verbrauch:')
         .replace(/Zusätzlicher Verbrauch/g,'Ist-Verbrauch')
         .replace(/Zusätzlichen Verbrauch/g,'Ist-Verbrauch');
+      setHtml(body,corrected);
     }
-    if(title.textContent.trim()==='Neue Befüllung bestätigen'&&preserveSingleMix()){
-      body.innerHTML=body.innerHTML.replace(/Neue Mix-Charge:\s*<b>.*?<\/b>/i,`Mix-Charge bleibt: <b>${escapeHtml(singleMixBatch())}</b>`);
+    if(title.textContent.trim()==='Neue Befüllung bestätigen'&&preserveSingleMix()&&/Neue Mix-Charge:/i.test(body.innerHTML)){
+      const corrected=body.innerHTML.replace(/Neue Mix-Charge:\s*<b>.*?<\/b>/i,`Mix-Charge bleibt: <b>${escapeHtml(singleMixBatch())}</b>`);
+      setHtml(body,corrected);
     }
   }
 
@@ -253,9 +263,11 @@
       'fa-consumption':'Der Pulververbrauch auf den Fertigungsauftrag wurde in Oxaion erfolgreich gebucht und bestätigt.'
     }[mode];
     if(!text)return;
+    if(body.dataset.localizedSuccess===mode)return;
     const original=body.textContent||'';
     const doc=original.match(/Beleg:\s*([^\s]+)/i)?.[1]||'';
-    body.innerHTML=`<div class="status ok">✓ ${escapeHtml(text)}${doc?`<br>Beleg: <b>${escapeHtml(doc)}</b>`:''}</div>`;
+    body.dataset.localizedSuccess=mode;
+    setHtml(body,`<div class="status ok">✓ ${escapeHtml(text)}${doc?`<br>Beleg: <b>${escapeHtml(doc)}</b>`:''}</div>`);
   }
 
   function ensureBusyOverlay(){
@@ -267,40 +279,45 @@
   }
   function showBusy(){
     ensureBusyOverlay();bookingProcessing=true;
-    el('bookingBusyText').textContent='Bitte warten und nicht erneut auf Buchen drücken.';
+    setText(el('bookingBusyText'),'Bitte warten und nicht erneut auf Buchen drücken.');
     el('bookingBusyOverlay').classList.remove('hidden');document.body.classList.add('scanModalOpen');
-    setTimeout(()=>{if(bookingProcessing&&el('bookingBusyText'))el('bookingBusyText').textContent='Die Buchung dauert länger. Bitte weiter warten; nicht erneut buchen.'},30000);
+    setTimeout(()=>{if(bookingProcessing)setText(el('bookingBusyText'),'Die Buchung dauert länger. Bitte weiter warten; nicht erneut buchen.')},30000);
   }
   function hideBusy(){
     bookingProcessing=false;el('bookingBusyOverlay')?.classList.add('hidden');
-    if(el('processModal')?.classList.contains('hidden')&&el('bookingResultModal')?.classList.contains('hidden'))document.body.classList.remove('scanModalOpen');
+    const processResultVisible=el('processModal')&&!el('processModal').classList.contains('hidden');
+    const legacyResultVisible=el('bookingResultModal')&&!el('bookingResultModal').classList.contains('hidden');
+    if(!processResultVisible&&!legacyResultVisible)document.body.classList.remove('scanModalOpen');
+  }
+  function syncBusyResult(){
+    if(!bookingProcessing)return;
+    const processModal=el('processModal');
+    const processTitle=el('processModalTitle')?.textContent||'';
+    const legacy=el('bookingResultModal');
+    if((processModal&&!processModal.classList.contains('hidden')&&!/bestätigen/i.test(processTitle))||(legacy&&!legacy.classList.contains('hidden')))hideBusy();
   }
 
   function configureLookupKeyboard(inputId,label){
     const input=el(inputId);if(!input||input.dataset.keyboardToggleBound)return;
-    input.dataset.keyboardToggleBound='1';
-    input.readOnly=true;input.inputMode='none';
+    input.dataset.keyboardToggleBound='1';input.readOnly=true;input.inputMode='none';
     const wrap=document.createElement('div');wrap.className='keyboardLookupWrap';
     input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
     const button=document.createElement('button');button.type='button';button.className='keyboardToggle';button.setAttribute('aria-label',`${label} mit Tastatur suchen`);button.title='Tastatur öffnen';button.textContent='⌨';wrap.appendChild(button);
     const lock=()=>{input.readOnly=true;input.inputMode='none';button.classList.remove('active')};
     button.addEventListener('pointerdown',event=>event.preventDefault());
     button.addEventListener('click',()=>{
-      input.readOnly=false;input.inputMode='text';button.classList.add('active');input.focus();
-      try{input.setSelectionRange(input.value.length,input.value.length)}catch{}
+      input.readOnly=false;input.inputMode='text';button.classList.add('active');
+      input.blur();
+      setTimeout(()=>{input.focus();try{input.setSelectionRange(input.value.length,input.value.length)}catch{}},20);
     });
-    input.addEventListener('blur',()=>setTimeout(lock,220));
+    input.addEventListener('blur',()=>setTimeout(lock,260));
     const canonical=inputId==='outWarehouseLookup'?el('outWarehouse'):el('outStorageBin');
     canonical?.addEventListener('input',()=>{if(canonical.value)lock()});
   }
-
-  function configureTargetLocation(){
-    configureLookupKeyboard('outWarehouseLookup','Lagerort');
-    configureLookupKeyboard('outStorageBinLookup','Lagerplatz');
-  }
+  function configureTargetLocation(){configureLookupKeyboard('outWarehouseLookup','Lagerort');configureLookupKeyboard('outStorageBinLookup','Lagerplatz')}
 
   function syncAll(){
-    stripStepNumbers();layoutHeader();updateHeaderOffset();configureTargetLocation();prefillFillAmounts();syncFillMixPresentation();syncFaUi();normalizeFaConfirmation();localizeSuccess();syncHistory();
+    stripStepNumbers();layoutHeader();updateHeaderOffset();configureTargetLocation();prefillFillAmounts();syncFillMixPresentation();syncFaUi();normalizeConfirmations();localizeSuccess();syncBusyResult();syncHistory();
   }
 
   function install(){
@@ -312,7 +329,11 @@
     document.head.appendChild(style);
 
     const header=document.querySelector('header');if(header&&typeof ResizeObserver!=='undefined')new ResizeObserver(updateHeaderOffset).observe(header);
-    new MutationObserver(()=>setTimeout(syncAll,0)).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
+    let pending=false;
+    new MutationObserver(()=>{
+      if(pending)return;pending=true;
+      setTimeout(()=>{pending=false;syncAll()},0);
+    }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
 
     document.addEventListener('click',event=>{
       if(event.target?.closest?.('.processChoice'))setTimeout(()=>{syncHistory();layoutHeader()},20);
@@ -322,22 +343,16 @@
     document.addEventListener('change',event=>{
       if(event.target?.matches?.('#fillSources [data-pos]')){
         const input=event.target.closest('.processSource')?.querySelector('[data-amount]');
-        if(input&&input.dataset.autoSuggested==='true')input.value='';
+        if(input&&input.dataset.autoSuggested==='true'){input.value='';input.dataset.autoSuggested='true'}
         setTimeout(prefillFillAmounts,0);
       }
     },true);
 
     window.addEventListener('unhandledrejection',()=>hideBusy());
     window.addEventListener('error',()=>hideBusy());
-
-    const modal=el('processModal');if(modal)new MutationObserver(()=>{
-      if(!modal.classList.contains('hidden')&&!/bestätigen/i.test(el('processModalTitle')?.textContent||''))hideBusy();
-    }).observe(modal,{childList:true,subtree:true,attributes:true,attributeFilter:['class'],characterData:true});
-    const legacyResult=el('bookingResultModal');if(legacyResult)new MutationObserver(()=>{if(!legacyResult.classList.contains('hidden'))hideBusy()}).observe(legacyResult,{attributes:true,attributeFilter:['class']});
-
-    const faChoice=document.querySelector('.processChoice[data-mode="fa-consumption"] span');if(faChoice)faChoice.textContent='Tank, Fertigungsauftrag und Ist-Verbrauch erfassen';
+    setText(document.querySelector('.processChoice[data-mode="fa-consumption"] span'),'Tank, Fertigungsauftrag und Ist-Verbrauch erfassen');
     syncAll();
-    setInterval(syncAll,600);
+    setInterval(syncAll,800);
   }
 
   function start(){
