@@ -23,6 +23,22 @@ public static class SeparateProcessFeatureExtensions
 
     public static IEndpointRouteBuilder MapSeparateProcessEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        // Lightweight reachability/authentication probe for the operator-visible status lamp.
+        // It opens and closes only an Oxaion app-tunnel session; unlike /api/health/oxaion it does
+        // not execute an LB20100 dialog smoke test and is therefore suitable for periodic polling.
+        endpoints.MapGet("/api/connectivity/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
+        {
+            try
+            {
+                await using var session = await oxaion.ConnectAsync(ct);
+                return Results.Ok(new { ok=true, message="Oxaion erreichbar." });
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Results.Json(new { ok=false, message="Oxaion derzeit nicht erreichbar.", technicalMessage=ex.Message }, statusCode:503);
+            }
+        });
+
         endpoints.MapGet("/api/article-recognition-colors", async (string article, HttpContext http, OxaionClient oxaion, CancellationToken ct) =>
         {
             if (!SessionAuthenticated(http, out var auth)) return auth!;
