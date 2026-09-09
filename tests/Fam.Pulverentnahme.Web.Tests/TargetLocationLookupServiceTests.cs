@@ -22,14 +22,15 @@ public sealed class TargetLocationLookupServiceTests
     }
 
     [Fact]
-    public void StorageBinLookupIsReadOnlyCompleteCaseInsensitiveAndReturnsInternalBinKeysWithoutPowderOrStockFilter()
+    public void StorageBinLookupUsesPclBinMasterBehindConfirmedLb13210Matchcode()
     {
         var sql = TargetLocationLookupService.StorageBinQueryText;
-        Assert.Contains("FROM OXAION.LLPLAP AS LP", sql);
-        Assert.Contains("LP.LPFIRM = @firm", sql);
-        Assert.Contains("UPPER(LP.LPLAGO) = UPPER(@warehouse)", sql);
-        Assert.Contains("LP.LPLAPL", sql);
-        Assert.Contains("UPPER(LP.LPLAPL) LIKE UPPER(@prefix)", sql);
+        Assert.Contains("FROM OXAION.LPCLAP AS P", sql);
+        Assert.Contains("P.PCFIRM = @firm", sql);
+        Assert.Contains("UPPER(P.PCLAGO) = UPPER(@warehouse)", sql);
+        Assert.Contains("P.PCLAPL", sql);
+        Assert.Contains("UPPER(P.PCLAPL) LIKE UPPER(@prefix)", sql);
+        Assert.DoesNotContain("OXAION.LLPLAP", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TOP (", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("RP.%", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("LPLABE", sql, StringComparison.OrdinalIgnoreCase);
