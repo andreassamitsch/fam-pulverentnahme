@@ -1,0 +1,33 @@
+using System.Text.RegularExpressions;
+using Xunit;
+
+namespace Fam.Pulverentnahme.Web.Tests;
+
+public sealed class FrontendBootstrapTests
+{
+    [Fact]
+    public void ProcessModeRouterIsLoadedExactlyOnce()
+    {
+        var root = FindRepositoryRoot();
+        var webRoot = Path.Combine(root, "src", "Fam.Pulverentnahme.Web", "wwwroot");
+        var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
+        var articleColors = File.ReadAllText(Path.Combine(webRoot, "article-colors.js"));
+
+        Assert.Equal(1, Regex.Matches(index, "<script\\s+src=\"/process-mode\\.js(?:\\?[^\"]*)?\"", RegexOptions.IgnoreCase).Count);
+        Assert.DoesNotContain("process-mode.js", articleColors);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")))
+                return directory.FullName;
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Repository root containing AGENTS.md was not found.");
+    }
+}
