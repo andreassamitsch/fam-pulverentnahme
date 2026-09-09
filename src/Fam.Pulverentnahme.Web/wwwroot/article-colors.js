@@ -41,12 +41,3 @@ function initArticleRecognitionColors(){
   renderArticleRecognitionColors();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initArticleRecognitionColors);else initArticleRecognitionColors();
-
-// Bootstrap the separate-process worker extension. Kept as a separate file so the accepted
-// replenishment flow stays unchanged while the new processes are developed and tested.
-(function loadSeparateProcesses(){
-  const s=document.createElement('script');
-  s.src='/process-mode.js?v=20260904-separate-processes-1';
-  s.defer=true;
-  document.head.appendChild(s);
-})();
