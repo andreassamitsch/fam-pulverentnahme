@@ -6,19 +6,22 @@
   <meta name="theme-color" content="#15324a">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=20260904-scan-safety">
+  <link rel="stylesheet" href="/styles.css?v=20260909-connectivity-1">
   <link rel="stylesheet" href="/worker-ui.css?v=20260904-scan-safety">
   <link rel="stylesheet" href="/qr-scanner.css?v=20260904-persistent-zoom">
+  <script defer src="/connectivity-status.js?v=20260909-connectivity-1"></script>
   <title>Pulververwaltung</title>
 </head>
 <body>
 <header>
   <div class="workerHeader">
     <div><div class="title">Pulververwaltung</div><div class="sub devOnly">Frontend + ASP.NET Core Backend · STAGING</div></div>
+    <div id="connectivityLamp" class="connectivityLamp checking" role="status" aria-live="polite" aria-label="Verbindung wird geprüft" title="Verbindung wird geprüft"><span id="connectivityLampText" class="connectivityLampText">Prüfen</span></div>
     <label class="devSwitch"><input id="devModeToggle" type="checkbox"> Dev-Infos</label>
   </div>
 </header>
 <div id="workerNextInstruction" class="workerNext">Bitte anmelden.</div>
+<div id="startupConnectivity" class="startupConnectivity checking" role="status" aria-live="polite"><span id="startupConnectivityText">Verbindungsaufbau: Backend wird geprüft …</span></div>
 <main>
   <div class="notice warn devOnly"><b>STAGING:</b> Port 11118 / Firma 103. Buchungen sind echte STAGING-Lagerbuchungen.</div>
 
@@ -176,9 +179,9 @@
 <script src="/worker-ui.js?v=20260904-scan-safety"></script>
 <script src="/worker-enhancements.js?v=20260904-worker-flow-3"></script>
 <script src="/process-mode.js?v=20260908-process-ui-2"></script>
-<script src="/process-mode-focus-fix.js?v=20260908-focus-stable-2"></script>
-<script src="/target-location.js?v=20260908-location-ajax-2" data-target-location-selector="true"></script>
-<script src="/process-shell.js?v=20260908-process-shell-1"></script>
+<script src="/process-mode-focus-fix.js?v=20260909-auth-grace-3"></script>
+<script src="/target-location.js?v=20260909-pcl-targets-1" data-target-location-selector="true"></script>
+<script src="/process-shell.js?v=20260909-auth-grace-1"></script>
 <script src="/header-user-menu.js?v=20260909-header-user-2"></script>
 <script src="/process-ux-optimizations.js?v=20260909-process-ux-1"></script>
 <script src="/process-hotfix-20260909.js?v=20260909-tank-ux-2"></script>
