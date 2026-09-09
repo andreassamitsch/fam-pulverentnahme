@@ -65,14 +65,34 @@ public sealed class FillNewService
                     throw new ProcessConflictException(validation.Message);
 
                 var specs = BuildTransferSpecs(request);
-                await _booking.BookFillNewAsync(
-                    tx,
-                    request.BookingDate,
-                    request.PersonnelNo,
-                    request.PersonnelName,
-                    "Pulver in Maschinentank",
-                    specs,
-                    ct);
+
+                // A single stored MIX source is already the final batch identity. Its complete,
+                // confirmed Oxaion write is therefore exactly one first-position LF -> LE transfer.
+                // The generated-MIX-specific path intentionally requires a later LM -> LN chain,
+                // so using it for the one-position case caused MANUAL_REVIEW_REQUIRED before an
+                // Oxaion document was even created. Reuse the generic first-LF booking path instead.
+                if (PreserveSingleStoredMix(request))
+                {
+                    await _booking.BookAsync(
+                        tx,
+                        request.BookingDate,
+                        request.PersonnelNo,
+                        request.PersonnelName,
+                        "Pulver in Maschinentank",
+                        specs,
+                        ct);
+                }
+                else
+                {
+                    await _booking.BookFillNewAsync(
+                        tx,
+                        request.BookingDate,
+                        request.PersonnelNo,
+                        request.PersonnelName,
+                        "Pulver in Maschinentank",
+                        specs,
+                        ct);
+                }
             }
             catch (ProcessConflictException ex)
             {
