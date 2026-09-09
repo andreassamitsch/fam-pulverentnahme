@@ -32,14 +32,20 @@ WHERE L.LGFIRM = @firm
 ORDER BY Warehouse;
 """;
 
+    // LB13210 is the confirmed target-bin matchcode and is documented by Oxaion as
+    // "Matchcode fuer PCL-Lagerplaetze". Therefore the UI lookup mirrors that PCL bin source
+    // through LPCLAP instead of LLPLAP. LLPLAP is a stock/article-oriented storage-bin file and
+    // can legitimately omit empty PCL bins, which caused H04KDX to stop at LL324 although
+    // additional valid PCL bins existed. The effective LF booking still revalidates the selected
+    // key through LB20115J *F4 -> LB13210R immediately before the write.
     internal const string StorageBinQueryText = """
 SELECT DISTINCT
-    TRIM(LP.LPLAPL) AS StorageBin
-FROM OXAION.LLPLAP AS LP
-WHERE LP.LPFIRM = @firm
-  AND UPPER(LP.LPLAGO) = UPPER(@warehouse)
-  AND LP.LPLAPL <> N''
-  AND (@prefix = N'' OR UPPER(LP.LPLAPL) LIKE UPPER(@prefix) ESCAPE N'\')
+    TRIM(P.PCLAPL) AS StorageBin
+FROM OXAION.LPCLAP AS P
+WHERE P.PCFIRM = @firm
+  AND UPPER(P.PCLAGO) = UPPER(@warehouse)
+  AND P.PCLAPL <> N''
+  AND (@prefix = N'' OR UPPER(P.PCLAPL) LIKE UPPER(@prefix) ESCAPE N'\')
 ORDER BY StorageBin;
 """;
 
