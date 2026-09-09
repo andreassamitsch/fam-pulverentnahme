@@ -2,6 +2,16 @@
 
 Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details duerfen nicht erfunden oder ohne Bestaetigung als Implementierungsgrundlage verwendet werden.
 
+## Aktueller STAGING-Korrekturstand 09.09.2026
+
+Details zu den aktuellen Android-Korrekturen stehen in `docs/STAGING_TEST_FIXES_2026-09-09.md`.
+
+- [x] AJAX-Zielsuche fuer Tankauslagerung explizit case-insensitive umgesetzt.
+- [x] SQL-Begrenzungen `TOP (50)`/`TOP (100)` aus der rein lesenden Lagerort-/Lagerplatzsuche entfernt; die Auswahl darf nicht nach den ersten 100 internen Lagerplaetzen enden.
+- [x] Replenishment-Router gegen den beobachteten Refresh-Race stabilisiert: Solange die Prozess-Shell auf `Nachfuellen` steht, darf ein kurzzeitig fehlender `.processChoice.active`-Marker die Nachfuellkarten nicht mehr ausblenden.
+- [ ] Lagerort mit mehr als 100 Lagerplaetzen auf Android live pruefen und bestaetigen, dass Eintraege nach dem bisherigen Listenende (z. B. nach `LL324`) sichtbar und auswaehlbar sind.
+- [ ] `Nachfuellen` mehrfach mit Tankscan testen und bestaetigen, dass die Oberflaeche waehrend/nach den asynchronen Oxaion-Leseabfragen nicht mehr leer wird und nicht auf `Vorgang auswählen.` zurueckfaellt.
+
 ## Aktueller STAGING-Korrekturstand 08.09.2026
 
 Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/STAGING_TEST_FIXES_2026-09-08.md`.
