@@ -27,8 +27,8 @@ WHERE L.LGFIRM = @firm
   AND L.LGLOKZ = N''
   AND L.LGLAGO <> N''
   AND L.LGKLPL = N'J'
-  AND (@excludeWarehouse = N'' OR L.LGLAGO <> @excludeWarehouse)
-  AND (@prefix = N'' OR L.LGLAGO LIKE @prefix ESCAPE N'\')
+  AND (@excludeWarehouse = N'' OR UPPER(L.LGLAGO) <> UPPER(@excludeWarehouse))
+  AND (@prefix = N'' OR UPPER(L.LGLAGO) LIKE UPPER(@prefix) ESCAPE N'\')
 ORDER BY Warehouse;
 """;
 
@@ -37,9 +37,9 @@ SELECT DISTINCT TOP (100)
     TRIM(LP.LPLAPL) AS StorageBin
 FROM OXAION.LLPLAP AS LP
 WHERE LP.LPFIRM = @firm
-  AND LP.LPLAGO = @warehouse
+  AND UPPER(LP.LPLAGO) = UPPER(@warehouse)
   AND LP.LPLAPL <> N''
-  AND (@prefix = N'' OR LP.LPLAPL LIKE @prefix ESCAPE N'\')
+  AND (@prefix = N'' OR UPPER(LP.LPLAPL) LIKE UPPER(@prefix) ESCAPE N'\')
 ORDER BY StorageBin;
 """;
 
