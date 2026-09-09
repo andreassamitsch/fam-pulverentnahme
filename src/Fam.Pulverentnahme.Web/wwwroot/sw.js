@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v25-tank-ux-hotfix-20260909';
+const CACHE='fam-pulver-staging-v26-complete-bins-replenish-stability-20260909';
 const ASSETS=[
   '/',
   '/index.html',
