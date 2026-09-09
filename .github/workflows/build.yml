@@ -44,6 +44,7 @@ jobs:
             '.\src\Fam.Pulverentnahme.Web\wwwroot\process-mode-focus-fix.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\process-shell.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\header-user-menu.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-ux-optimizations.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\target-location.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\personnel-auth.js',
             '.\src\Fam.Pulverentnahme.Web\wwwroot\nfc.js',
