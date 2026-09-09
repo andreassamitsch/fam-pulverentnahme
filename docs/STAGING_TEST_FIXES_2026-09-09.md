@@ -6,28 +6,23 @@ Dieses Dokument beschreibt die Korrekturen aus den Android-STAGING-Tests vom 09.
 
 ## 1. Tankauslagerung – vollständige PCL-Lagerplatz-Auswahl
 
-### Erste Korrektur war nicht ausreichend
+### Verlauf der Korrekturen
 
-Im ersten Android-Test endete die Ziel-Lagerplatzliste bei einem großen Lagerort ungefähr bei `LL324`. Zunächst wurden die technischen SQL-Begrenzungen `TOP (50)` beziehungsweise `TOP (100)` entfernt. Der erneute Test zeigte jedoch weiterhin dasselbe Ende, obwohl für `H04KDX` weitere Lagerplätze bis mindestens `LL350` vorhanden sind.
+Im ersten Android-Test endete die Ziel-Lagerplatzliste bei einem großen Lagerort ungefähr bei `LL324`. Zunächst wurden die technischen SQL-Begrenzungen `TOP (50)` beziehungsweise `TOP (100)` entfernt. Der erneute Test zeigte jedoch weiterhin dasselbe Ende, obwohl für `H04KDX` weitere Lagerplätze bis mindestens `LL350` vorhanden sind. Damit war technisch nachgewiesen, dass die ursprüngliche `TOP`-Begrenzung nicht allein die Ursache war.
 
-Damit ist technisch nachgewiesen: Die Begrenzung war **nicht** die eigentliche Ursache für die fehlenden Lagerplätze.
+Die AJAX-Bedienhilfe wurde anschließend von `OXAION.LLPLAP` auf die bekannte PCL-Datei `OXAION.LPCLAP` mit `PCFIRM`, `PCLAGO` und `PCLAPL` umgestellt. Die für die wirksame Zielprüfung bestätigte Oxaion-Liste bleibt `LB13210R` (`Matchcode für PCL-Lagerplätze`). Zusätzlich wurden Anzahl und letzter geladener Lagerplatz in der Oberfläche sichtbar gemacht und die serverseitige Präfixsuche beibehalten.
 
-### Zweite Korrekturannahme `LPCLAP` ist ebenfalls noch nicht ausreichend bestätigt
+### Live-Bestätigung 09.09.2026
 
-Die AJAX-Bedienhilfe las Ziel-Lagerplätze zunächst aus `OXAION.LLPLAP`. Diese Datei ist für eine vollständige PCL-Zielauswahl fachlich nicht ideal, weil sie artikel-/bestandsbezogene Lagerplatzzeilen enthalten kann und leere PCL-Plätze nicht zwingend vollständig repräsentiert.
-
-Die für die wirksame Zielprüfung bestätigte Oxaion-Liste ist `LB13210R`; Oxaion bezeichnet `LB13210` als **„Matchcode für PCL-Lagerplätze“**. Deshalb wurde die SQL-Bedienhilfe auf `OXAION.LPCLAP` mit `PCFIRM`, `PCLAGO` und `PCLAPL` umgestellt.
-
-Der nachfolgende Android-Test vom selben Tag zeigt jedoch: Auch mit diesem Stand endet die sichtbare Liste für `H04KDX` weiterhin bei `LL324`. Die frühere Aussage, der Wechsel auf `LPCLAP` löse den Realfall vollständig, ist damit **nicht bestätigt** und darf nicht mehr als erledigt gelten.
+Im aktuellen Android-STAGING-Stand wurde `H04KDX` erneut getestet. Der Bediener bestätigt, dass **nun alle Lagerplätze angezeigt werden**. Damit ist der zuvor offene Realtest „Einträge nach `LL324` sichtbar und auswählbar“ für diesen Stand erfolgreich bestätigt.
 
 Aktueller sicherer Stand:
 
-- `TargetLocationLookupService` verwendet weiterhin die bekannte PCL-Datei `OXAION.LPCLAP`.
+- `TargetLocationLookupService` verwendet `OXAION.LPCLAP`.
 - Es gibt keine `TOP`-Begrenzung, keinen `RP.*`-Filter und keinen Bestandsfilter.
 - Die Suche bleibt case-insensitive.
-- Es wird **keine weitere Oxaion-Tabelle oder Selektionslogik erfunden**, solange nicht geklärt ist, wo `LB13210R` die in STAGING sichtbaren späteren PCL-Lagerplätze tatsächlich herleitet.
-- Die Bedienoberfläche zeigt bei jeder Lagerplatzabfrage jetzt zusätzlich die Anzahl der vom Backend gelieferten eindeutigen Lagerplätze und den letzten gelieferten Schlüssel. Damit lässt sich beim nächsten Android-Test eindeutig unterscheiden, ob bereits die Backend-/SQL-Antwort bei `LL324` endet oder nur die Darstellung/Scroll-Liste unvollständig wirkt.
-- Durch Eingabe eines Präfixes wie `LL35` wird weiterhin eine direkte serverseitige Suche gegen dieselbe Quelle ausgeführt; freier Text wird trotzdem nicht als kanonischer Buchungsschlüssel akzeptiert.
+- Die Oberfläche kann die vollständige Liste sowie eine serverseitige Präfixsuche verwenden.
+- Freier Text wird weiterhin nicht als kanonischer Buchungsschlüssel akzeptiert.
 
 Wichtig: Auch ein SQL-Treffer aus `LPCLAP` ist nur eine Bedienhilfe. Direkt vor der wirksamen `LF/LE`-Buchung validiert das Backend den ausgewählten internen Lagerplatz weiterhin über den bestätigten Weg:
 
@@ -35,7 +30,7 @@ Wichtig: Auch ein SQL-Treffer aus `LPCLAP` ist nur eine Bedienhilfe. Direkt vor 
 
 und liest die F4-Liste seitenweise bis zum eindeutigen `<STOP/>`. Oxaion bleibt damit die verbindliche Buchungsprüfung.
 
-## 2. Nachfüllen – weitere Stabilisierung gegen leere Prozessseite
+## 2. Nachfüllen – deterministische leere Prozessseite nach Tankscan
 
 ### Bisherige Schutzmechanismen
 
@@ -43,21 +38,36 @@ Die erste Korrektur hielt den bewusst gewählten Prozess als `retainedMode`, dam
 
 Die zweite Korrektur ergänzte in `process-shell.js` eine fünfsekündige Auth-Grace-Phase. Ein kurzzeitig fehlender clientseitiger Auth-Abgleich setzt die Prozess-Shell dadurch nicht mehr sofort auf die Vorgangsübersicht; der aktuelle Vorgang bleibt sichtbar, während auth-abhängige Aktionen gesperrt bleiben.
 
-### Im Follow-up gefundene dritte Race-Condition
+Die dritte Korrektur verhinderte, dass `process-mode-focus-fix.js` bei einem kurzfristigen Besitzer-Mismatch bereits alle Prozesskarten löscht, während `process-shell.js` noch auf der Prozessseite steht.
 
-Der erneute Android-Test zeigte, dass ein leeres Fenster trotzdem noch kurz auftreten konnte. Im stabilen Prozess-Router gab es noch einen zweiten Besitzervergleich: Wenn `modeOwnerKey` und der gerade rekonstruierte Mitarbeiter-Schlüssel während eines Session-/UI-Refreshs kurz voneinander abwichen, rief der Router `clearForeignMode()` auf.
+Diese Schutzmechanismen bleiben bestehen.
 
-Dabei wurden `retainedMode`, der aktive Prozessmarker und alle Prozesskarten sofort gelöscht, während `process-shell.js` zu diesem Zeitpunkt noch `page='process'` halten konnte. In genau diesem Zwischenzustand blendet die Shell Login und Vorgangsauswahl aus, der Router hat aber bereits alle Prozesskarten versteckt: sichtbares Ergebnis ist ein leeres Prozessfenster.
+### Reproduzierbarer Restfehler und nachgewiesene Ursache
 
-Korrektur:
+Der aktuelle Live-Test vom 09.09.2026 grenzt den Restfehler eindeutig ein: Nach dem Scan des Maschinentanks wird die Seite bei **`Pulver nachfüllen` immer leer**; die anderen Prozesse sind nicht betroffen.
 
-- Der Refresh-Router löscht bei diesem Besitzer-Mismatch die Prozesskarten nicht mehr selbst.
-- Er hält den zuletzt bewusst gewählten Vorgang sichtbar und zeigt `Anmeldung wird geprüft. Der aktuelle Vorgang bleibt erhalten.`.
-- Die verbindliche Entscheidung über einen tatsächlich bestätigten Mitarbeiterwechsel bleibt ausschließlich bei `process-shell.js`.
-- Ein echter bestätigter Mitarbeiterwechsel führt weiterhin sicher zurück zur Anmelde-/Vorgangsübersicht.
-- Backend-Session, Buchungsautorisierung und Pre-Write-Prüfungen werden dadurch nicht gelockert.
+Die Codeanalyse zeigt eine deterministische Ursache: `process-mode.js` wurde im bisherigen App-Shell **zweimal geladen**:
 
-Damit gibt es im Refresh-Layer keinen vorgesehenen Übergang mehr, bei dem `processShellProcess` aktiv bleibt und gleichzeitig absichtlich alle Prozesskarten gelöscht werden.
+1. einmal regulär und beabsichtigt über `index.html`;
+2. ein zweites Mal über einen alten dynamischen Bootstrap am Ende von `article-colors.js`.
+
+Jede Ausführung von `process-mode.js` besitzt ihren eigenen lokalen `mode`-Zustand. Nur die Instanz, deren Prozesswahl-Handler tatsächlich verwendet wurde, kennt den ausgewählten Modus `replenish`. Die zweite Instanz bleibt bei `mode === null`.
+
+Der Nachfüllprozess verwendet im Gegensatz zu den neueren Prozessarten weiterhin die vorhandenen Legacy-Karten `machineStep`, `sourcesSection`, `mixSection`, `bookingStep` und `result`. Nach einem Tankscan führen die asynchronen Bestands- und Quellenabfragen mehrere `refreshWorkerFlow()`-Aufrufe aus. Dabei konnte die zweite `process-mode.js`-Instanz mit `mode === null` `hideLegacy(true)` ausführen und die Nachfüllkarten ausblenden. Gleichzeitig blieb `process-shell.js` auf `processShellProcess`, wodurch Login und Vorgangsauswahl ebenfalls verborgen waren. Das Ergebnis war die vollständig leere Prozessseite.
+
+Damit ist auch erklärt, warum der Fehler nur bei `Nachfüllen` auftrat: Die anderen Prozessarten verwenden eigene `.processPanel`-Bereiche und hängen nicht von den ausgeblendeten Legacy-Nachfüllkarten ab.
+
+### Korrektur
+
+- Der veraltete dynamische Bootstrap von `process-mode.js` wurde vollständig aus `article-colors.js` entfernt.
+- `index.html` ist damit die einzige autoritative Einbindestelle von `process-mode.js`.
+- `article-colors.js` erhält einen neuen Cache-Key im App-Shell.
+- Der Service-Worker-Cache wurde auf `fam-pulver-staging-v29-replenish-single-router-20260909` angehoben, damit die korrigierte Datei auf Android in den neuen App-Shell übernommen wird.
+- Ein neuer Regressionstest `FrontendBootstrapTests.ProcessModeRouterIsLoadedExactlyOnce` prüft statisch, dass `index.html` genau eine `process-mode.js`-Einbindung enthält und `article-colors.js` keinen zweiten Bootstrap mehr enthält.
+
+Diese Korrektur betrifft ausschließlich Frontend-Bootstrap und Sichtbarkeitssteuerung. Backend-Session, Oxaion-Prüfungen, Transaktions-IDs, Idempotenz, Pre-Write-Revalidierung und die Regel „kein Blind-Retry“ bleiben unverändert.
+
+Der neue Stand muss noch einmal auf dem Android-Gerät live bestätigt werden. Wegen des kontrollierten Service-Worker-Lebenszyklus ohne `skipWaiting` soll die installierte PWA nach dem Serverupdate vollständig geschlossen und neu gestartet werden, damit der neue App-Shell aktiv werden kann.
 
 ## 3. Langsamer PWA-Start / nur Logo sichtbar
 
@@ -99,15 +109,15 @@ Die automatisierten Tests beziehungsweise CI-Prüfungen decken weiterhin ab:
 - Ziel-Lagerplatzsuche verwendet aktuell `OXAION.LPCLAP` mit `PCFIRM/PCLAGO/PCLAPL`;
 - keine `TOP`-Begrenzung;
 - weiterhin rein lesende SQL-Abfrage ohne Bestands-/RP-Filter;
+- `process-mode.js` darf im Frontend-Bootstrap nur einmal geladen werden;
 - JavaScript-Syntaxprüfung umfasst `connectivity-status.js`, `process-mode-focus-fix.js`, `target-location.js`, Service Worker und die übrigen Worker-/Prozessskripte;
-- .NET Build und bestehende Unit-Tests laufen auf jedem Push des Branches `feature/separate-processes`.
+- .NET Build und Unit-Tests laufen auf jedem Push des Branches `feature/separate-processes`.
 
-Die Vollständigkeit von `H04KDX` bis `LL350` kann nicht durch einen statischen Unit-Test bewiesen werden, weil dafür die realen STAGING-Stammdaten beziehungsweise der reale `LB13210R`-Datenstrom maßgeblich sind.
+Die Vollständigkeit der realen `H04KDX`-Lagerplätze kann nicht durch einen statischen Unit-Test bewiesen werden; sie wurde deshalb im Android-STAGING-Test bestätigt.
 
 ## 6. Nächste Live-STAGING-Prüfpunkte
 
-- App vollständig schließen und neu starten; die App-Shell soll schnell sichtbar werden. Direkt danach müssen Starttext und gelb/grün/rote Oxaion-Anzeige erscheinen.
-- `Nachfüllen` mehrfach starten, Tank scannen und auch während langsamer Oxaion-Leseabfragen prüfen, dass der gewählte Prozess sichtbar bleibt.
-- Bei `Pulver aus Tank auslagern` `H04KDX` wählen und die neue Statuszeile unter dem Lagerplatzfeld ablesen: Anzahl der geladenen Lagerplätze und letzter geladener Schlüssel.
-- Zusätzlich im Lagerplatz-Suchfeld gezielt `LL35` beziehungsweise `LL350` eingeben. Damit wird geprüft, ob der spätere Schlüssel bereits aus der aktuellen `LPCLAP`-Abfrage zurückkommt, auch wenn die ungefilterte Liste weiterhin bei `LL324` zu enden scheint.
-- Falls Backend-/SQL-Antwort tatsächlich nur bis `LL324` reicht, muss als nächster technischer Schritt der reale `LB13210R`-F4-Datenstrom beziehungsweise die zugrunde liegende STAGING-Stammdatenquelle mit `LPCLAP` verglichen werden. Bis dahin wird keine unbestätigte Oxaion-Quelle als produktive Lösung eingebaut.
+- Nach Bereitstellung dieses Standes die installierte PWA vollständig schließen und neu starten, damit der neue Service Worker/App-Shell aktiv werden kann.
+- `Nachfüllen` starten, Tank scannen und prüfen, dass anschließend Tankbestand, passende Lagerorte und der Button zum Scannen der Nachfüllcharge sichtbar bleiben.
+- `Nachfüllen` danach mehrfach hintereinander wiederholen, um zu bestätigen, dass die Oberfläche auch während der asynchronen Oxaion-Leseabfragen nicht mehr leer wird.
+- Die bereits bestätigte vollständige H04KDX-Lagerplatzanzeige muss für diesen Fix nicht erneut untersucht werden; die verbindliche F4-Pre-Write-Prüfung bleibt unabhängig davon bestehen.
