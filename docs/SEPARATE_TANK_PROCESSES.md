@@ -1,134 +1,135 @@
 # Separate Tankvorgaenge
 
-Stand: 04.09.2026
+Stand: 09.09.2026
 
-Diese Datei dokumentiert die neue fachliche Entscheidung, den Pulverwechsel und die weiteren Pulverbewegungen nicht als einen einzigen automatisch verketteten Buchungsvorgang zu behandeln. Die Bedienoberflaeche bietet stattdessen separate Vorgaenge. Die allgemeinen Regeln zu Personal-Session, QR-Scanner, Oxaion-Revalidierung, Idempotenz, Fehlerbehandlung und `Dev-Infos` bleiben unveraendert.
-
-**Diese neuere und spezifischere Entscheidung ersetzt fuer den aktuellen Entwicklungsstand die aeltere monolithische Bezeichnung beziehungsweise Ablaufbeschreibung `Pulver tauschen` sowie die aeltere Zweier-Liste der Hauptfunktionen in `docs/PROJECT_CONTEXT.md`.** Die dort beschriebenen Sicherheitsziele und noch offenen Oxaion-Schreibdetails bleiben weiterhin gueltig; die Bedien- und Transaktionsgrenzen sind jetzt genauer in separate Vorgaenge aufgeteilt. Bei der naechsten Konsolidierung der Hauptdokumentation sind diese aelteren Abschnitte entsprechend nachzuziehen.
+Diese Datei dokumentiert die verbindliche Aufteilung der Pulververwaltung in separate Bedien- und Transaktionsvorgaenge. Die allgemeinen Regeln zu Personal-Session, Oxaion-Revalidierung, eindeutiger `clientOperationId`, Idempotenz, Fehlerbehandlung und Kein-Blind-Retry bleiben unveraendert.
 
 ## Sichtbare Vorgaenge
 
-Nach erfolgreicher Mitarbeiter-Anmeldung waehlt der Bediener einen Vorgang:
+Nach erfolgreicher Mitarbeiter-Anmeldung waehlt der Bediener einen eigenstaendigen Vorgang:
 
-1. `Pulver nachfuellen` - bereits live bestaetigter bestehender Ablauf.
-2. `Pulver aus Tank auslagern`.
-3. `Neues Pulver in Tank fuellen`.
-4. `Pulver auf Fertigungsauftrag buchen`.
+- `Pulver nachfuellen`
+- `Pulver aus Tank auslagern`
+- `Neues Pulver in Tank fuellen`
+- `Pulver auf Fertigungsauftrag buchen`
+- rein lesend: `Lagerbestand ansehen`
 
-Die Vorgaenge sind fachlich eigenstaendig. Ein Pulverwechsel kann organisatorisch aus `Pulver aus Tank auslagern` und danach `Neues Pulver in Tank fuellen` bestehen, die WebApp darf beide aber nicht als eine atomare Oxaion-Transaktion vortaeuschen. Die spaetere Verbrauchsbuchung auf einen Fertigungsauftrag ist ebenfalls ein eigener Vorgang mit eigener Transaktionsgrenze.
+Ein Pulverwechsel kann organisatorisch aus Auslagern und anschliessender Neubefuellung bestehen. Die WebApp darf diese beiden Vorgaenge nicht als eine atomare Oxaion-Transaktion vortaeuschen.
 
-## Vorgang: Pulver aus Tank auslagern
+Die uebergeordnete Navigation und die aktuelle Android-Kopfzeile sind in `docs/AUTHENTICATED_HEADER_UI.md` und `docs/UX_OPTIMIZATIONS_2026-09-09.md` beschrieben.
+
+## Pulver nachfuellen
+
+Der bestehende, bereits live bestaetigte Nachfuellprozess bleibt fachlich unveraendert:
+
+- angemeldeter Mitarbeiter;
+- Maschinentank per QR;
+- eindeutiger positiver Tankbestand bestimmt Artikel und aktuelle Mix-Charge;
+- Nachfuellcharge `Artikel+++Charge` scannen;
+- Oxaion-Quelle/Lagerplatz ermitteln;
+- Menge bewusst eingeben;
+- neue Mix-Charge nach bestehender Nachfuelllogik erzeugen;
+- vor dem Schreiben Mitarbeiter, Tank und Quellen erneut validieren;
+- Ergebnis exakt verifizieren und bei unklarem Ausgang nicht blind wiederholen.
+
+Details stehen in den bestehenden Nachfuell-/Mix-Dokumenten.
+
+## Pulver aus Tank auslagern
 
 Bedienablauf:
 
 1. Mitarbeiter ist angemeldet.
 2. Maschinentank per Tank-QR scannen.
 3. Aktuellen Tankbestand vollstaendig und eindeutig aus Oxaion lesen.
-4. Artikel, aktuelle Mix-Charge, Erkennungsfarben und komplette Systemmenge anzeigen.
-5. Bediener gibt Ziel-Lagerort und Ziel-Lagerplatz ein.
-6. Vor der spaeteren Buchung muss der aktuelle Tankbestand erneut aus Oxaion gelesen und exakt mit dem vorbereiteten Zustand verglichen werden.
-7. Die gesamte zum Buchungszeitpunkt bestaetigte Tankmenge wird als Auslagerungsmenge verwendet; es gibt in diesem Vorgang keine freie Teilmengen-Eingabe.
+4. Artikel, aktuelle Charge und komplette Systemmenge anzeigen.
+5. Ziel-Lagerort und internen Ziel-Lagerplatz ueber die AJAX-Auswahl waehlen.
+6. Vor der Buchung Tankbestand, Mitarbeiter, Lagerort und Lagerplatz erneut serverseitig validieren.
+7. Die gesamte bestaetigte Tankmenge wird mit der bestaetigten First-LF-/LF-LE-Logik ausgelagert.
 
-Sicherheitsregeln:
+Verbindlich fuer die Zielauswahl:
 
-- Ein leerer Tank kann nicht ausgelagert werden.
-- Mehrdeutiger, negativer oder in unerwarteter Einheit gefuehrter Tankbestand blockiert den Vorgang.
-- Ziel-Lagerort und Lagerplatz sind Bedienereingaben gemaess aktueller fachlicher Entscheidung; bevor produktiv gebucht wird, muss geklaert werden, wie diese Zielwerte gegen Oxaion sicher validiert werden.
-- Mitarbeiter wird direkt vor einem spaeteren schreibenden Oxaion-Aufruf wie beim Nachfuellen erneut exakt in Oxaion validiert.
-- Jeder produktive Auslagerungsvorgang benoetigt eine eigene `clientOperationId` und Backend-Transaktions-ID.
+- Die Trefferliste kommt aus der freigegebenen rein lesenden Oxaion-SQL-Suche.
+- Fuer die Lagerplatzsuche werden Lagerplaetze des gewaehlten Lagerorts unabhaengig von RP.*-Bestand oder aktuellem Bestand angeboten.
+- Frei eingetippter Text ist kein kanonischer Buchungsschluessel. Erst die Auswahl eines Backend-Treffers setzt Lagerort/Lagerplatz.
+- Vor der schreibenden Buchung bleiben die bestaetigten Oxaion-F4-Pruefungen `US16601R` beziehungsweise `LB13210R` verbindlich.
+- Auf Android startet die Auswahl ohne geoeffnete Bildschirmtastatur. Die Tastatur wird nur ueber das sichtbare Tastatur-Symbol bewusst aktiviert.
 
-### Noch offene Oxaion-Schreiblogik
+Der First-LF-Fix und die noch notwendige Live-STAGING-Bestaetigung sind in `docs/STAGING_TEST_FIXES_2026-09-08.md` und `docs/OPEN_POINTS.md` festgehalten.
 
-Der schreibende Ablauf `Maschinentank -> Pulverlager` ist im Repository noch nicht durch einen realen Oxaion/JET-Datenstrom bestaetigt. Insbesondere duerfen Buchungsschluessel, Parameter, Chargenbehandlung oder Ergebnisverifikation nicht aus dem bestaetigten Nachfuell-/Mix-Ablauf geraten werden.
+## Neues Pulver in Tank fuellen
 
-Bis dieser Schreibablauf bestaetigt ist, darf die PWA den Vorgang vorbereiten und alle lesenden Sicherheitspruefungen ausfuehren, aber keine produktive Oxaion-Materialbuchung ausloesen.
-
-## Vorgang: Neues Pulver in Tank fuellen
-
-Dieser Vorgang ist fuer eine neue Befuellung eines eindeutig leeren Maschinentanks vorgesehen. Befindet sich bereits Pulver im Tank, ist entweder der vorhandene Vorgang `Pulver nachfuellen` zu verwenden oder das vorhandene Pulver zuerst mit `Pulver aus Tank auslagern` zu entfernen.
+Dieser Vorgang ist nur fuer einen von Oxaion eindeutig als leer bestaetigten Maschinentank vorgesehen.
 
 Bedienablauf:
 
-1. Mitarbeiter ist angemeldet.
-2. Maschinentank per Tank-QR scannen.
-3. Oxaion muss den Tank eindeutig als leer bestaetigen. Ein Lese-/Transportfehler darf niemals als Leerstand interpretiert werden.
-4. Erste Pulvercharge als `Artikel+++Charge` scannen.
-5. Der Artikel der ersten gueltigen Charge wird zum Artikel dieser neuen Tankbefuellung.
-6. Weitere gescannte Chargen muessen denselben Artikel haben.
-7. Fuer jede Charge werden Lagerort und interner Lagerplatz aus den aktuellen positiven Oxaion-Bestandspositionen ermittelt. Bei mehreren Positionen bestaetigt der Bediener den tatsaechlichen Entnahmeort; bereits verwendete exakte Positionen werden ausgeschlossen.
-8. Fuer jede Charge wird die tatsaechliche Einfuellmenge bewusst eingegeben und nicht vorbelegt.
-9. Die neue Mix-Charge folgt weiterhin dem bestaetigten Schema `<Artikel ohne Punkt>MIX_<yyyyMMdd>_<HHmmss>`.
-10. Vor einer spaeteren schreibenden Buchung muss erneut bestaetigt werden, dass der Tank noch leer ist und alle ausgewaehlten Quellen mit ausreichender Menge unveraendert vorhanden sind.
+1. leeren Tank scannen und online bestaetigen;
+2. erste Pulvercharge `Artikel+++Charge` scannen;
+3. Artikel der ersten gueltigen Charge wird Tankartikel;
+4. weitere Chargen muessen denselben Artikel haben;
+5. konkrete positive Oxaion-Bestandsposition waehlen beziehungsweise eindeutig ermitteln;
+6. aktuell verfuegbare Menge dieser Position wird als editierbarer **Vorschlag** in das Mengenfeld uebernommen;
+7. weitere Quellen koennen hinzugefuegt oder wieder entfernt werden;
+8. vor dem Buchen werden leerer Tank, Mitarbeiter und alle finalen Quellen erneut validiert;
+9. die Mix-Entscheidung wird aus der **finalen** Quellenliste neu berechnet.
 
-Sicherheitsregeln:
+### Dynamische Mix-Regel
 
-- Tank nicht eindeutig leer -> keine neue Befuellung.
-- Falscher Artikel bei Folgecharge -> Scan wird nicht in den Vorgang uebernommen.
-- Quellen stammen aus Oxaion und werden nicht als freie Buchungsschluessel erfunden.
-- Dieselbe Charge darf auf verschiedenen Oxaion-Bestandspositionen mehrfach verwendet werden; dieselbe exakte Position Lagerort/Lagerplatz/Charge nicht doppelt.
-- Mengen werden nicht vorbelegt und duerfen den aktuellen Quellenbestand nicht ueberschreiten.
-- Mitarbeiter wird direkt vor einem spaeteren schreibenden Oxaion-Aufruf erneut exakt validiert.
-- Jeder produktive Vorgang benoetigt eigene `clientOperationId` und Backend-Transaktions-ID.
+Die fruehere Regel `immer neue Mix-Charge` ist ersetzt.
 
-### Noch offene Oxaion-Schreiblogik
+- Genau eine bereits eingelagerte Mix-Charge -> diese Charge bleibt beim `LF -> LE` in den leeren Tank erhalten; keine neue Mix-Charge.
+- Genau eine Nicht-Mix-Charge -> neue Mix-Charge.
+- Eine Mix-Charge plus mindestens eine weitere Charge -> neue Mix-Charge.
+- Mehrere Quellen generell -> neue Mix-Charge.
+- Wird eine zweite Quelle vor dem Buchen wieder entfernt und bleibt genau eine vorhandene Mix-Charge uebrig, gilt wieder `Mix-Charge bleibt`.
 
-Der bereits bestaetigte Nachfuell-/Mix-Ablauf setzt eine vorhandene alte Mix-Charge auf dem Maschinentank voraus und erzeugt Position 1 `alte Mix-Charge -> neue Mix-Charge`. Fuer einen komplett leeren Tank existiert dieser Ausgangszustand nicht.
+Die Entscheidung wird serverseitig erneut aus dem finalen Request berechnet; die UI-Anzeige allein ist nicht vertrauenswuerdig.
 
-Deshalb darf nicht angenommen werden, dass die vorhandene Position-1-/Fortsetzungslogik unveraendert fuer `Pulverlager -> leerer Maschinentank` verwendet werden kann. Der konkrete Oxaion/JET-Schreibablauf und die belastbare Abschluss-/Recovery-Verifikation muessen zuerst real bestaetigt werden.
+Die bestaetigten Oxaion-Bausteine und die genauen Transferketten stehen in `docs/FILL_NEW_OXAION_SEQUENCE.md`.
 
-Bis dahin endet auch dieser neue Vorgang an der sicheren Vorbereitungsschwelle ohne Materialbuchung.
+### Fehlscan
 
-## Vorgang: Pulver auf Fertigungsauftrag buchen
+Eine Folgecharge mit falschem Artikel wird nicht in den Vorgang uebernommen. Die bereits fuer Nachfuellen verwendete bildfuellende blockierende Fehlscan-Meldung wird auch hier verwendet und muss bewusst bestaetigt werden.
 
-Dieser Vorgang bildet die spaetere Verbrauchsbuchung des tatsaechlich verbrauchten Pulvers auf genau einen Fertigungsauftrag ab.
+## Pulver auf Fertigungsauftrag buchen
+
+Dieser Vorgang bucht den kumulierten tatsaechlichen Pulververbrauch auf genau einen Fertigungsauftrag.
 
 Bedienablauf:
 
-1. Mitarbeiter ist angemeldet.
-2. Maschinentank per Tank-QR scannen.
-3. Tank muss genau einen plausiblen positiven Pulverbestand liefern.
-4. Fertigungsauftrag im bestehenden Format `Rohmaterial+++Fertigungsauftrag+++Maschinen-ID` scannen.
-5. Rohmaterial aus dem FA-QR muss dem aus Oxaion gelesenen Tankartikel entsprechen.
-6. Die Maschinen-ID aus dem FA wird angezeigt, aber wegen der bereits vorgesehenen kurzfristigen Maschinenabweichung und der weiterhin offenen Maschinen-ID-zu-Tank-Referenz nicht als automatische Sperrregel verwendet.
-7. Tatsaechlichen Pulververbrauch in kg bewusst eingeben; keine Vorbelegung.
-8. Verbrauch muss groesser als 0 sein und darf den aktuell gelesenen Tankbestand nicht ueberschreiten.
-9. Die PWA zeigt den rechnerischen Restbestand nur als Bedienhilfe an.
-10. Vor der spaeteren produktiven Buchung muessen Tankbestand, Mitarbeiter, Fertigungsauftrag und die relevante Oxaion-Materialposition erneut serverseitig validiert werden.
+1. Mitarbeiter anmelden und Maschinentank scannen.
+2. Tank muss genau einen plausiblen positiven Pulverbestand liefern.
+3. Fertigungsauftrag im Format `Rohmaterial+++Fertigungsauftrag+++Maschinen-ID` scannen.
+4. Rohmaterial aus dem QR muss dem Tankartikel entsprechen.
+5. Exakt eine Materialposition fuer Fertigungsauftrag und Artikel ermitteln.
+6. `AMMATB` als Soll, `AMMATV` als bereits tatsaechlich gebucht und `AMMPST` als Status anzeigen.
+7. Das Feld `Pulver Verbrauch eingeben` ist mit dem Sollwert vorbelegt, deutlich als Vorschlag gekennzeichnet und vom Bediener mit dem tatsaechlichen Ist-Verbrauch zu pruefen beziehungsweise zu korrigieren.
+8. Die neu zu buchende Differenz ist `Ist-Verbrauch - AMMATV`.
+9. Diese Differenz muss positiv sein und darf den aktuellen Tankbestand nicht ueberschreiten.
+10. Direkt vor der MK-Buchung werden Tank, Mitarbeiter und unveraenderte Materialposition erneut validiert.
+11. Nach `PW22031J *PUTNEW` wird nur lesend auf den exakten Endzustand geprueft; die Buchung wird niemals automatisch wiederholt.
 
-Die Detailregeln stehen in `docs/FA_CONSUMPTION_PROCESS.md`.
+Wichtige Bedienfelder und Buchungsbestaetigungen schreiben `Fertigungsauftrag` aus. Details stehen in `docs/FA_CONSUMPTION_PROCESS.md` und `docs/UX_OPTIMIZATIONS_2026-09-09.md`.
 
-### Noch offene Oxaion-Schreiblogik
+## Gemeinsame Buchungsdarstellung
 
-Die konkrete Oxaion-FA-Materialrueckmeldung ist weiterhin nicht technisch bestaetigt. Insbesondere fehlen der bestaetigte BDE-/PPS-Programmweg, Parameter/Buchungsschluessel und eine belastbare Ergebnisverifikation fuer diese Buchungsart.
-
-Bis ein realer Oxaion-/JET-Datenstrom analysiert und bestaetigt wurde, endet auch dieser Vorgang an der sicheren Vorbereitungsschwelle. Der Buchungsbutton bleibt deaktiviert.
+- Sichtbare Schrittueberschriften sind nicht nummeriert.
+- Nach der finalen Buchungsbestaetigung wird ein blockierender Lade-Spinner angezeigt, bis ein Ergebnis beziehungsweise eine Recovery-Meldung vorliegt.
+- Erfolgsmeldungen sind auf Deutsch.
+- Nach eindeutigem Erfolg werden die Eingaben des abgeschlossenen Vorgangs geleert; die Mitarbeiteranmeldung bleibt bestehen.
+- Bei `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` gilt weiterhin ausdruecklich: nicht erneut buchen, Status klaeren.
 
 ## Wiederverwendete bestaetigte Bausteine
 
-Fuer die separaten Vorgaenge werden ohne fachliche Aenderung wiederverwendet:
+Ohne fachliche Aenderung werden wiederverwendet:
 
 - NFC-Login beziehungsweise Personalnummer + SYNCOS-Passwort;
-- serverseitige Personal-Session;
+- serverseitige Personal-Session und erneute Oxaion-Personalpruefung vor Writes;
 - Maschinentank-QR und Tank-Whitelist;
 - `LB30230R`-basierter Tankbestand;
-- EFA01/EFA02 als Erkennungshilfe, wo ein Artikel bekannt ist;
-- Chargen-QR `Artikel+++Charge`, soweit der Prozess eine Pulvercharge benoetigt;
-- Fertigungsauftrag-QR `Rohmaterial+++Fertigungsauftrag+++Maschinen-ID`, soweit der Prozess einen FA benoetigt;
-- Oxaion-geführte Quelllager-/Lagerplatzauflösung `LB30340R`/`LB30430R` und `LAG1626`-Sonderfall;
-- Mehrfachcharge auf unterschiedlichen exakten Oxaion-Bestandspositionen;
-- bewusste Mengeneingabe ohne Vorbelegung;
-- Kamera mit explizitem Scanstart und persistentem Zoom;
-- Mitarbeiter-/Dev-Ansicht;
-- klare, bestaetigungspflichtige Fehler- und Ergebnismeldungen;
+- EFA01/EFA02 als visuelle Such-/Erkennungshilfe;
+- Chargen-QR `Artikel+++Charge`;
+- Fertigungsauftrag-QR `Rohmaterial+++Fertigungsauftrag+++Maschinen-ID`;
+- Oxaion-geführte Quellauflösung `LB30340R`/`LB30430R` und `LAG1626`-Sonderfall;
+- dieselbe Charge auf unterschiedlichen exakten Oxaion-Bestandspositionen;
+- klare Fehler-/Recovery-Meldungen;
 - Kein-Blind-Retry-Regeln aus `docs/ERROR_HANDLING.md`.
-
-## Aktueller Implementierungsstand auf `feature/separate-processes`
-
-Die PWA bietet vier Prozessauswahlen:
-
-- `Pulver nachfuellen`: bestehender, bereits buchbarer und verifizierter STAGING-Ablauf.
-- `Pulver aus Tank auslagern`: Tank lesen, kompletten Bestand anzeigen, Ziel-Lagerort und Lagerplatz erfassen.
-- `Neues Pulver in Tank fuellen`: leeren Tank bestaetigen, Charge(n) scannen, Oxaion-Quelle aufloesen und Mengen erfassen.
-- `Pulver auf Fertigungsauftrag buchen`: Tank lesen, FA scannen, Rohmaterial pruefen, Verbrauch erfassen und gegen den Tankbestand pruefen.
-
-Die drei noch nicht technisch bestaetigten Schreibvorgaenge enden absichtlich an der sicheren Vorbereitungsschwelle und nennen den jeweils noch offenen Oxaion-Schreibablauf. Der bestehende Vorgang `Pulver nachfuellen` bleibt unveraendert buchbar.
