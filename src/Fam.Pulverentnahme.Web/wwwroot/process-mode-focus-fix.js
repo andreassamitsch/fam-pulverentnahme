@@ -6,6 +6,7 @@
 (function(){
   const baseWorkerRefresh=typeof window.refreshWorkerFlow==='function'?window.refreshWorkerFlow:null;
   let modeOwnerKey='';
+  let retainedMode='';
 
   const el=id=>document.getElementById(id);
   const auth=()=>typeof personnelSessionMatchesSelection==='function'&&personnelSessionMatchesSelection();
@@ -29,7 +30,16 @@
     processPanels.forEach(id=>el(id)?.classList.add('hidden'));
   }
   function activeMode(){
-    return document.querySelector('.processChoice.active')?.dataset?.mode||null;
+    const active=document.querySelector('.processChoice.active')?.dataset?.mode||'';
+    if(active){retainedMode=active;return active}
+    if(document.body.classList.contains('processShellProcess'))return retainedMode||null;
+    retainedMode='';
+    return null;
+  }
+  function restoreActiveMarker(mode){
+    if(!mode||!document.body.classList.contains('processShellProcess'))return;
+    const button=[...document.querySelectorAll('.processChoice')].find(x=>x.dataset?.mode===mode);
+    if(button&&!button.classList.contains('active'))button.classList.add('active');
   }
   function setInstruction(text){
     const instruction=el('workerNextInstruction');
@@ -41,6 +51,7 @@
     hideProcessPanels();
     hideLegacy(true);
     modeOwnerKey='';
+    retainedMode='';
   }
 
   function stableRefresh(){
@@ -79,6 +90,10 @@
       return;
     }
 
+    // On Android the worker refresh can run while another UI layer is briefly mutating the
+    // process-choice classes. Retain the process while the shell is still on the process page;
+    // otherwise a replenishment scan can leave the header on "Nachfüllen" but hide every card.
+    restoreActiveMarker(selected);
     if(!modeOwnerKey)modeOwnerKey=currentOwner;
     el('processSelected')?.classList.remove('hidden');
     hideProcessPanels();
@@ -115,6 +130,7 @@
   function install(){
     document.querySelectorAll('.processChoice').forEach(button=>{
       button.addEventListener('click',()=>{
+        retainedMode=button.dataset?.mode||retainedMode;
         if(auth())modeOwnerKey=personKey();
       });
     });
