@@ -7,7 +7,7 @@
   let initialized=false,warehouseTimer=null,binTimer=null,warehouseToken=0,binToken=0;
   let warehouseMatches=new Map(),binMatches=new Map();
   const el=id=>document.getElementById(id);
-  const escText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[c]));
+  const escText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
   function canonicalInput(original,value){
     original.value=value||'';
