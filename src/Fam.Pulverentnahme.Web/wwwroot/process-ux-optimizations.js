@@ -78,8 +78,18 @@
       }
       const home=el('processHomeBtn');
       if(!home)return;
-      home.click();
+      // Android Back is the intentional navigation gesture. The old visible header button asked
+      // for a second confirmation; Back now performs that same pre-booking discard directly.
+      const originalConfirm=window.confirm;
+      try{
+        window.confirm=()=>true;
+        home.click();
+      }finally{
+        window.confirm=originalConfirm;
+      }
       setTimeout(()=>{
+        // If process-shell refused to leave because a server-side transaction is open, restore
+        // the process history entry. Its own safety alert remains authoritative.
         if(onProcessPage())history.pushState({famPulverPage:'process'},'');
       },100);
     });
@@ -186,8 +196,7 @@
         setHtml(summary,corrected);
       }
     }
-    const choice=document.querySelector('.processChoice[data-mode="fill-new"] span');
-    setText(choice,'Leeren Tank mit Charge(n) befüllen; Mix-Charge wird aus der finalen Quellwahl bestimmt');
+    setText(document.querySelector('.processChoice[data-mode="fill-new"] span'),'Leeren Tank mit Charge(n) befüllen; Mix-Charge wird aus der finalen Quellwahl bestimmt');
   }
 
   function detailValue(label){
@@ -202,6 +211,8 @@
     if(!input||!data||data.classList.contains('hidden'))return;
     const required=num(lastKgText(detailValue('Soll laut Stückliste'))||detailValue('Soll laut Stückliste'));
     const already=num(lastKgText(detailValue('Bereits tatsächlich gebucht'))||detailValue('Bereits tatsächlich gebucht'));
+    // Important: faTankData begins with an RP article number. The last value explicitly followed
+    // by "kg" is the actual Oxaion tank quantity; parsing the first number reproduced the 10 kg bug.
     const tankQty=num(lastKgText(el('faTankData')?.textContent||''));
     if(!Number.isFinite(required)||!Number.isFinite(already)||!Number.isFinite(tankQty))return;
 
@@ -219,7 +230,8 @@
 
     const actual=num(input.value);
     const delta=actual-already;
-    const valid=Number.isFinite(actual)&&actual>already+.0005&&delta<=tankQty+.0005;
+    const allowed=!el('faAmountStep')?.classList.contains('lockedStep')||Boolean(detailValue('Fertigungsauftrag'));
+    const valid=allowed&&Number.isFinite(actual)&&actual>already+.0005&&delta<=tankQty+.0005;
     const status=el('faAmountStatus');
     if(!Number.isFinite(actual)||actual<=0)setStatus(status,'bad','⛔ Ist-Verbrauch muss größer als 0 kg sein.');
     else if(actual<=already+.0005)setStatus(status,'bad',`⛔ Ist-Verbrauch muss größer als bereits gebucht ${formatKgNumber(already)} kg sein. Soll-Vorschlag bitte mit dem tatsächlichen Verbrauch prüfen.`);
@@ -228,9 +240,10 @@
     else setStatus(status,'ok',`✓ Ist-Verbrauch ${formatKgNumber(actual)} kg. Neu zu buchen: ${formatKgNumber(delta)} kg. Tankbestand: ${formatKgNumber(tankQty)} kg.`);
 
     const orderNo=detailValue('Fertigungsauftrag'),position=detailValue('Materialposition');
-    const summary=el('faSummary');
     const summaryHtml=`<b>Fertigungsauftrag ${escapeHtml(orderNo)} · Materialposition ${escapeHtml(position)}</b><br>Soll: ${formatKgNumber(required)} kg · bereits gebucht: <b>${formatKgNumber(already)} kg</b><br>Ist-Verbrauch: <b>${Number.isFinite(actual)?formatKgNumber(actual)+' kg':'fehlt'}</b>${Number.isFinite(delta)?`<br>Neu zu buchen: <b>${formatKgNumber(delta)} kg</b>`:''}<br>Tankbestand: <b>${formatKgNumber(tankQty)} kg</b>`;
-    setHtml(summary,summaryHtml);
+    setHtml(el('faSummary'),summaryHtml);
+    const button=el('faBookBtn');if(button)button.disabled=!valid;
+    el('faBookStep')?.classList.toggle('lockedStep',!valid);
     if(onProcessPage()&&activeMode()==='fa-consumption')setText(el('workerNextInstruction'),valid?'Pulververbrauch prüfen und buchen.':'Pulververbrauch prüfen und korrigieren.');
   }
 
@@ -262,8 +275,7 @@
       'fill-new':preserveSingleMix()?'Die Tankbefüllung wurde in Oxaion erfolgreich gebucht und die vorhandene Mix-Charge beibehalten.':'Die Tankbefüllung wurde in Oxaion erfolgreich gebucht und bestätigt.',
       'fa-consumption':'Der Pulververbrauch auf den Fertigungsauftrag wurde in Oxaion erfolgreich gebucht und bestätigt.'
     }[mode];
-    if(!text)return;
-    if(body.dataset.localizedSuccess===mode)return;
+    if(!text||body.dataset.localizedSuccess===mode)return;
     const original=body.textContent||'';
     const doc=original.match(/Beleg:\s*([^\s]+)/i)?.[1]||'';
     body.dataset.localizedSuccess=mode;
@@ -306,8 +318,7 @@
     const lock=()=>{input.readOnly=true;input.inputMode='none';button.classList.remove('active')};
     button.addEventListener('pointerdown',event=>event.preventDefault());
     button.addEventListener('click',()=>{
-      input.readOnly=false;input.inputMode='text';button.classList.add('active');
-      input.blur();
+      input.readOnly=false;input.inputMode='text';button.classList.add('active');input.blur();
       setTimeout(()=>{input.focus();try{input.setSelectionRange(input.value.length,input.value.length)}catch{}},20);
     });
     input.addEventListener('blur',()=>setTimeout(lock,260));
