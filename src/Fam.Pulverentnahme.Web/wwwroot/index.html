@@ -9,12 +9,12 @@
   <link rel="stylesheet" href="/styles.css?v=20260904-scan-safety">
   <link rel="stylesheet" href="/worker-ui.css?v=20260904-scan-safety">
   <link rel="stylesheet" href="/qr-scanner.css?v=20260904-persistent-zoom">
-  <title>FAM Pulverentnahme</title>
+  <title>Pulververwaltung</title>
 </head>
 <body>
 <header>
   <div class="workerHeader">
-    <div><div class="title">FAM Pulverentnahme</div><div class="sub devOnly">Frontend + ASP.NET Core Backend · STAGING</div></div>
+    <div><div class="title">Pulververwaltung</div><div class="sub devOnly">Frontend + ASP.NET Core Backend · STAGING</div></div>
     <label class="devSwitch"><input id="devModeToggle" type="checkbox"> Dev-Infos</label>
   </div>
 </header>
@@ -39,7 +39,7 @@
   </section>
 
   <section id="loginStep" class="card stepCard">
-    <h2>1 · Anmelden</h2>
+    <h2>Anmelden</h2>
     <div class="actions"><button class="primary" id="nfcScanBtn" type="button">Mit NFC anmelden</button></div>
     <div id="nfcStatus" class="status neutral">Personalchip zur Anmeldung verwenden.</div>
 
@@ -67,7 +67,7 @@
   </section>
 
   <section id="machineStep" class="card stepCard lockedStep">
-    <h2>2 · Maschinentank scannen</h2>
+    <h2>Maschinentank scannen</h2>
     <div class="actions"><button class="primary" id="machineScanBtn" type="button" disabled>Maschinentank scannen</button></div>
     <div class="systemPanel">
       <div class="wide workerKeep"><span class="systemLabel">Maschinentank</span><b id="machineScanValue">Noch nicht gescannt</b></div>
@@ -98,7 +98,7 @@
   </section>
 
   <section id="sourcesSection" class="card stepCard lockedStep hidden">
-    <h2>3 · Nachfüllcharge</h2>
+    <h2>Nachfüllcharge</h2>
 
     <div id="matchingLocationsPanel" class="matchingLocations hidden">
       <h3>Passendes Pulver findest du hier</h3>
@@ -125,7 +125,7 @@
   </section>
 
   <section id="bookingStep" class="card stepCard lockedStep">
-    <h2>4 · Buchen</h2>
+    <h2>Buchen</h2>
     <div id="workerBookSummary" class="workerBookSummary">Noch keine Nachfüllcharge vollständig erfasst.</div>
     <div id="summary" class="summary devOnly"></div>
     <div class="actions"><button class="primary" id="bookBtn" disabled>Buchung starten</button></div>
@@ -179,5 +179,7 @@
 <script src="/process-mode-focus-fix.js?v=20260908-focus-stable-2"></script>
 <script src="/target-location.js?v=20260908-location-ajax-2" data-target-location-selector="true"></script>
 <script src="/process-shell.js?v=20260908-process-shell-1"></script>
+<script src="/header-user-menu.js?v=20260909-header-user-2"></script>
+<script src="/process-ux-optimizations.js?v=20260909-process-ux-1"></script>
 </body>
 </html>
