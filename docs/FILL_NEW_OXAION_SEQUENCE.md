@@ -1,10 +1,19 @@
 # Neues Pulver in leeren Maschinentank - Oxaion-Schreibfolge
 
-Stand: 08.09.2026
+Stand: 09.09.2026
 
 ## Fachliche Vorgabe
 
-Beim Vorgang `Neues Pulver in Tank fuellen` wird weiterhin immer eine neue automatisch erzeugte Mix-Charge verwendet. Diese Entscheidung bleibt unveraendert, auch wenn nur eine Quellcharge eingefuellt wird oder die Quellcharge selbst bereits eine Mix-Charge ist.
+Die bisherige Regel `immer neue Mix-Charge` wurde am 09.09.2026 praezisiert und ersetzt.
+
+Verbindlich gilt fuer den **finalen Zustand unmittelbar vor der Buchung**:
+
+- Wird genau **eine bereits eingelagerte Mix-Charge** in einen eindeutig leeren Tank gefuellt, bleibt diese Mix-Charge erhalten. Es wird keine weitere Mix-Charge erzeugt.
+- Wird eine eingelagerte Mix-Charge zusammen mit mindestens einer weiteren Charge eingefuellt, wird eine neue automatisch erzeugte Mix-Charge verwendet.
+- Wird genau eine Nicht-Mix-Charge eingefuellt, wird weiterhin eine neue Mix-Charge erzeugt.
+- Die Entscheidung wird aus der final vorhandenen Quellenliste neu berechnet. Wird z. B. eine zweite Charge hinzugefuegt und vor dem Buchen wieder entfernt, gilt wieder der Ein-Quellen-Fall. Es darf keine veraltete Mix-Entscheidung aus einem frueheren UI-Zustand verwendet werden.
+
+Eine eingelagerte Mix-Charge wird fuer diese Regel artikelbezogen an dem bestehenden Schema `<Artikel ohne Punkt>MIX_...` erkannt. Es wird dabei **nicht** verlangt, dass ihr Erzeugungsdatum dem aktuellen Buchungstag entspricht; historische eingelagerten Mix-Chargen muessen erhalten bleiben koennen.
 
 ## Live bestaetigter erster Transfer
 
@@ -35,28 +44,48 @@ Der erfolgreiche JET-Mitschnitt zeigt fuer Position 1 zusaetzlich:
 
 Diese Folge wird im Backend fuer die erste LF-Position separat von Fortsetzungspositionen behandelt.
 
-## Neue Mix-Charge danach
+## Dynamische Buchungsketten
 
-`LF/LE` allein erzeugt keine neue Charge. Deshalb darf die bestehende fachliche Vorgabe `immer neue Mix-Charge` nicht dadurch ersetzt werden.
+### Genau eine bereits eingelagerte Mix-Charge
 
-Der STAGING-Ablauf kombiniert deshalb folgende bereits einzeln bestaetigten Bausteine in **einem Materialbeleg**:
+Die bestaetigte Eigenschaft von `LF -> LE`, die Quellcharge unveraendert auf den leeren Tank zu uebertragen, ist bereits genau das gewuenschte Ergebnis.
+
+Die erwartete Kette besteht deshalb nur aus:
+
+1. Position 1 `LF -> LE`: vorhandene Mix-Charge vom Pulverlager in den leeren Tank, Charge bleibt unveraendert.
+
+Es gibt in diesem Fall **kein** anschliessendes `LM -> LN` und damit keine neue Mix-Charge.
+
+### Nicht-Mix-Quelle oder mehrere Quellen
+
+Sobald die finale Quellenliste nicht aus genau einer vorhandenen Mix-Charge besteht, gilt:
 
 1. Position 1 `LF -> LE`: erste externe Quellcharge in den leeren Tank, Charge bleibt zunaechst gleich.
 2. Position 2 `LM -> LN`: die nun im Tank vorhandene erste Charge wird innerhalb des Tanklagerorts auf die automatisch erzeugte neue Mix-Charge umgecharget.
 3. Position 3 ff. `LM -> LN`: weitere externe Quellchargen werden derselben neuen Mix-Charge hinzugefuegt.
 
-Die einzelnen Buchungsarten und ihre Bewegungssemantik sind real bestaetigt. Die konkrete Kombination `LF/LE -> LM/LN` innerhalb desselben Belegs ist mit diesem Stand bewusst ein **STAGING-Testschritt** und muss noch einmal live End-to-End bestaetigt werden, bevor sie als produktiv bewiesen gilt.
+Die einzelnen Buchungsarten und ihre Bewegungssemantik sind real bestaetigt. Die konkrete Kombination `LF/LE -> LM/LN` innerhalb desselben Belegs bleibt ein **STAGING-Testschritt**, bis sie live End-to-End bestaetigt ist.
+
+## Bedienoberflaeche
+
+- Nach dem Chargenscan wird als Mengen-Vorschlag die aktuell auf der ausgewaehlten Oxaion-Bestandsposition verfuegbare Menge eingesetzt. Der Bediener kann diesen Wert vor der Buchung korrigieren.
+- Bei mehreren moeglichen Bestandspositionen wird die Menge erst nach der bewussten Auswahl der konkreten Position vorgeschlagen.
+- Die UI zeigt bei genau einer vorhandenen Mix-Charge `Mix-Charge bleibt: <Charge>`.
+- Sobald eine weitere Quelle vorhanden ist, wechselt die Anzeige dynamisch auf `Neue Mix-Charge`.
+- Wird die weitere Quelle wieder entfernt, wechselt die Anzeige vor der Buchung wieder auf `Mix-Charge bleibt`.
+- Serverseitig wird dieselbe Entscheidung unabhaengig vom UI aus der finalen Request-Quellenliste erneut ermittelt.
 
 ## Verifikation und Fehlerverhalten
 
 - Vor dem Schreiben: Personal, leerer Tank und alle Quellbestaende erneut pruefen.
 - Jeder Vorgang besitzt `clientOperationId` und Backend-Transaktions-ID.
 - Nach jeder wirksamen Position muss das erwartete Bewegungspaar exakt vorhanden sein.
-- Am Ende muessen alle erwarteten LF/LE- und LM/LN-Bewegungen exakt einmal im Materialbeleg vorhanden sein.
+- Am Ende muessen alle fuer den finalen Quellenzustand erwarteten LF/LE- und gegebenenfalls LM/LN-Bewegungen exakt einmal im Materialbeleg vorhanden sein.
 - Bei Verbindungsabbruch oder nicht eindeutigem Zustand kein Blind-Retry.
 - Wenn bereits ein Belegkopf erzeugt wurde, darf die Bedienermeldung nicht behaupten, Oxaion habe gar keinen Beleg angelegt. Belegnummer und Recovery-Hinweis bleiben sichtbar.
 
 ## Noch offen
 
-- Live-STAGING-Bestaetigung der kombinierten Ein-Beleg-Kette `LF/LE -> LM/LN` fuer `Neues Pulver in Tank fuellen`.
+- Live-STAGING-Bestaetigung `eine eingelagerte Mix-Charge -> leerer Tank` mit ausschliesslich `LF/LE` aus der WebApp.
+- Live-STAGING-Bestaetigung der kombinierten Ein-Beleg-Kette `LF/LE -> LM/LN` fuer eine Nicht-Mix-Quelle beziehungsweise mehrere Quellen.
 - Danach bei Mehrfachquelle zusaetzlich Position 3 ff. im selben Vorgang live bestaetigen.
