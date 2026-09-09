@@ -6,7 +6,7 @@ namespace Fam.Pulverentnahme.Web.Tests;
 public sealed class TargetLocationLookupServiceTests
 {
     [Fact]
-    public void WarehouseLookupIsReadOnlyCaseInsensitiveAndUsesConfirmedWarehouseMaster()
+    public void WarehouseLookupIsReadOnlyCompleteCaseInsensitiveAndUsesConfirmedWarehouseMaster()
     {
         var sql = TargetLocationLookupService.WarehouseQueryText;
         Assert.Contains("FROM OXAION.ULGSTP AS L", sql);
@@ -17,11 +17,12 @@ public sealed class TargetLocationLookupServiceTests
         Assert.Contains("@excludeWarehouse", sql);
         Assert.Contains("UPPER(L.LGLAGO) <> UPPER(@excludeWarehouse)", sql);
         Assert.Contains("UPPER(L.LGLAGO) LIKE UPPER(@prefix)", sql);
+        Assert.DoesNotContain("TOP (", sql, StringComparison.OrdinalIgnoreCase);
         AssertReadOnly(sql);
     }
 
     [Fact]
-    public void StorageBinLookupIsReadOnlyCaseInsensitiveAndReturnsInternalBinKeysWithoutPowderOrStockFilter()
+    public void StorageBinLookupIsReadOnlyCompleteCaseInsensitiveAndReturnsInternalBinKeysWithoutPowderOrStockFilter()
     {
         var sql = TargetLocationLookupService.StorageBinQueryText;
         Assert.Contains("FROM OXAION.LLPLAP AS LP", sql);
@@ -29,6 +30,7 @@ public sealed class TargetLocationLookupServiceTests
         Assert.Contains("UPPER(LP.LPLAGO) = UPPER(@warehouse)", sql);
         Assert.Contains("LP.LPLAPL", sql);
         Assert.Contains("UPPER(LP.LPLAPL) LIKE UPPER(@prefix)", sql);
+        Assert.DoesNotContain("TOP (", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("RP.%", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("LPLABE", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("LLPWEP", sql, StringComparison.OrdinalIgnoreCase);
@@ -38,6 +40,7 @@ public sealed class TargetLocationLookupServiceTests
     [Theory]
     [InlineData("", "")]
     [InlineData("FAM", "FAM%")]
+    [InlineData("fam", "fam%")]
     [InlineData("A%_\\[", "A\\%\\_\\\\\\[%")]
     public void PrefixEscapesSqlLikeWildcards(string input, string expected) =>
         Assert.Equal(expected, TargetLocationLookupService.Prefix(input, 40));
