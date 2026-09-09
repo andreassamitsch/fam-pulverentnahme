@@ -19,9 +19,12 @@ Die bereits umgesetzte AJAX-Auswahl aus den rein lesenden Oxaion-SQL-Zielorten/-
 
 Android-spezifisch gilt zusaetzlich:
 
+- Nach einem erfolgreichen Maschinentank-Scan wird der Schritt `Ziel im Pulverlager` automatisch in den sichtbaren Bereich gescrollt und der Lagerort-Fokus dorthin verschoben.
 - Beim Einstieg in die Zielauswahl bleibt die Bildschirmtastatur geschlossen.
 - Fokus beziehungsweise Antippen des Feldes oeffnet die AJAX-Trefferliste, aber nicht automatisch die Tastatur.
+- Wurde bereits ein Lagerort oder Lagerplatz gewaehlt und das Feld erneut angetippt, wird wieder die vollstaendige verfuegbare Trefferliste fuer den aktuellen Kontext angezeigt; der bereits eingetragene Wert darf die Liste nicht auf sich selbst einschraenken.
 - Jedes Suchfeld besitzt ein Tastatur-Symbol. Erst dessen bewusste Aktivierung schaltet die Texteingabe/Tastatur fuer eine manuelle Suchzeichenfolge frei.
+- Der Tastaturmodus bleibt nach der bewussten Aktivierung offen, bis das Feld tatsaechlich verlassen wird. Ein interner Blur/Refocus zum Oeffnen der Android-Tastatur darf den Modus nicht unmittelbar wieder sperren.
 - Die Tastaturhilfe darf die bestehende Regel nicht aufweichen, dass frei getippter Text kein kanonischer Oxaion-Buchungsschluessel ist.
 
 ## Neue Befuellung eines leeren Tanks
@@ -56,4 +59,5 @@ Die alte Regel `immer neue Mix-Charge` ist durch die dynamische Regel aus `docs/
 - Der Spinner verschwindet erst, wenn eine Ergebnis-/Recovery-Meldung vorliegt oder ein technischer Frontendfehler die Verarbeitung beendet.
 - Erfolgsmeldungen fuer die sichtbaren Prozesse werden auf Deutsch ausgegeben.
 - Fuer den Fertigungsauftrag lautet die Kernaussage sinngemaess, dass der Pulververbrauch auf den Fertigungsauftrag in Oxaion erfolgreich gebucht und bestaetigt wurde.
+- Wenn der Tankbestand beim erneuten Lesen nicht eindeutig ist, soll die Bedienermeldung nicht nur technisch `nicht eindeutig` sagen. Bei mehreren Chargen/Bestandspositionen lautet die Handlungsanweisung sinngemaess: `Im EOSx Tank sind laut System mehr als eine Charge bzw. Bestandsposition vorhanden. Daher kann die Buchung nicht durchgefuehrt werden. Bitte nichts mehr buchen und die Produktionsleitung informieren.`
 - `UNCERTAIN` und `MANUAL_REVIEW_REQUIRED` bleiben davon unberuehrt: keine automatische Erfolgsaussage und kein Blind-Retry.
