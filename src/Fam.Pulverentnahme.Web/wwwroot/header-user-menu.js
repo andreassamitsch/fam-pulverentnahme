@@ -81,7 +81,7 @@
           return;
         }
         if(document.body.classList.contains('processShellProcess')){
-          alert('Zum Abmelden zuerst über „Vorgänge“ zur Vorgangsübersicht zurückkehren.');
+          alert('Zum Abmelden zuerst mit der Android-Zurück-Funktion zur Vorgangsübersicht wechseln.');
           return;
         }
         if(typeof logoutPersonnel!=='function')return;
@@ -111,15 +111,15 @@
 
     const trigger=el('headerPersonnelName');
     if(trigger){
-      // process-shell.js writes the full name too; keep the header trigger authoritative here.
-      if(ok&&fullName)trigger.textContent=fullName;
+      if(ok&&fullName&&trigger.textContent!==fullName)trigger.textContent=fullName;
       trigger.classList.toggle('hidden',!ok||!fullName);
       trigger.setAttribute('aria-label',ok&&fullName?`${fullName}. Menü öffnen.`:'Angemeldeten Mitarbeiter anzeigen');
     }
-    const name=el('headerPersonnelMenuName');if(name)name.textContent=fullName;
+    const name=el('headerPersonnelMenuName');if(name&&name.textContent!==fullName)name.textContent=fullName;
     const hint=el('headerPersonnelMenuHint');
     if(hint){
-      hint.textContent=onProcessPage?'Zum Abmelden zuerst „Vorgänge“ öffnen.':'';
+      const text=onProcessPage?'Zum Abmelden zuerst mit Zurück zur Vorgangsübersicht wechseln.':'';
+      if(hint.textContent!==text)hint.textContent=text;
       hint.classList.toggle('hidden',!onProcessPage);
     }
     const logout=el('headerPersonnelLogout');
