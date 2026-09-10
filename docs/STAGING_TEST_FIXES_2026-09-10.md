@@ -71,6 +71,16 @@ Beim Installieren einer neuen Cache-Generation werden die statischen Assets mit 
 
 API-Aufrufe bleiben weiterhin vom Service-Worker-Cache ausgeschlossen.
 
+## STAGING-Artefakt-Namenskonvention
+
+Ab 10.09.2026 tragen herunterladbare STAGING-ZIP-Dateien immer Erstellungsdatum und Erstellungsuhrzeit im Dateinamen.
+
+Verbindliches Muster:
+
+`FAM-Pulverentnahme-STAGING-yyyy-MM-dd_HH-mm-ss-win-x64.zip`
+
+Der Zeitstempel wird beim GitHub-Actions-Build in der Zeitzone `Europe/Vienna` erzeugt. Damit ist bei mehreren Testständen sofort erkennbar, welches Paket neuer ist. Das GitHub-Actions-Artefakt erhält denselben Namen ohne die technisch beim Download ergänzte `.zip`-Endung.
+
 ## Nächster Live-Test
 
 Der relevante Test ist jetzt bewusst wieder der problematische Erststart:
