@@ -3,9 +3,10 @@
 // Lightweight STAGING UI diagnostics. This logger deliberately records only technical UI state:
 // no passwords, auth tokens, request bodies, connection strings or personnel names/numbers.
 (function(){
-  const VERSION='20260909-ui-diag-1';
+  const VERSION='20260910-ui-diag-2';
   const STORAGE_KEY='fam-pulver-ui-diag-v1';
-  const MAX_ENTRIES=180;
+  const FIRST_START_RELOAD_KEY='fam-pulver-first-controlled-start';
+  const MAX_ENTRIES=220;
   let entries=[];
   let lastStateHash='';
   let blankSince=0;
@@ -41,6 +42,9 @@
     }catch{return 'unknown'}
   }
 
+  function firstControlledReload(){try{return sessionStorage.getItem(FIRST_START_RELOAD_KEY)==='1'}catch{return false}}
+  function navigationType(){try{return performance.getEntriesByType('navigation')?.[0]?.type||''}catch{return ''}}
+
   function snapshot(){
     let auth=false,selected=false,authenticated=false,stockStatus='';
     try{auth=typeof personnelSessionMatchesSelection==='function'&&personnelSessionMatchesSelection()}catch{}
@@ -48,8 +52,10 @@
     try{authenticated=typeof authenticatedPersonnel!=='undefined'&&Boolean(authenticatedPersonnel)}catch{}
     try{stockStatus=String(typeof machineStock!=='undefined'&&machineStock?.status||'')}catch{}
     const processModeScripts=[...document.scripts].map(x=>x.src||'').filter(x=>x.includes('/process-mode.js')).map(x=>x.replace(location.origin,''));
+    const diagnosticScripts=[...document.scripts].map(x=>x.src||'').filter(x=>/ui-diagnostics|replenish-router-guard|process-mode-focus-fix|process-shell/.test(x)).map(x=>x.replace(location.origin,''));
     const ids=['loginStep','processChoiceStep','machineStep','sourcesSection','bookingStep','result','tankOutProcess','fillNewProcess','faConsumptionProcess','inventoryProcess'];
     const visibleIds=ids.filter(id=>visible(el(id)));
+    const swController=navigator.serviceWorker?.controller||null;
     return {
       version:VERSION,
       shell:document.body.classList.contains('processShellProcess')?'process':document.body.classList.contains('processShellHome')?'home':'unknown',
@@ -60,6 +66,7 @@
       auth,selected,authenticated,
       refreshWorkerFlow:refreshFunctionLabel(),
       processModeScripts,
+      diagnosticScripts,
       machineWarehouse:String(el('oldMixWarehouse')?.value||''),
       machineStockStatus:stockStatus,
       article:String(el('article')?.value||''),
@@ -71,7 +78,13 @@
       processModalOpen:visible(el('processModal')),
       bookingBusy:visible(el('bookingBusyOverlay')),
       online:navigator.onLine,
-      visibility:document.visibilityState
+      visibility:document.visibilityState,
+      documentReadyState:document.readyState,
+      navigationType:navigationType(),
+      serviceWorkerControlled:Boolean(swController),
+      serviceWorkerController:swController?.scriptURL?swController.scriptURL.replace(location.origin,''):'',
+      firstStartWasUncontrolled:Boolean(window.FamFirstStart?.wasUncontrolled),
+      firstControlledReload:firstControlledReload()
     };
   }
 
@@ -87,8 +100,14 @@
     return head.concat(entries.map(x=>`${x.ts} | ${x.event} | ${JSON.stringify(x.details)}`)).join('\n');
   }
 
+  function updateManualAreas(value){
+    for(const id of ['diagnosticManualCopy','diagnosticModalText']){
+      const area=el(id);if(area)area.value=value;
+    }
+  }
+
   async function copy(){
-    const value=exportText();
+    const value=exportText();updateManualAreas(value);
     try{
       if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);showCopyStatus('✓ Diagnose wurde in die Zwischenablage kopiert.','ok');return true}
     }catch{}
@@ -99,14 +118,25 @@
   }
 
   function showCopyStatus(message,kind='neutral'){
-    const status=el('diagnosticCopyStatus');if(!status)return;
-    status.className=`status ${kind}`;status.textContent=message;
+    for(const id of ['diagnosticCopyStatus','diagnosticModalStatus']){
+      const status=el(id);if(!status)continue;
+      status.className=`status ${kind}`;status.textContent=message;
+    }
   }
   function ensureManualCopy(){
     let area=el('diagnosticManualCopy');if(area)return area;
     area=document.createElement('textarea');area.id='diagnosticManualCopy';area.className='diagnosticManualCopy hidden';area.readOnly=true;
     el('diagnosticFallback')?.appendChild(area);return area;
   }
+
+  function openDiagnostic(){
+    ensureUi();
+    const modal=el('diagnosticModal');if(!modal)return;
+    log('DIAGNOSTIC_OPENED',snapshot());
+    const area=el('diagnosticModalText');if(area)area.value=exportText();
+    modal.classList.remove('hidden');
+  }
+  function closeDiagnostic(){el('diagnosticModal')?.classList.add('hidden')}
 
   function ensureUi(){
     const main=document.querySelector('main');if(!main)return;
@@ -122,25 +152,37 @@
         else if(typeof window.refreshWorkerFlow==='function')window.refreshWorkerFlow();
       };
     }
+    if(!el('diagnosticHeaderBtn')){
+      const header=document.querySelector('.workerHeader');
+      if(header){
+        const button=document.createElement('button');button.id='diagnosticHeaderBtn';button.className='secondary compact diagnosticHeaderBtn';button.type='button';button.textContent='Diagnose';button.title='Diagnoseprotokoll anzeigen und kopieren';button.onclick=openDiagnostic;
+        const dev=header.querySelector('.devSwitch');if(dev)header.insertBefore(button,dev);else header.appendChild(button);
+      }
+    }
     if(!el('diagnosticDevCopy')){
       const button=document.createElement('button');button.id='diagnosticDevCopy';button.className='secondary compact devOnly';button.type='button';button.textContent='Diagnose kopieren';button.onclick=()=>copy().catch(()=>{});
       const health=el('healthBtn')?.closest('.actions');if(health)health.appendChild(button);
     }
+    if(!el('diagnosticModal')){
+      const modal=document.createElement('div');modal.id='diagnosticModal';modal.className='diagnosticModal hidden';modal.innerHTML='<div class="diagnosticModalDialog"><div class="diagnosticModalHeader"><h2>Diagnose</h2><button id="diagnosticModalClose" class="secondary compact" type="button">Schließen</button></div><div class="diagnosticText">Diesen Text nach Auftreten des Fehlers kopieren und in den Projektchat einfügen.</div><textarea id="diagnosticModalText" class="diagnosticModalText" readonly></textarea><div class="actions"><button id="diagnosticModalCopy" class="primary" type="button">Diagnose kopieren</button></div><div id="diagnosticModalStatus" class="status neutral">Keine Passwörter, Tokens, Connection-Strings oder Mitarbeiterdaten werden protokolliert.</div></div>';document.body.appendChild(modal);
+      el('diagnosticModalClose').onclick=closeDiagnostic;el('diagnosticModalCopy').onclick=()=>copy().catch(()=>{});
+    }
     if(!el('uiDiagnosticStyles')){
-      const style=document.createElement('style');style.id='uiDiagnosticStyles';style.textContent='.diagnosticFallback{border:2px solid #d48b16;background:#fff9e8}.diagnosticFallback h2{color:#8a5900}.diagnosticText{font-weight:750;line-height:1.45}.diagnosticManualCopy{width:100%;min-height:220px;margin-top:12px;box-sizing:border-box;font:12px/1.35 monospace}.diagnosticManualCopy.hidden{display:none}.diagnosticFallback.hidden{display:none!important}';document.head.appendChild(style);
+      const style=document.createElement('style');style.id='uiDiagnosticStyles';style.textContent='.diagnosticHeaderBtn{white-space:nowrap;min-height:38px;padding:6px 9px;font-size:12px}.diagnosticFallback{border:2px solid #d48b16;background:#fff9e8}.diagnosticFallback h2{color:#8a5900}.diagnosticText{font-weight:750;line-height:1.45}.diagnosticManualCopy{width:100%;min-height:220px;margin-top:12px;box-sizing:border-box;font:12px/1.35 monospace}.diagnosticManualCopy.hidden{display:none}.diagnosticFallback.hidden{display:none!important}.diagnosticModal{position:fixed;z-index:12000;inset:0;background:rgba(4,18,28,.78);display:flex;align-items:center;justify-content:center;padding:12px}.diagnosticModal.hidden{display:none!important}.diagnosticModalDialog{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;padding:16px}.diagnosticModalHeader{display:flex;align-items:center;gap:10px;justify-content:space-between}.diagnosticModalHeader h2{margin:0}.diagnosticModalText{width:100%;height:48vh;min-height:260px;box-sizing:border-box;margin-top:12px;font:11px/1.35 monospace;white-space:pre;overflow:auto}@media(max-width:620px){.diagnosticHeaderBtn{padding:5px 7px;font-size:11px}}';document.head.appendChild(style);
     }
   }
 
-  function modalBlocking(){return visible(el('qrScannerModal'))||visible(el('processModal'))||visible(el('bookingResultModal'))||visible(el('bookingConfirmModal'))||visible(el('bookingBusyOverlay'))}
+  function modalBlocking(){return visible(el('qrScannerModal'))||visible(el('processModal'))||visible(el('bookingResultModal'))||visible(el('bookingConfirmModal'))||visible(el('bookingBusyOverlay'))||visible(el('diagnosticModal'))}
   function hasVisibleProcessContent(state){
-    if(state.shell!=='process')return true;
     return state.visibleIds.some(id=>['machineStep','sourcesSection','bookingStep','result','tankOutProcess','fillNewProcess','faConsumptionProcess','inventoryProcess'].includes(id));
   }
+  function replenishmentExpected(state){return state.activeMode==='replenish'||(state.shell==='process'&&state.rememberedMode==='replenish')}
   function checkBlank(state){
-    const blank=state.shell==='process'&&!modalBlocking()&&!hasVisibleProcessContent(state);
+    const processExpected=state.shell==='process'||replenishmentExpected(state);
+    const blank=processExpected&&!modalBlocking()&&!hasVisibleProcessContent(state);
     if(!blank){blankSince=0;blankReported=false;el('diagnosticFallback')?.classList.add('hidden');return}
     if(!blankSince)blankSince=Date.now();
-    if(Date.now()-blankSince<600)return;
+    if(Date.now()-blankSince<500)return;
     if(!blankReported){blankReported=true;log('BLANK_PROCESS_DETECTED',state)}
     el('diagnosticFallback')?.classList.remove('hidden');
   }
@@ -154,17 +196,19 @@
   }
 
   load();
-  window.FamDiag={log,snapshot,exportText,copy,version:VERSION};
+  window.FamDiag={log,snapshot,exportText,copy,open:openDiagnostic,version:VERSION};
   window.addEventListener('error',event=>log('WINDOW_ERROR',{message:safeError(event.error||event.message),file:String(event.filename||'').split('/').pop(),line:event.lineno||0,column:event.colno||0}));
   window.addEventListener('unhandledrejection',event=>log('UNHANDLED_REJECTION',{message:safeError(event.reason)}));
   window.addEventListener('online',()=>log('NETWORK_ONLINE',snapshot()));
   window.addEventListener('offline',()=>log('NETWORK_OFFLINE',snapshot()));
+  navigator.serviceWorker?.addEventListener?.('controllerchange',()=>log('SERVICE_WORKER_CONTROLLER_CHANGE',snapshot()));
   document.addEventListener('visibilitychange',()=>log('VISIBILITY_CHANGE',{visibility:document.visibilityState}));
   document.addEventListener('click',event=>{
     const choice=event.target?.closest?.('.processChoice');
     const action=choice?`process:${choice.dataset?.mode||''}`:event.target?.closest?.('button')?.id||'';
-    if(action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan'].some(x=>action===x)||action.startsWith('process:'))log('CLICK',{action});
+    if((action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan','diagnosticHeaderBtn'].some(x=>action===x))||action.startsWith('process:'))log('CLICK',{action});
   },true);
-  log('DIAGNOSTICS_LOADED',{version:VERSION});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureUi();poll();setInterval(poll,250)});else{ensureUi();poll();setInterval(poll,250)}
+  log('DIAGNOSTICS_LOADED',{version:VERSION,firstControlledReload:firstControlledReload(),serviceWorkerControlled:Boolean(navigator.serviceWorker?.controller)});
+  if(firstControlledReload())log('FIRST_CONTROLLED_START_AFTER_INSTALL',snapshot());
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureUi();poll();setInterval(poll,200)});else{ensureUi();poll();setInterval(poll,200)}
 })();
