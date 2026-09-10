@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v30-replenish-guard-diag-20260909';
+const CACHE='fam-pulver-staging-v31-first-controlled-start-diag-20260910';
 const ASSETS=[
   '/',
   '/index.html',
@@ -31,7 +31,10 @@ const ASSETS=[
 ];
 
 self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
+  // Force a network revalidation of static assets when a new app-shell version is installed.
+  // This avoids an old HTTP-cache entry being copied into a new Cache Storage generation under
+  // the same versioned asset URL.
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})))));
 });
 
 self.addEventListener('activate',e=>{
