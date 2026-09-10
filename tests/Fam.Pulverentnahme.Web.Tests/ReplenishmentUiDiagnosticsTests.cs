@@ -17,23 +17,27 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ReplenishmentGuardRecognizesObservedBlankStateAndCanRestorePrivateMode()
+    public void ReplenishmentGuardMaintainsLegacyVisibilityAndCanRestoreRouterMode()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "replenish-router-guard.js"));
 
+        Assert.Contains("enforceLegacyVisibility", source);
+        Assert.Contains("node.classList.remove('processModeHidden')", source);
         Assert.Contains("instruction()==='Vorgang auswählen.'", source);
-        Assert.Contains("selected!=='replenish'", source);
         Assert.Contains("button.click()", source);
         Assert.Contains("REPLENISH_ROUTER_RECOVERY_START", source);
     }
 
     [Fact]
-    public void DiagnosticLoggerProvidesCopyableBlankStateWithoutCredentialFields()
+    public void DiagnosticLoggerIsAlwaysReachableAndOmitsCredentialFields()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "ui-diagnostics.js"));
 
-        Assert.Contains("BLANK_PROCESS_DETECTED", source);
+        Assert.Contains("diagnosticHeaderBtn", source);
+        Assert.Contains("button.textContent='Diagnose'", source);
         Assert.Contains("Diagnose kopieren", source);
+        Assert.Contains("serviceWorkerControlled", source);
+        Assert.Contains("FIRST_CONTROLLED_START_AFTER_INSTALL", source);
         Assert.Contains("navigator.clipboard", source);
         Assert.DoesNotContain("personnelNo:", source);
         Assert.DoesNotContain("fullName:", source);
@@ -41,11 +45,25 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerCachesDiagnosticsAndGuard()
+    public void FirstUncontrolledPwaStartIsNormalizedBeforeProcessUse()
+    {
+        var source = File.ReadAllText(Path.Combine(WebRoot(), "connectivity-status.js"));
+
+        Assert.Contains("firstStartWasUncontrolled", source);
+        Assert.Contains("blockProcessStartUntilControlled", source);
+        Assert.Contains("navigator.serviceWorker.ready", source);
+        Assert.Contains("location.reload()", source);
+        Assert.Contains("processShellProcess", source);
+        Assert.Contains("scanModalOpen", source);
+    }
+
+    [Fact]
+    public void ServiceWorkerV31RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-staging-v30-replenish-guard-diag-20260909", source);
+        Assert.Contains("fam-pulver-staging-v31-first-controlled-start-diag-20260910", source);
+        Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
     }
