@@ -12,7 +12,8 @@
   let initialized=false;
   let lastState='checking';
   let retryTimer=null;
-  const firstStartWasUncontrolled='serviceWorker' in navigator&&!navigator.serviceWorker.controller;
+  const firstStartReloadAlreadyAttempted=(()=>{try{return sessionStorage.getItem(FIRST_START_RELOAD_KEY)==='1'}catch{return false}})();
+  const firstStartWasUncontrolled='serviceWorker' in navigator&&!navigator.serviceWorker.controller&&!firstStartReloadAlreadyAttempted;
 
   const el=id=>document.getElementById(id);
 
@@ -183,6 +184,6 @@
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkConnectivity('foreground')});
   }
 
-  window.FamFirstStart={wasUncontrolled:firstStartWasUncontrolled,reloadMarker:FIRST_START_RELOAD_KEY};
+  window.FamFirstStart={wasUncontrolled:firstStartWasUncontrolled,reloadAlreadyAttempted:firstStartReloadAlreadyAttempted,reloadMarker:FIRST_START_RELOAD_KEY};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
