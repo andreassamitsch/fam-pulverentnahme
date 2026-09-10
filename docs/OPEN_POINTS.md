@@ -2,6 +2,16 @@
 
 Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details duerfen nicht erfunden oder ohne Bestaetigung als Implementierungsgrundlage verwendet werden.
 
+## Aktueller STAGING-Korrekturstand 10.09.2026
+
+Details zum neuen Erststart-Befund und zur v31-Korrektur stehen in `docs/STAGING_TEST_FIXES_2026-09-10.md`.
+
+- [x] Neuer Android-Live-Befund reproduzierbar eingegrenzt: Nach geloeschten App-Daten tritt die leere `Nachfuellen`-Seite beim ersten direkten Tankscan auf. Wird dagegen vor der Prozesswahl einmal in der Uebersicht per Pull-to-refresh aktualisiert, funktioniert derselbe Nachfuell-Tankscan ohne leere Seite.
+- [x] Erststart normalisiert: Eine Seite ohne aktiven Service-Worker-Controller darf noch keinen Prozess starten. Nach Aktivierung des ersten Workers erfolgt genau ein sicherer automatischer Reload, solange noch kein Prozess, Scanner oder offener Buchungsvorgang aktiv ist. Eine Session-Markierung verhindert Reload-Schleifen.
+- [x] Nachfuell-Sichtbarkeitsinvariante verschaerft: Solange `replenish` in der Oberflaeche als aktueller Prozess gilt, darf ein konkurrierender Router-/Auth-Refresh die Legacy-Nachfuellkarten nicht komplett ueber `processModeHidden` entfernen.
+- [x] Diagnosezugriff ist im STAGING-Header dauerhaft sichtbar. `Diagnose` oeffnet das lokale Protokoll und `Diagnose kopieren` funktioniert unabhaengig davon, ob der Leerzustand automatisch erkannt wurde. Das Protokoll enthaelt zusaetzlich Service-Worker-Controller-, Navigationstyp- und Erststartinformationen, aber keine Passwoerter, Tokens, Connection Strings, Personalnummern oder Mitarbeiternamen.
+- [ ] Exakten problematischen Kaltstart mit v31 live testen: App-Daten loeschen, App neu starten, **nicht** manuell aktualisieren, automatischen Erststart-Reload abwarten, anmelden, `Pulver nachfuellen`, Tank scannen. Falls der Fehler wieder auftritt, direkt im sichtbaren Header `Diagnose` -> `Diagnose kopieren` verwenden und den kompletten Text im Projektchat auswerten.
+
 ## Aktueller STAGING-Korrekturstand 09.09.2026
 
 Details zu den aktuellen Android-Korrekturen stehen in `docs/STAGING_TEST_FIXES_2026-09-09.md`.
