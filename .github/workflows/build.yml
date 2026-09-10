@@ -67,6 +67,16 @@ jobs:
       - name: Test
         run: dotnet test .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj --configuration Release --no-restore
 
+      - name: Prepare STAGING artifact name
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
+        shell: pwsh
+        run: |
+          $viennaTime = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTimeOffset]::UtcNow, 'W. Europe Standard Time')
+          $stamp = $viennaTime.ToString('yyyy-MM-dd_HH-mm-ss')
+          $artifactName = "FAM-Pulverentnahme-STAGING-$stamp-win-x64"
+          "STAGING_ARTIFACT_NAME=$artifactName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "STAGING artifact: $artifactName.zip (Europe/Vienna)"
+
       - name: Publish self-contained Windows STAGING package
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
         shell: pwsh
@@ -85,7 +95,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
         uses: actions/upload-artifact@v4
         with:
-          name: FAM-Pulverentnahme-STAGING-win-x64
+          name: ${{ env.STAGING_ARTIFACT_NAME }}
           path: .\artifacts\FAM-Pulverentnahme-STAGING-win-x64\
           if-no-files-found: error
           retention-days: 14
