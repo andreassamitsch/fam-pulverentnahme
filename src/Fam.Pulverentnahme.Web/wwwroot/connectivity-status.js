@@ -7,21 +7,70 @@
   const CHECK_INTERVAL_MS=60000;
   const BACKEND_TIMEOUT_MS=4000;
   const OXAION_TIMEOUT_MS=6000;
+  const FIRST_START_RELOAD_KEY='fam-pulver-first-controlled-start';
   let checking=false;
   let initialized=false;
   let lastState='checking';
   let retryTimer=null;
+  const firstStartWasUncontrolled='serviceWorker' in navigator&&!navigator.serviceWorker.controller;
 
   const el=id=>document.getElementById(id);
 
-  // Register/update the service worker as early as possible. app.js also registers it later for
-  // backwards compatibility, but that happens only after its startup API work. This early,
-  // non-blocking call lets Android discover a newer cache-first worker without waiting for Oxaion
-  // initialization. We deliberately do NOT call skipWaiting: a new version must not take over an
-  // already running booking process uncontrolled.
+  function safeForFirstStartReload(){
+    const body=document.body;
+    if(!body)return false;
+    if(body.classList.contains('processShellProcess')||body.classList.contains('scanModalOpen'))return false;
+    try{if(typeof active!=='undefined'&&active)return false}catch{}
+    return true;
+  }
+
+  function showFirstStartPreparing(){
+    const banner=el('startupConnectivity'),message=el('startupConnectivityText');
+    if(banner)banner.classList.remove('hidden');
+    if(message)message.textContent='App wird für den ersten sicheren Start vorbereitet …';
+  }
+
+  function blockProcessStartUntilControlled(){
+    if(!firstStartWasUncontrolled)return;
+    document.addEventListener('click',event=>{
+      if(navigator.serviceWorker.controller)return;
+      if(event.target?.closest?.('.processChoice,#machineScanBtn,#outTankScan,#fillTankScan,#faTankScan')){
+        event.preventDefault();event.stopImmediatePropagation();
+        showFirstStartPreparing();
+      }
+    },true);
+  }
+
+  function scheduleFirstControlledReload(){
+    if(!firstStartWasUncontrolled)return;
+    let attempts=0;
+    const tryReload=()=>{
+      attempts++;
+      if(navigator.serviceWorker.controller)return;
+      if(!safeForFirstStartReload()){
+        if(attempts<80)setTimeout(tryReload,250);
+        return;
+      }
+      try{sessionStorage.setItem(FIRST_START_RELOAD_KEY,'1')}catch{}
+      location.reload();
+    };
+    setTimeout(tryReload,0);
+  }
+
+  // Register/update the service worker as early as possible. On a completely clean Android/PWA
+  // start there is no controller for the page that installed the worker. The shop-floor test on
+  // 2026-09-10 proved that a single pull-to-refresh before choosing Replenish makes the later tank
+  // scan stable. We therefore normalize that first-run state automatically: process start is held
+  // briefly, the first worker is allowed to become active, and the page performs exactly one safe
+  // reload before any process/booking can start. Existing controlled sessions are never reloaded.
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'})
-      .then(registration=>registration.update().catch(()=>{}))
+      .then(async registration=>{
+        registration.update().catch(()=>{});
+        if(!firstStartWasUncontrolled)return;
+        try{await navigator.serviceWorker.ready}catch{return}
+        scheduleFirstControlledReload();
+      })
       .catch(()=>{});
   }
 
@@ -69,7 +118,7 @@
 
   function setChecking(){
     setLamp('checking','Prüfen','Verbindung zu Backend und Oxaion wird geprüft.');
-    if(!initialized)setBanner('checking','Verbindungsaufbau: Backend wird geprüft …',{force:true});
+    if(!initialized)setBanner('checking',firstStartWasUncontrolled?'App wird für den ersten sicheren Start vorbereitet …':'Verbindungsaufbau: Backend wird geprüft …',{force:true});
   }
 
   function scheduleFailureRetry(){
@@ -95,7 +144,7 @@
         return;
       }
 
-      if(!initialized)setBanner('checking','Backend erreichbar. Verbindung zu Oxaion wird geprüft …',{force:true});
+      if(!initialized&&!firstStartWasUncontrolled)setBanner('checking','Backend erreichbar. Verbindung zu Oxaion wird geprüft …',{force:true});
 
       // The periodic operator lamp uses the lightweight tunnel-connect probe. The much heavier
       // /api/health/oxaion dialog smoke test remains a Dev-Info/manual diagnostic and must not
@@ -113,7 +162,7 @@
       clearTimeout(retryTimer);
       setLamp('ok','Oxaion','Oxaion erreichbar. '+`Letzte Prüfung: ${stamp()}`);
       const text=wasBad?'Verbindung zu Oxaion wiederhergestellt.':'Oxaion-Verbindung aktiv.';
-      setBanner('ok',text,{force:!initialized||wasBad,autoHide:true});
+      setBanner('ok',text,{force:!initialized||wasBad,autoHide:!firstStartWasUncontrolled});
     }finally{
       initialized=true;
       checking=false;
@@ -121,6 +170,7 @@
   }
 
   function install(){
+    blockProcessStartUntilControlled();
     setChecking();
     checkConnectivity('startup');
     setInterval(()=>checkConnectivity('interval'),CHECK_INTERVAL_MS);
@@ -133,5 +183,6 @@
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkConnectivity('foreground')});
   }
 
+  window.FamFirstStart={wasUncontrolled:firstStartWasUncontrolled,reloadMarker:FIRST_START_RELOAD_KEY};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
