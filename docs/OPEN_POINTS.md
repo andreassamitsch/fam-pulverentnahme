@@ -2,6 +2,20 @@
 
 Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details duerfen nicht erfunden oder ohne Bestaetigung als Implementierungsgrundlage verwendet werden.
 
+## Neue Prozessanforderungen 16.09.2026
+
+Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md` und `docs/SEPARATE_TANK_PROCESSES.md`.
+
+- [x] Fachlichen Prozess `Korrekturbuchung Fertigungsauftrag (Jobabbruch)` festgelegt: zuerst die urspruengliche fehlerhafte FA-Materialrueckmeldung stornieren und eindeutig verifizieren, danach erst den tatsaechlichen Ist-Verbrauch neu rueckmelden. Ein unklarer Stornoausgang blockiert die neue Rueckmeldung vollstaendig.
+- [ ] Vollstaendigen JET-/HTTP-Mitschnitt eines realen `MK`-Stornos in FAM-STAGING aufnehmen: Auswahl/Referenz der Originalrueckmeldung, Programme/Commands, Storno-Kennzeichen/Pflichtfelder, `TCODE`/`FCOD`, finaler `AMMATV`/`AMMPST`, Rueckbuchung auf Tanklager und dieselbe Mix-Charge sowie belastbare Ergebnisverifikation dokumentieren.
+- [ ] Direkt nach einem bestaetigten MK-Storno eine korrigierte kleinere MK-Rueckmeldung im selben Testfall mitschneiden und bestaetigen, dass der Stornozustand die bereits bekannte normale MK-Sequenz wieder zulaesst und der finale FA-/Tankzustand exakt passt.
+- [ ] Festlegen, welcher physische Wert beim Jobabbruch direkt gewogen wird: tatsaechlich verbrauchtes Pulver oder zurueckgewonnenes Pulver, aus dem der Verbrauch berechnet wird.
+- [x] Fachliche Wiegungslogik fuer `Pulver aus Tank auslagern` festgelegt: Systembestand `Qsys` und physisch gewogene Menge `Qphys` vergleichen; eine Abweichung muss vor dem `LF`-Transfer auf genau Tankartikel und aktuelle Mix-Charge korrigiert und danach erneut aus Oxaion gelesen werden.
+- [ ] In FAM-STAGING pruefen, ob der Standardbuchungsschluessel `I2 = Bestandskorr. Abgang (Schwund)` in `US50000` unveraendert vorhanden, fuer Dialogbuchungen zugelassen und passend kontiert ist; danach einen kleinen negativen Korrekturfall per JET/HTTP vollstaendig mitschneiden und den Tankbestand danach verifizieren.
+- [ ] In FAM-STAGING pruefen, ob der Standardbuchungsschluessel `I1 = Bestandskorrektur Zugang` in `US50000` unveraendert vorhanden, fuer Dialogbuchungen zugelassen und passend kontiert ist; danach einen kleinen positiven Korrekturfall per JET/HTTP vollstaendig mitschneiden und den Tankbestand danach verifizieren.
+- [ ] Optional pruefen und mitschneiden, ob Bestandskorrektur (`I1`/`I2` bzw. lokal bestaetigter Schluessel) und anschliessender `LF`-Transfer in einem einzigen Oxaion-Lagerbeleg sicher moeglich sind. Bis dahin keine gemeinsame Positionsfolge erfinden.
+- [ ] Aufloesung/kleinste Anzeigestufe der produktiv eingesetzten Waage ermitteln und daraus die verbindliche Rundungs-/Abweichungstoleranz festlegen. Keine Toleranz hart codieren oder raten.
+
 ## Aktueller STAGING-Korrekturstand 10.09.2026
 
 Details zum neuen Erststart-Befund und zur v31-Korrektur stehen in `docs/STAGING_TEST_FIXES_2026-09-10.md`.
@@ -58,7 +72,7 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [x] Sachmerkmals-Datenstrom fuer die Artikel-Erkennungsfarben bestaetigt: `US17000J *SAVKEY` -> `US17000J *PROPERTY` -> `US21001J *LOAD` -> `US21000R *GETHDR` -> `US21000R *FIRSTLIST`. Fuer `RP.00010` liefert `UYASMP.ASSMMN/ASSMMA` die Werte `EFA01=0D0D0D` und `EFA02=7030A0`; `_INTERN.SMMABZ` liefert `Schwarz` und `Violett`. Details siehe `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md`.
 - [x] Backend-Sachmerkmalsabruf fuer `EFA01/EFA02` am 03.09.2026 live aus der PWA bestaetigt; das zweigeteilte Erkennungsfarbfeld wird nach dem Tankscan korrekt angezeigt. Der aktuelle sichere Ablauf akzeptiert nur einen vollstaendigen `US21000R *FIRSTLIST` mit `<STOP/>`; fuer einen kuenftigen paginierten Sachmerkmalsfall wird ohne realen Mitschnitt kein `*NEXTLIST` erfunden.
 - [x] Fehlerursache `LAP1258` fuer den Referenzfall `H04HRL` geklaert: Oxaion erwartet als `PSLAPL` den internen Schluessel `RE1F3`; eine visuell formatierte Eingabe wie `RE1  F 3` darf nicht als Buchungsschluessel verwendet werden.
-- [x] Lagerorte ohne Lagerplatzorganisation technisch erkannt: `LAG1626` ist im Datenstrom bestaetigt. Nur fuer diesen eindeutigen Fall bleibt der Lagerplatz leer und der bestaetigte `LB30230R`-Lagerortbestand wird verwendet.
+- [x] Lagerorte ohne Lagerplatzorganisation technisch erkannt: `LAG1626` ist im Datenstrom bestaetigt. Nur fuer diesen eindeutigen Fall bleibt der Lagerplatz leer und der bestaetigte `LB30230R`-Lagerortbestand verwendet.
 - [x] Neue Nachfuellquellen-Auswahl in STAGING live bestaetigt: Oxaion-geführte Lagerort-/Lagerplatz-/Chargenauswahl funktioniert im realen STAGING-Test.
 - [x] Personalpruefung aus realen JET-Datenstroemen rekonstruiert: fuer die WebApp sind `PEPENU` als Personalnummer und `PEPENA` als vollstaendiger Name bestaetigt. Zusaetzlich ist der feldbezogene exakte Filterweg `US14001R *GETFILTER` -> `US14001 *SAVCURSET` -> `US14001R *GETSLTV/*GETSLTATR/*CHKSLTV` mit `IPENU=0000000450` -> `US14090J *FIRSTLIST` mit `FROM_PGMN=MAINFILTER` bestaetigt. `PESAKZ` und `PENLAE` werden nicht verwendet. Details siehe `docs/OXAION_PERSONNEL_LOOKUP.md`.
 - [x] Neue AJAX-Personalsuche in STAGING live bestaetigt: Eingabe `45` liefert nur normalisierte `PEPENU` mit Praefix `45`; die Anzeige verwendet `PEPENU - PEPENA`. Treffer ueber Kostenstelle/andere Felder sowie `PESAKZ`/`PENLAE` werden nicht fuer die Anzeige verwendet.
