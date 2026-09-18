@@ -53,14 +53,14 @@ Bedienablauf:
 Verbindlich fuer die Mengenlogik:
 
 - `Delta = Qphys - Qsys`.
-- `Delta = 0` innerhalb der noch festzulegenden Toleranz: keine Bestandskorrektur, anschliessend `LF`/`LE` der gewogenen Menge.
+- Fuer den aktuellen STAGING-Stand werden Oxaion-Mengen auf 0,001 kg normalisiert. `Delta = 0` nach dieser Normalisierung: keine Bestandskorrektur, anschliessend `LF`/`LE` der gewogenen Menge. Eine zusaetzliche physikalische Waagentoleranz bleibt offen.
 - `Delta < 0`: Differenz ist Schwund. Die Differenz muss vor dem Transfer auf genau dem Tankartikel und der aktuellen Mix-Charge als negativer Bestandskorrekturvorgang gebucht werden.
 - `Delta > 0`: positiver Mehrbestand. Die Differenz muss vor dem Transfer auf genau dem Tankartikel und der aktuellen Mix-Charge als positiver Bestandskorrekturvorgang gebucht werden.
 - Nach jeder Korrektur wird der Tankbestand erneut aus Oxaion gelesen und muss der physisch gewogenen Menge entsprechen, bevor `LF` gestartet wird.
 - Ist der Ausgang einer Korrektur unklar, darf kein `LF` gestartet werden.
 - Ist die Korrektur erfolgreich, aber der anschliessende Transfer unklar, wird die Korrektur nicht automatisch rueckgaengig gemacht; der Gesamtvorgang geht in Klaerung.
 
-Die Oxaion-Standarddokumentation nennt `I1` fuer `Bestandskorrektur Zugang` und `I2` fuer `Bestandskorr. Abgang (Schwund)`. Diese Buchungsschluessel sind fuer die FAM-STAGING-Umgebung noch nicht technisch bestaetigt und duerfen vor einem realen JET-Mitschnitt und der Pruefung der lokalen `US50000`-Konfiguration nicht produktiv verwendet werden.
+Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind `I1 = Bestandskorrektur Zugang` und `I2 = Bestandskorr. Abgang (Schwund)` technisch bestaetigt. Die WebApp verwendet fuer den aktuellen STAGING-Stand die im Mitschnitt nachgewiesenen Kostenstellen `I1 -> 5100` und `I2 -> 6000`; diese Zuordnung ist FAM-STAGING-spezifisch und muss bei einem Firmen-/Produktivwechsel erneut bestaetigt werden. I1/I2 werden als eigene korrelierte Teiltransaktion gebucht; erst nach exakt bestaetigtem Tankbestand wird die vorhandene LF/LE-Umlagerung gestartet.
 
 Verbindlich fuer die Zielauswahl:
 
@@ -145,7 +145,7 @@ Fachlich verbindliche Reihenfolge:
 
 Der Vorgang ist eine gemeinsame WebApp-Gesamttransaktion mit mindestens zwei schreibenden Teilschritten: Storno und korrigierte neue Rueckmeldung. Ein unklarer Stornoausgang blockiert den zweiten Schreibschritt vollstaendig. Kein Teilschritt darf blind wiederholt oder automatisch durch eine erfundene Gegenbuchung kompensiert werden.
 
-Technisch ist die normale `MK`-Rueckmeldung bereits bestaetigt. Der konkrete Oxaion-Stornoablauf der bereits gebuchten MK-Rueckmeldung ist fuer FAM noch nicht per JET/HTTP nachgewiesen und wird deshalb noch nicht schreibend implementiert. Details und der erforderliche Mitschnitt stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
+Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind sowohl der konkrete Oxaion-Stornoablauf als auch die anschliessende korrigierte MK technisch bestaetigt und in der WebApp schreibend umgesetzt. Die App waehlt die Originalrueckmeldung nur bei genau einem Treffer anhand von FA, Materialposition, Artikel, urspruenglicher Menge, Tanklager und Mix-Charge aus. Nach `PW22021R *STORNO` muessen Rueckmeldeliste, FA-Materialzustand und dieselbe Tank-Mix-Charge den erwarteten Zustand beweisen, bevor die neue MK gestartet wird. Details stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
 
 ## Gemeinsame Buchungsdarstellung
 
