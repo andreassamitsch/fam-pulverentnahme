@@ -1,8 +1,28 @@
-# Mitarbeiter-Anmeldung mit SYNCOS-Passwort
+# Mitarbeiter-Anmeldung: NFC-Zielbild und aktueller Passwort-Entwicklungsstand
+
+## Verbindliche Zielentscheidung vom 18.09.2026
+
+Fuer die finale Pulverentnahme-PWA ist die Mitarbeiter-Anmeldung per NFC-Chip beschlossen.
+
+Verbindlich gilt:
+
+- Die eingesetzten Mitarbeiterchips funktionieren mit dem vorgesehenen NFC-Ablauf.
+- Wird ein Chip erfolgreich erkannt und serverseitig eindeutig einem gueltigen Mitarbeiter zugeordnet, gilt der Mitarbeiter als angemeldet.
+- Bei erfolgreicher NFC-Anmeldung ist kein zusaetzliches Passwort erforderlich.
+- Die Zuordnung erfolgt serverseitig auf Basis der vorhandenen SYNCOS-RFID-Zuordnung; Chip-/RFID-Werte werden nicht als frei vertrauenswuerdige Browserangabe behandelt.
+- Nach erfolgreicher Zuordnung wird wie bisher eine serverseitige Session verwendet.
+- Die erneute Oxaion-Personalpruefung unmittelbar vor dem ersten schreibenden Materialbuchungsaufruf bleibt als getrennte fachliche Sicherheitspruefung bestehen.
+- Es gibt keinen Offline-Bypass fuer eine abgelaufene oder fehlende Anmeldung.
+- Fuer den Produktivbetrieb bleibt HTTPS verbindlich.
+- Ob das ASP.NET-Core-Backend spaeter hinter IIS oder direkt als Windows-Dienst mit Kestrel betrieben wird, ist fuer diese Authentifizierungsentscheidung unerheblich und derzeit noch offen.
+
+Der aktuell vorhandene Login ueber Personalnummer und SYNCOS-Passwort bleibt waehrend der Entwicklung am Client-Rechner vorerst als technischer Zwischenstand bestehen. Er ist seit dem 18.09.2026 nicht mehr das finale Produktivkonzept.
+
+## Aktueller Passwort-Entwicklungsstand
 
 ## Status
 
-Am 03.09.2026 wurde fuer die Pulverentnahme-PWA verbindlich entschieden:
+Am 03.09.2026 wurde fuer den damaligen STAGING-/Entwicklungsstand folgende Passwortanmeldung umgesetzt:
 
 - Die Auswahl eines Mitarbeiters ueber die Oxaion-Personalnummer allein reicht nicht mehr fuer eine produktive Buchung.
 - Nach der bewussten Auswahl des Oxaion-Mitarbeiters muss der Bediener sein Passwort eingeben.
@@ -12,9 +32,9 @@ Am 03.09.2026 wurde fuer die Pulverentnahme-PWA verbindlich entschieden:
 - Eine neue Anmeldung ist ein Online-Schritt. Bei abgelaufener Session gibt es keinen Offline-Bypass; der Bediener muss sich nach Wiederherstellung der Backend-Verbindung erneut anmelden.
 - Fuer die aktuelle STAGING-/Testphase muss die WebApp inklusive Mitarbeiter-Login auch ueber normales HTTP im internen Netz testbar sein. HTTP wird deshalb im Backend nicht blockiert. Fuer den Produktivbetrieb bleibt HTTPS verbindlich.
 
-Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unveraendert bestehen. Oxaion bleibt fuer die Identitaet des Mitarbeiters fuehrend; die SYNCOS-Datenbank wird nur zur Passwortpruefung gelesen.
+Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unveraendert bestehen. Der nachfolgend dokumentierte Passwortweg beschreibt den aktuellen Implementierungsstand bis zur NFC-Umstellung. Fuer das finale Zielbild wird die bereits vorhandene SYNCOS-RFID-Zuordnung fuer die serverseitige Chipzuordnung verwendet.
 
-## Ablauf
+## Aktueller Ablauf des Passwort-Zwischenstands
 
 1. Bediener gibt die Personalnummer ein.
 2. Backend sucht den Mitarbeiter wie bisher ueber die bestaetigte Oxaion-Personallogik.
@@ -29,10 +49,12 @@ Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unvera
 11. `POST /api/mix` akzeptiert neue Buchungen nur, wenn die Session vorhanden ist und Personalnummer sowie Name exakt mit dem Buchungsvorgang uebereinstimmen.
 12. Direkt vor der Materialbuchung bleibt zusaetzlich die bereits bestehende erneute Oxaion-Pruefung von `PEPENU` und `PEPENA` aktiv.
 
-Damit bestehen zwei voneinander getrennte Sicherheitspruefungen:
+Im aktuellen Passwort-Zwischenstand bestehen zwei voneinander getrennte Sicherheitspruefungen:
 
 - Anmeldung: Personalnummer + Passwort
 - fachliche Buchungspruefung: Mitarbeiter unmittelbar vor dem ersten schreibenden Oxaion-Aufruf erneut eindeutig in Oxaion bestaetigen
+
+Im finalen NFC-Zielbild wird die erste Stufe durch die eindeutige NFC-/RFID-Zuordnung ersetzt; die zweite Stufe bleibt bestehen.
 
 ## Rekonstruierte SYNCOS-Passworttransformation
 
@@ -157,7 +179,7 @@ Technisch gilt:
 
 Wichtig fuer die Abgrenzung: Browser behandeln Service Worker und installierbare PWA-Funktionen als Secure-Context-Funktionen. Deshalb kann ueber eine normale HTTP-Adresse im LAN die WebApp und die Login-/Buchungslogik getestet werden, aber nicht zwingend der komplette installierte PWA-/Offline-Lebenszyklus. Fuer diesen Teil wird spaeter HTTPS benoetigt.
 
-Fuer den Produktivbetrieb ist HTTP fuer Passwortanmeldungen nicht freigegeben. Vor Produktivsetzung muss HTTPS am IIS/Reverse Proxy aktiv sein.
+Fuer den Produktivbetrieb ist HTTP nicht freigegeben. Vor Produktivsetzung muss ein vertrauenswuerdiger HTTPS-Endpunkt aktiv sein. Dieser kann spaeter entweder ueber IIS oder direkt ueber Kestrel im Windows-Dienst bereitgestellt werden; die Hosting-Entscheidung ist noch offen.
 
 ## Session und Fehlverhalten
 
