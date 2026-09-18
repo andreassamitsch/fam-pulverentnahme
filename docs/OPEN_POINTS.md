@@ -36,7 +36,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 - [x] Buchungsdatum beim neuen Nachfuellvorgang ist immer das aktuelle Datum und keine Bedienereingabe; `Mix Charge erstellt am` wird aus dem aktuellen Erzeugungszeitpunkt der neuen Mix-Charge gebildet.
 - [x] Artikel und Artikelbezeichnung werden beim Nachfuellen aus dem eindeutigen aktuellen Maschinenbestand abgeleitet und sind keine Bedienereingaben.
 - [x] Der aktuelle Maschinen-Tanklagerort darf nie als Quelllager einer Nachfuellcharge verwendet werden.
-- [x] Mitarbeiter-Anmeldung festgelegt: Nach Auswahl der Oxaion-Personalnummer ist ein Passwort erforderlich. Die PWA prueft das Passwort ausschliesslich serverseitig gegen den vorhandenen SYNCOS-`PASSWORD`-Wert; Details und rekonstruierte Legacy-Transformation siehe `docs/PERSONNEL_AUTHENTICATION.md`.
+- [x] Finale Mitarbeiter-Anmeldung festgelegt: NFC-Mitarbeiterchip. Wird ein Chip erfolgreich erkannt und serverseitig eindeutig einem gueltigen Mitarbeiter zugeordnet, gilt der Mitarbeiter als angemeldet; ein zusaetzliches Passwort ist dann nicht erforderlich. Details und aktueller Passwort-Entwicklungsstand siehe `docs/PERSONNEL_AUTHENTICATION.md`.
 - [x] STAGING-Testbetrieb ueber HTTP fuer Mitarbeiter-Login zugelassen. HTTP wird fuer die Testphase nicht blockiert; produktiv bleibt HTTPS erforderlich. Der komplette installierbare PWA-/Service-Worker-Betrieb kann auf normalen LAN-HTTP-Adressen browserbedingt weiterhin eingeschraenkt sein.
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
 - [ ] Maschinenliste/QR-Zuordnung finalisieren. Der aktuelle STAGING-Stand verwendet eine gepflegte Maschinenlager-Whitelist mit `EOS1` und `EOS2`; der spaetere Maschinen-QR soll gegen dieselbe Liste validiert werden.
@@ -44,10 +44,12 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 
 ## Anwendung und Betrieb
 
-- [x] Authentifizierungskonzept fuer Bediener der WebApp festgelegt: Oxaion-Personalnummer/Name bleiben fuer die Identitaet fuehrend, danach serverseitige Passwortpruefung gegen den vorhandenen SYNCOS-Credentialwert und serverseitige Session; keine Passwortspeicherung im Frontend. Details siehe `docs/PERSONNEL_AUTHENTICATION.md`.
-- [x] SYNCOS-Credential-Lookup bestaetigt: `syncos_stg_102.ITSDEV.ITSUSER`, `ClassID = 47`, `IsEnabled = -1`, `IsVisible = -1`, Zuordnung ueber `OBJECTKEY LIKE '%<Personalnummer>'`. Die Backend-Abfrage ist fest implementiert und parametriert; mehrere Treffer werden abgelehnt. Keine frei konfigurierbare Lookup-SQL mehr.
-- [ ] Falls produktiv Sonderzeichen oder Passwoerter mit mehr als 18 Zeichen vorkommen: Legacy-Transformation dafuer mit kontrollierten Testvektoren bestaetigen. Aktuell sind nur ASCII-Buchstaben/Ziffern bis 18 Zeichen freigegeben.
-- [ ] Endgueltigen produktiven Web-/Application-Server festlegen
+- [x] Finales Authentifizierungskonzept fuer Bediener festgelegt: NFC-Mitarbeiterchip -> eindeutige serverseitige RFID-/Mitarbeiterzuordnung -> serverseitige Session. Bei erfolgreicher Chipzuordnung ist kein zusaetzliches Passwort erforderlich. Die erneute Oxaion-Personalpruefung vor der Buchung bleibt erhalten.
+- [x] Vorhandene SYNCOS-Benutzer-/RFID-Basis bestaetigt: `syncos_stg_102.ITSDEV.ITSUSER`, `ClassID = 47`, `IsEnabled = -1`, `IsVisible = -1`; das Feld `RFID` ist in der bereits verwendeten RFID-Zuordnung vorhanden. Die konkrete NFC-Login-Endpoint-/Session-Umsetzung ist noch einzubauen.
+- [ ] NFC-Anmeldung im Backend/Frontend umsetzen und den bisherigen Passwort-Entwicklungsweg fuer den finalen Produktivbetrieb abloesen.
+- [x] Technische Zielplattform festgelegt: naechster Schritt ist Migration von derzeit `net8.0` auf .NET 10 LTS.
+- [ ] .NET-10-LTS-Migration im Code durchfuehren und danach Build, Tests sowie lokalen Entwicklungsbetrieb pruefen.
+- [ ] Endgueltigen produktiven Web-/Application-Server und Hosting-Variante festlegen: IIS oder Windows-Dienst mit Kestrel. Aktueller Entwicklungsbetrieb bleibt vorerst auf dem Client-Rechner.
 - [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten, des `PersonnelAuthentication__ConnectionString` und sonstiger Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Es gibt keine fest vorgegebenen Zugangsdaten im Repository.
 - [ ] Persistenztechnik fuer produktives Transaktionslog, Idempotenz, Status und Audit Trail festlegen; STAGING-Prototyp verwendet vorerst JSON-Dateien unter `App_Data/transactions`
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
@@ -59,7 +61,7 @@ Diese Checkliste wird waehrend des Projekts laufend aktualisiert. Offene Details
 
 Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Outbox, `clientOperationId`, serverseitige Revalidierung und kontrollierte Updates ist in `docs/OFFLINE_PWA.md` dokumentiert. Der aktuelle STAGING-Prototyp verwendet bereits `IndexedDB` fuer einen offenen `clientOperationId`-Vorgang und das Backend behandelt diese ID idempotent. Offen sind weiterhin die konkreten Betriebsparameter und Prozessgrenzen:
 
-- [x] STAGING-PWA mit Web App Manifest, lokalen 192x192-/512x512-App-Icons, maskierbarem Android-Icon, Favicon und Service-Worker-App-Shell konfiguriert. Die normale WebApp und der Login sind fuer die Testphase auch ueber HTTP nutzbar; fuer Service Worker/Installation auf realen Android-Geraeten bleibt HTTPS am IIS/Reverse Proxy die regulaere Voraussetzung.
+- [x] STAGING-PWA mit Web App Manifest, lokalen 192x192-/512x512-App-Icons, maskierbarem Android-Icon, Favicon und Service-Worker-App-Shell konfiguriert. Die normale WebApp und der aktuelle Entwicklungs-Login sind fuer die Testphase auch ueber HTTP nutzbar; fuer Service Worker, NFC-Zielbetrieb und Installation auf realen Android-Geraeten bleibt ein vertrauenswuerdiger HTTPS-Endpunkt die regulaere Voraussetzung, unabhaengig davon ob spaeter IIS oder Kestrel/Windows-Dienst verwendet wird.
 - [ ] Maximale Gueligkeitsdauer eines lokal gecachten Maschinenzustands fachlich festlegen
 - [ ] Pro Buchungsszenario festlegen, welche Schritte offline bis `PENDING_SYNC` vorbereitet werden duerfen
 - [ ] Entscheiden, ob Pulverwechsel offline nur erfasst oder teilweise vorbereitet werden darf
@@ -68,7 +70,7 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Reihenfolge und Abhaengigkeiten bei der Synchronisation mehrerer lokaler Vorgaenge definieren
 - [ ] Verhalten bei vollem, vom Benutzer geloeschtem oder vom Browser bereinigtem lokalem Speicher festlegen
 - [ ] Pruefen, ob `navigator.storage.persist()` auf den eingesetzten Android-Geraeten sinnvoll und ausreichend unterstuetzt wird
-- [x] Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb definiert: Passwort und Authentifizierungsersatz werden nicht offline gespeichert; eine abgelaufene Session erfordert nach Reconnect eine neue Online-Anmeldung, bevor eine neue produktive Buchung gestartet wird.
+- [x] Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb definiert: NFC-/RFID-Daten, Passwort und sonstiger Authentifizierungsersatz werden nicht als Offline-Freigabe gespeichert; eine abgelaufene Session erfordert nach Reconnect eine neue Online-Anmeldung, bevor eine neue produktive Buchung gestartet wird.
 - [x] Health-/Connectivity-Endpunkte fuer den STAGING-Prototyp angelegt (`/api/health` und `/api/health/oxaion`); produktive Health-Policy noch festlegen
 - [ ] Frontend-/API-Versionierung und Kompatibilitaetsregeln definieren
 - [ ] Technische Update-Erkennung fuer die PWA festlegen, zum Beispiel Versionsressource plus Service-Worker-Lebenszyklus
