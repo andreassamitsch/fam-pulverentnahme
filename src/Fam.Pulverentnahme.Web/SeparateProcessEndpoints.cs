@@ -16,6 +16,8 @@ public static class SeparateProcessFeatureExtensions
         services.AddSingleton<FillNewService>();
         services.AddSingleton<FaMaterialService>();
         services.AddSingleton<FaConsumptionService>();
+        services.AddSingleton<FaAbortCorrectionService>();
+        services.AddSingleton<InventoryCorrectionService>();
         services.AddSingleton<InventoryService>();
         services.AddSingleton<TargetLocationLookupService>();
         return services;
@@ -127,6 +129,18 @@ public static class SeparateProcessFeatureExtensions
         endpoints.MapGet("/api/fa-consumption/{id}", async (string id, HttpContext http, FaConsumptionService service, CancellationToken ct) =>
         { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
         endpoints.MapPost("/api/fa-consumption/{id}/reconcile", async (string id, HttpContext http, FaConsumptionService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
+
+        endpoints.MapPost("/api/fa-abort-correction", async (FaAbortCorrectionRequest request, HttpContext http, FaAbortCorrectionService service, CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            try { return OperationResult(await service.ExecuteAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+        });
+        endpoints.MapGet("/api/fa-abort-correction/{id}", async (string id, HttpContext http, FaAbortCorrectionService service, CancellationToken ct) =>
+        { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
+        endpoints.MapPost("/api/fa-abort-correction/{id}/reconcile", async (string id, HttpContext http, FaAbortCorrectionService service, CancellationToken ct) =>
         { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
 
         return endpoints;
