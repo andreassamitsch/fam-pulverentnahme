@@ -169,7 +169,7 @@ public sealed class OxaionSession : IAsyncDisposable
         var value = (raw ?? "").Trim();
         return value.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
             && value.EndsWith("?>", StringComparison.Ordinal)
-            && value.IndexOf('<', 1) == value.LastIndexOf('<');
+            && value.IndexOf('<', 1) < 0;
     }
 
     public static void AssertNoFcod(OxaionCallResult result)
