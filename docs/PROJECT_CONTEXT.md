@@ -263,7 +263,7 @@ Mindestens anzuzeigen sind:
 - aktuelle Mix-Charge
 - Systembestand beziehungsweise Restmenge
 
-Der Bediener bestaetigt die Entnahme. Die Menge wird fuer die vollstaendige Maschinenentleerung aus dem Systembestand uebernommen; eine manuelle Mengeneingabe ist dafuer nicht vorgesehen.
+Beim Vorgang `Pulver aus Tank auslagern` ist seit 18.09.2026 die physische Wiegung verpflichtender Bestandteil des Ablaufs. Angezeigt werden Oxaion-Systembestand `Qsys`, gewogene Netto-Pulvermenge `Qphys` und die Differenz. Fuer den aktuellen STAGING-Stand werden Mengen auf 0,001 kg normalisiert. Bei Minderbestand wird die Differenz vor der Umlagerung mit dem technisch bestaetigten Buchungsschluessel `I2 = Bestandskorr. Abgang (Schwund)` auf genau Tank/Artikel/Mix-Charge korrigiert; bei Mehrbestand entsprechend mit `I1 = Bestandskorrektur Zugang`. Nach jeder Korrektur wird der Tank erneut aus Oxaion gelesen und muss exakt `Qphys` entsprechen. Erst danach wird die gewogene Menge mit der bestaetigten `LF/LE`-Umlagerung bewegt. Bei unklarem Korrekturausgang wird kein `LF` gestartet.
 
 Kann Oxaion keinen eindeutigen Bestand ermitteln, darf die WebApp nicht raten. Der Vorgang wird beispielsweise in folgenden Faellen gestoppt:
 
@@ -279,7 +279,7 @@ Welche Teilschritte eines Pulverwechsels offline lediglich vorbereitet und bis `
 
 Beim Pulverwechsel wird das aktuell in der Maschine befindliche Pulver vollstaendig entnommen und gesiebt. Danach kann es wieder in das Pulverlager zurueckgestellt werden.
 
-Dafuer ist ein entsprechender Oxaion Aus-/Wiedereinlagerungs- beziehungsweise Umbuchungsprozess erforderlich. Die konkreten Oxaion-Buchungsschluessel sind noch nicht abschliessend festgelegt. Sie duerfen nicht erfunden oder hart codiert werden.
+Dafuer ist die bestaetigte Oxaion-`LF/LE`-Umlagerung vorgesehen. Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind auch die vorgelagerten Mengenabgleiche `I2` fuer Schwund und `I1` fuer Mehrbestand technisch bestaetigt. Die Details, einschliesslich der FAM-STAGING-spezifischen Kostenstellen und der Transaktionsgrenzen, stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
 
 ### Neue Befuellung
 
@@ -288,6 +288,20 @@ Nach der Entnahme des bisherigen Pulvers:
 1. neues Rohmaterial beziehungsweise Rohmaterialcharge scannen
 2. neue Mix-Charge nach dem verbindlichen Mix-Chargenschema erzeugen
 3. Pulver dem Maschinentank zuordnen beziehungsweise buchen
+
+## Korrekturbuchung Fertigungsauftrag bei Jobabbruch
+
+Seit 18.09.2026 ist der FAM-STAGING-Ablauf technisch bestaetigt und in der WebApp umgesetzt:
+
+1. Tank und Fertigungsauftrag werden physisch gescannt und der aktuelle FA-/Tankzustand erneut aus Oxaion gelesen.
+2. Der Vorgang ist nur fuer die bestaetigte komplett abgebuchte Materialposition mit positivem Verbrauch vorgesehen.
+3. Die zu stornierende Originalrueckmeldung wird aus der Oxaion-Rueckmeldeliste nur dann automatisch ausgewaehlt, wenn genau ein Eintrag gleichzeitig FA, Materialposition, Artikel, urspruengliche Menge, Tanklager und Mix-Charge erfuellt.
+4. Der echte Oxaion-Storno laeuft ueber `PW22000J *LOADNEW` mit `STORNO=J`, `PW22000J *STON` und den gezielten `PW22021R *STORNO` der Rueckmeldung.
+5. Eine erfolgreiche HTTP-Antwort allein ist kein Erfolgsbeweis. Vor dem zweiten Schreibschritt muessen Rueckmeldeliste, FA-Materialposition und dieselbe Tank-Mix-Charge den erwarteten Stornozustand bestaetigen.
+6. Danach wird der vom Bediener tatsaechlich abgewogene Ist-Verbrauch mit der bereits bestaetigten normalen MK-Logik neu gebucht; bei 0,000 kg wird keine neue MK gesendet.
+7. Unklarer Stornoausgang blockiert die neue MK vollstaendig. Ein bestaetigter Storno wird bei spaeterem Fehler niemals automatisch wiederholt.
+
+Details und der Referenzmitschnitt stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
 
 ## Mix-Chargen
 
