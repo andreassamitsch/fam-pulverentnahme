@@ -211,3 +211,26 @@ Die Nachbearbeitung darf keine unkontrollierte direkte SQL-Buchung in Oxaion ver
 - Request- und Response-Daten vor der Persistierung filtern beziehungsweise redigieren.
 - Audit-Daten gegen unbeabsichtigte Aenderung schuetzen und eine noch festzulegende Aufbewahrungsregel anwenden.
 - Lokale Browserdaten sind nur Zwischenpuffer und duerfen nicht als einziges dauerhaftes Audit-Archiv verwendet werden.
+
+## Mehrschritt-Korrekturen: Tankwiegung und FA-Jobabbruch
+
+Seit 18.09.2026 gelten fuer die technisch bestaetigten Korrekturprozesse zusaetzliche feste Transaktionsgrenzen.
+
+### Tankwiegung vor LF/LE
+
+- Eine erforderliche I1-/I2-Bestandskorrektur ist eine eigene idempotente Teiltransaktion mit eigener `clientOperationId`-Ableitung.
+- Bei `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` der Korrektur darf **kein** LF/LE-Transfer gestartet werden.
+- Nach bestaetigter I1/I2-Bewegung muss der Tankbestand erneut gelesen werden und exakt der gewogenen, auf 0,001 kg normalisierten Menge entsprechen.
+- Ist I1/I2 bestaetigt, aber der spaetere LF/LE-Transfer unklar, wird die Korrektur weder automatisch storniert noch erneut gebucht. Nur der LF/LE-Teil darf ueber seine vorhandene lesende Verifikation geklaert werden.
+- Ein Reconcile des Gesamtvorgangs startet niemals nachtraeglich automatisch einen noch nicht begonnenen LF/LE-Schreibschritt.
+
+### FA-Jobabbruch
+
+- `PW22021R *STORNO` kann im bestaetigten FAM-Referenzfall bei HTTP-Erfolg nur die XML-Deklaration zurueckgeben. Diese Antwort ist **kein** Erfolgskriterium.
+- Nach einem Stornoaufruf gilt der Ausgang solange als nicht bestaetigt, bis alle drei Beweise vorliegen:
+  1. exakter Rueckmeldeschluessel ist aus der `PW22021R`-Liste verschwunden;
+  2. FA-Materialposition zeigt den bestaetigten Stornozustand `AMMATV=0 / AMMPST=0`;
+  3. dieselbe Tank-Mix-Charge ist exakt um die urspruenglich stornierte Menge erhoeht.
+- Fehlt einer dieser Beweise, wird keine neue MK gestartet und der Storno niemals blind wiederholt.
+- Nach bestaetigtem Storno wird die korrigierte MK als eigene deterministisch korrelierte Teiltransaktion ausgefuehrt.
+- Ist der Storno sicher bestaetigt, aber die neue MK nicht eindeutig erfolgreich, darf der Gesamtvorgang nicht von vorne gestartet werden. Der Zwischenzustand geht in `MANUAL_REVIEW_REQUIRED`; nur der MK-Teilvorgang wird nach den bestehenden MK-Reconcile-Regeln untersucht.
