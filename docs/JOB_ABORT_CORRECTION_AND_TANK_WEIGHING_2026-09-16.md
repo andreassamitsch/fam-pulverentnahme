@@ -46,7 +46,7 @@ Im aktuellen MK-Code wird beim Dialogaufbau explizit `STORNO=N` uebergeben. Dies
 
 ### Noch fehlender Oxaion-Nachweis
 
-Vor einer produktiven Implementierung muss ein vollstaendiger JET-/HTTP-Mitschnitt eines realen MK-Stornos in STAGING vorliegen.
+Der vollstaendige JET-/HTTP-Mitschnitt eines realen MK-Stornos in STAGING liegt seit 18.09.2026 vor; die bestaetigte Sequenz ist in Abschnitt 6 dokumentiert.
 
 Der Mitschnitt muss mindestens zeigen:
 
@@ -141,7 +141,7 @@ muss zuerst als nachvollziehbare Bestandskorrektur **auf genau dem Tankbestand, 
 
 Erst nach eindeutig erfolgreicher Korrektur wird der Tankbestand erneut gelesen. Er muss danach der physisch gewogenen Menge entsprechen. Erst dann wird diese Menge mit `LF`/`LE` auf den ausgewaehlten Lagerort/Lagerplatz umgebucht.
 
-Die oxaion-Standarddokumentation nennt fuer diesen Zweck `I2 = Bestandskorr. Abgang (Schwund)`. Ob `I2` in der FAM-STAGING-Firma unveraendert vorhanden, als Dialogschluessel zugelassen und mit der gewuenschten Kontierung versehen ist, muss vor Implementierung in `US50000` und durch einen realen JET-Mitschnitt bestaetigt werden.
+Der FAM-STAGING-JET-Mitschnitt vom 18.09.2026 bestaetigt `I2 = Bestandskorr. Abgang (Schwund)` als wirksamen Dialogschluessel inklusive realer Mengenreduktion derselben Mix-Charge. Details siehe Abschnitt 6.
 
 ### Fall C: mehr Pulver als im System (`Qphys > Qsys`)
 
@@ -153,7 +153,7 @@ muss zuerst als nachvollziehbare positive Bestandskorrektur **auf genau dem Tank
 
 Erst nach eindeutig erfolgreicher Korrektur wird der Tankbestand erneut gelesen. Er muss danach der physisch gewogenen Menge entsprechen. Erst dann wird diese Menge mit `LF`/`LE` auf den ausgewaehlten Lagerort/Lagerplatz umgebucht.
 
-Die oxaion-Standarddokumentation nennt fuer diesen Zweck `I1 = Bestandskorrektur Zugang`. Auch `I1` muss in der FAM-STAGING-Konfiguration und durch JET bestaetigt werden, bevor der Buchungsschluessel produktiv verwendet wird.
+Der FAM-STAGING-JET-Mitschnitt vom 18.09.2026 bestaetigt `I1 = Bestandskorrektur Zugang` als wirksamen Dialogschluessel inklusive realer Mengenerhoehung derselben Mix-Charge. Details siehe Abschnitt 6.
 
 ### Warum Korrektur vor Transfer
 
@@ -258,3 +258,82 @@ Passwoerter, Cookies, Tokens und andere Secrets gehoeren nicht in die Projektdat
 Die zulaessige Wiege-/Rundungstoleranz ist noch festzulegen. Sie darf nicht geraten werden.
 
 Dafuer benoetigt die Implementierung mindestens die Aufloesung bzw. kleinste Anzeigestufe der eingesetzten Waage. Danach wird entschieden, ob beispielsweise auf die Waagenaufloesung gerundet wird und ab welcher Differenz eine Bestandskorrektur erforderlich ist.
+
+
+## 6. Technisch bestaetigt durch FAM-STAGING-JET vom 18.09.2026
+
+Der Mitschnitt `FA Mat Storno - Schwund und Plus LB buchungen` bestaetigt die zuvor offenen Schreibsequenzen.
+
+### 6.1 FA-Materialrueckmeldung stornieren
+
+Bestaetigte Sequenz fuer den Referenzfall `FA24FK00126 / Pos. 10 / RP.00010`:
+
+1. `PW22000J *LOADNEW` mit `STORNO=J`, `ARAKKZ=MK`, FA, Materialposition und Artikel.
+2. `PW22000J *STON` mit `ARAKKZ=M*`.
+3. `PW22021R *GETHDR` und `*FIRSTLIST`.
+4. Die zu stornierende Rueckmeldung wird **nicht nach "letzter Buchung"**, sondern eindeutig ueber den Listeneintrag bestimmt. Im Referenzfall:
+   - `ARFIRM=103`
+   - `ARRMNR=33806`
+   - `ARRMZT=11.59.48`
+   - `ARFAUN=FA24FK00126`
+   - `ARYRML=2026-09-18`
+   - Materialposition 10
+   - Beschreibung `RP.00010 20.16 kg`
+   - Quelle `RP.00010 EOS1 RP00010MIX_20260909_140218`.
+5. `PW22021R *STORNO` mit dem exakten Rueckmeldeschluessel.
+6. Die erfolgreiche HTTP-Antwort kann nur aus der XML-Deklaration bestehen. Dies gilt **nicht** als Erfolgsbeweis.
+7. Danach wird die Rueckmeldeliste erneut gelesen; der exakt stornierte Schluessel darf nicht mehr vorhanden sein.
+8. Im Referenzfall fiel die FA-Materialposition von `AMMATV=20,160 / AMMPST=9` auf `AMMATV=0 / AMMPST=0`.
+9. Der Tank `EOS1` mit derselben Mix-Charge stieg von 119,209 kg auf 139,369 kg, also exakt um 20,160 kg.
+10. Anschliessend war die normale bereits bestaetigte MK-Sequenz wieder zulaessig. Eine neue MK mit 10,500 kg reduzierte den Tank auf 128,869 kg.
+
+Verbindliche Implementierungsregel:
+
+- Storno nur bei **genau einer** Rueckmeldung, die FA, Materialposition, Artikel, urspruengliche Menge, Tanklager und Mix-Charge gleichzeitig erfuellt.
+- Mehrere oder keine Treffer sperren den automatischen Storno.
+- Nach `*STORNO` muessen Rueckmeldeliste, FA-Materialzustand und Tank/Mix **alle** den erwarteten Zustand beweisen, bevor eine neue MK gesendet wird.
+- Bei unklarem Stornoausgang kein Blind-Retry und keine neue MK.
+
+### 6.2 I2 - Schwund
+
+Bestaetigt:
+
+- Buchungsschluessel `I2`
+- Oxaion-Bezeichnung `Bestandskorr. Abgang (Schwund)`
+- Lagerbeleg ueber `LB20100J` / Position ueber `LB20115J`
+- Persistierung ueber `LB20110R *UPD`
+- Fensterzustand `TCODE=WIN2` / `LB20115J *LOADWIN2`
+- Referenzbuchung: EOS1 / RP.00010 / Mix `RP00010MIX_20260909_140218` / 0,001 kg
+- Tankbestand reduzierte sich exakt von 128,869 kg auf 128,868 kg
+- im STAGING-Mitschnitt verwendete Kostenstelle: `6000`.
+
+### 6.3 I1 - positiver Mehrbestand
+
+Bestaetigt:
+
+- Buchungsschluessel `I1`
+- Oxaion-Bezeichnung `Bestandskorrektur Zugang`
+- dieselbe Lagerbeleglogik mit `TCODE=WIN2` / `LOADWIN2`
+- Referenzbuchung: EOS1 / RP.00010 / dieselbe Mix-Charge / 0,002 kg
+- Tankbestand erhoehte sich exakt von 128,868 kg auf 128,870 kg
+- im STAGING-Mitschnitt verwendete Kostenstelle: `5100`.
+
+Die Kostenstellen 6000/5100 sind durch diesen **FAM-STAGING-Ablauf** bestaetigt. Sie sind keine allgemeine Oxaion-Regel und duerfen bei spaeterem Firmen-/Produktivwechsel nicht ungeprueft uebernommen werden.
+
+### 6.4 Implementierter Tank-Auslagerungsablauf
+
+Ab dieser Umsetzung gilt:
+
+1. Tank scannen und Systembestand `Qsys` lesen.
+2. Physisch ausgelagerte Netto-Pulvermenge `Qphys` wiegen.
+3. Beide Werte werden fuer die Oxaion-Mengenlogik auf 0,001 kg normalisiert. Es gibt damit noch **keine zusaetzliche physikalische Waagentoleranz**.
+4. `Qphys = Qsys`: keine Korrektur.
+5. `Qphys < Qsys`: Differenz als I2 buchen.
+6. `Qphys > Qsys`: Differenz als I1 buchen.
+7. Nach I1/I2 Tank/Mix erneut lesen. Nur bei exakt `Qphys` wird fortgesetzt.
+8. Danach die bereits bestaetigte LF/LE-Umlagerung ueber genau `Qphys`.
+9. I1/I2 und LF/LE sind getrennte, aber korrelierte Teiltransaktionen. Der Mitschnitt beweist **nicht**, dass Korrektur und LF sicher in demselben Lagerbeleg automatisiert werden koennen.
+
+### 6.5 Offener Punkt Waage
+
+Weiter offen bleibt ausschliesslich eine moegliche fachliche Toleranz oberhalb der technischen 0,001-kg-Normalisierung. Solange keine Waagenaufloesung/Toleranz festgelegt ist, fuehrt jede Abweichung ab 0,001 kg zu I1 oder I2.
