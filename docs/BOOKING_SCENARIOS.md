@@ -154,3 +154,26 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Oxaion-Aktion:** Ausschliesslich lesende Bestandsabfragen `LB30340R`, `LB30430R` beziehungsweise bei bestaetigtem `LAG1626` `LB30230R`; keine Materialbuchung.
 - **Ergebnisstatus:** Sicherer Vor-Buchungs-Konflikt, kein unklarer ERP-Ausgang.
 - **Fehlerbehandlung:** Aktuelle Quelle erneut aus Oxaion auswaehlen und danach einen normalen Buchungsversuch mit den aktualisierten Daten starten. Kein blindes Weitersenden der alten Lagerplatzdarstellung.
+
+
+## Szenario P: Tank-Auslagern mit Wiegeabweichung
+
+- **Trigger:** Beim Vorgang `Pulver aus Tank auslagern` weicht die auf 0,001 kg normalisierte gewogene Netto-Pulvermenge `Qphys` vom unmittelbar zuvor bestaetigten Oxaion-Tankbestand `Qsys` ab.
+- **Pruefungen:** Mitarbeiter, Tank, Artikel, Mix-Charge und `Qsys` erneut online bestaetigen. Differenz ausschliesslich als `abs(Qphys-Qsys)` bestimmen.
+- **Backend-Aktion bei Minderbestand:** Eigene idempotente Teiltransaktion mit `I2 = Bestandskorr. Abgang (Schwund)` auf exakt Tank/Artikel/Mix-Charge. Im aktuellen FAM-STAGING-Referenzablauf Kostenstelle 6000.
+- **Backend-Aktion bei Mehrbestand:** Eigene idempotente Teiltransaktion mit `I1 = Bestandskorrektur Zugang` auf exakt Tank/Artikel/Mix-Charge. Im aktuellen FAM-STAGING-Referenzablauf Kostenstelle 5100.
+- **Oxaion-Aktion:** Lagerbeleg `LB20100J`; Korrekturposition `LB20115J`, bestaetigter `TCODE=WIN2`-/`LOADWIN2`-Ablauf; Persistierung `LB20110R *UPD`; anschliessend Beleg schliessen und exakt verifizieren.
+- **Fortsetzung:** Erst nach eindeutig erfolgreicher Korrektur und erneut gelesenem Tankbestand exakt `Qphys` wird die bewaehrte `LF/LE`-Umlagerung ueber `Qphys` gestartet.
+- **Ergebnisstatus:** Gesamtvorgang `SUCCESS` nur, wenn gegebenenfalls I1/I2 sowie LF/LE jeweils eindeutig verifiziert sind.
+- **Fehlerbehandlung:** Unklarer I1/I2-Ausgang blockiert LF/LE. Eine bereits bestaetigte Korrektur wird bei spaeter unklarem LF/LE-Ausgang nicht automatisch rueckgaengig gemacht oder erneut gebucht.
+
+## Szenario Q: Korrekturbuchung Fertigungsauftrag nach Jobabbruch
+
+- **Trigger:** Pulver wurde bereits beim Druckstart auf den Fertigungsauftrag gebucht; der Druckjob wurde abgebrochen und der gewogene tatsaechliche Ist-Verbrauch ist kleiner als der urspruenglich gebuchte Verbrauch.
+- **Pruefungen vor Storno:** Mitarbeiter, Tank/Mix, FA, Materialposition, `AMMATV` und `AMMPST` erneut online bestaetigen. Der aktuell bestaetigte Stornoablauf ist fuer die komplett abgebuchte Materialposition `AMMPST=9` mit positivem Verbrauch freigegeben.
+- **Originalrueckmeldung:** `PW22000J *LOADNEW` mit `STORNO=J` und danach `PW22000J *STON`; `PW22021R`-Rueckmeldeliste lesen. Automatischer Storno nur bei genau einem Eintrag, der FA, Materialposition, Artikel, urspruengliche Menge, Tanklager und Mix-Charge gemeinsam erfuellt.
+- **Storno:** `PW22021R *STORNO` mit exakter Rueckmeldenummer, Rueckmeldedatum und Rueckmeldeuhrzeit aus diesem Listeneintrag.
+- **Storno-Verifikation:** Eine HTTP-Antwort oder die im Referenzfall nur aus der XML-Deklaration bestehende Antwort ist kein Erfolgsbeweis. Vor dem zweiten Schreibschritt muessen (a) der exakte Rueckmeldeschluessel aus der Liste verschwunden sein, (b) die FA-Materialposition `AMMATV=0 / AMMPST=0` zeigen und (c) dieselbe Tank-Mix-Charge exakt um die urspruengliche Verbrauchsmenge erhoeht sein.
+- **Neue Rueckmeldung:** Nur nach dieser dreifachen Bestaetigung wird der gewogene korrigierte Ist-Verbrauch mit der bestaetigten normalen MK-Logik neu gebucht. Bei `0,000 kg` ist keine neue MK erforderlich.
+- **Ergebnisstatus:** `SUCCESS` erst nach finaler exakter Verifikation von FA-Materialposition und Tank/Mix.
+- **Fehlerbehandlung:** Bei unklarem Storno kein Blind-Retry und keine neue MK. Ist der Storno sicher erfolgreich, aber die neue MK unklar oder fehlgeschlagen, bleibt dieser Zwischenzustand sichtbar; der Gesamtvorgang darf nicht erneut von vorne gestartet werden.
