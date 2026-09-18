@@ -405,7 +405,9 @@ public sealed partial class MaterialTransferBookingService
 
     private static bool TryPositiveOxaionDecimal(string value, out decimal parsed)
     {
-        var normalized = (value ?? "").Trim().Replace(".", "").Replace(',', '.');
+        var normalized = (value ?? "").Trim();
+        if (normalized.Contains(','))
+            normalized = normalized.Replace(".", "").Replace(',', '.');
         return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed) && parsed > 0m;
     }
 
