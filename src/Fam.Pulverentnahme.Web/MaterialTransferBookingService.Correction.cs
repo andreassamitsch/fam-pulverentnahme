@@ -4,8 +4,8 @@ namespace Fam.Pulverentnahme.Web;
 
 public sealed partial class MaterialTransferBookingService
 {
-    private static readonly HashSet<string> ConfirmedCorrectionIntermediateFcod =
-        new(StringComparer.OrdinalIgnoreCase) { "KLA1901", "KST0001", "KST1260", "VEP1804" };
+    private static readonly HashSet<string> ConfirmedCorrectionCostCenterFcod =
+        new(StringComparer.OrdinalIgnoreCase) { "KST0001", "KST1260" };
 
     public async Task BookInventoryCorrectionAsync(
         SeparateOperation tx,
@@ -181,15 +181,22 @@ public sealed partial class MaterialTransferBookingService
 
         var returnedKey = Get(read.Dta, "LBBWKZ");
         var description = Get(read.Dta, "LBBWBZ");
+        var lagerBookingAllowed = Get(read.Dta, "LBKLAS");
         var expectedDescription = bookingKey == "I2"
             ? "Bestandskorr. Abgang (Schwund)"
             : "Bestandskorrektur Zugang";
 
-        if (!string.Equals(returnedKey, bookingKey, StringComparison.Ordinal) ||
-            !string.Equals(description, expectedDescription, StringComparison.Ordinal))
+        if (!string.Equals(returnedKey, bookingKey, StringComparison.Ordinal)
+            || !string.Equals(description, expectedDescription, StringComparison.Ordinal)
+            || !string.Equals(lagerBookingAllowed, "J", StringComparison.OrdinalIgnoreCase))
             throw new ProcessConflictException(
-                $"Oxaion-Buchungsschlüssel {bookingKey} entspricht nicht der bestätigten STAGING-Konfiguration. " +
-                $"Aktuell: '{returnedKey}' / '{description}'. Es wurde keine Korrektur gebucht.");
+                $"Oxaion-Buchungsschlüssel {bookingKey} entspricht nicht der am 18.09.2026 bestätigten STAGING-Konfiguration. " +
+                $"Aktuell: '{returnedKey}' / '{description}', LBKLAS='{lagerBookingAllowed}'. Es wurde keine Korrektur gebucht.");
+
+        if (bookingKey == "I2" && !string.Equals(Get(read.Dta, "LBSKSB"), "0050000", StringComparison.Ordinal))
+            throw new ProcessConflictException(
+                $"I2 ist in US50000 nicht mehr wie im bestätigten FAM-STAGING-Mitschnitt kontiert (LBSKSB='{Get(read.Dta, "LBSKSB")}'). " +
+                "Es wurde keine Schwundkorrektur gebucht.");
     }
 
     private async Task AddFirstCorrectionPositionAsync(
@@ -245,12 +252,23 @@ public sealed partial class MaterialTransferBookingService
         var amount = FormatQty(quantityKg);
 
         OxaionCallResult? validatedResult = null;
-        for (var attempt = 1; attempt <= 5; attempt++)
+        var enteredCostCenter = false;
+        var selectedPrice = "";
+        var description = bookingKey == "I2"
+            ? "Bestandskorr. Abgang (Schwund)"
+            : "Bestandskorrektur Zugang";
+
+        for (var attempt = 1; attempt <= 6; attempt++)
         {
             var firstPass = Merge(state, CorrectionFields(
                 tx, bookingDate, op, bookingKey, article, articleText,
                 warehouse, warehouseText, batch,
-                attempt == 1 ? "0,000" : amount, amount, "J", costCenter));
+                attempt == 1 ? "0,000" : amount, amount, "J",
+                enteredCostCenter ? costCenter : ""));
+
+            firstPass["TX_BWKZ"] = description;
+            if (!string.IsNullOrWhiteSpace(selectedPrice))
+                firstPass["TX_BRPR"] = selectedPrice;
 
             var result = await session.CallAsync("LB20115J", "*PUTNEW", firstPass, ct);
             state = Merge(firstPass, result.Dta);
@@ -266,15 +284,41 @@ public sealed partial class MaterialTransferBookingService
             if (string.IsNullOrWhiteSpace(fcod))
                 continue;
 
-            if (!ConfirmedCorrectionIntermediateFcod.Contains(fcod))
+            if (ConfirmedCorrectionCostCenterFcod.Contains(fcod))
             {
-                OxaionSession.AssertNoFcod(result);
-                throw new InvalidOperationException(
-                    $"Unexpected Oxaion validation state {fcod} for {bookingKey} correction.");
+                enteredCostCenter = true;
+                state["PSBMN1"] = amount;
+                state["PSKSTL"] = costCenter;
+                await SaveEventAsync(tx, "CORRECTION_COST_CENTER_REQUIRED",
+                    $"{bookingKey} returned the confirmed {fcod} cost-accounting validation; continuing with the captured FAM-STAGING cost center {costCenter}.", ct);
+                continue;
             }
 
-            await SaveEventAsync(tx, "CORRECTION_POSITION_INTERMEDIATE",
-                $"{bookingKey} validation returned confirmed intermediate state {fcod}; continuing the captured validation chain.", ct);
+            if (string.Equals(fcod, "VEP1804", StringComparison.Ordinal) && bookingKey == "I1")
+            {
+                var priceRead = await session.CallAsync("US11600J", "*READ", Dict(
+                    ("TLIDNR", article),
+                    ("source-xml", "US116002"),
+                    ("KEYTYPE", "UTLST2")), ct);
+                OxaionSession.AssertNoFcod(priceRead);
+                selectedPrice = Get(priceRead.Dta, "TLDNPR");
+                if (!TryPositiveOxaionDecimal(selectedPrice, out _))
+                    throw new ProcessConflictException(
+                        $"I1 verlangt laut Oxaion einen positiven Preis, aber US11600J/TLDNPR liefert für {article} keinen verwendbaren Wert. " +
+                        "Es wurde keine positive Bestandskorrektur persistiert.");
+
+                state["TX_BRPR"] = selectedPrice;
+                enteredCostCenter = true;
+                state["PSBMN1"] = amount;
+                state["PSKSTL"] = costCenter;
+                await SaveEventAsync(tx, "CORRECTION_PRICE_REQUIRED",
+                    $"I1 returned confirmed VEP1804. Current article price TLDNPR was read from Oxaion and will be used; no price is hard-coded.", ct);
+                continue;
+            }
+
+            OxaionSession.AssertNoFcod(result);
+            throw new InvalidOperationException(
+                $"Unexpected Oxaion validation state {fcod} for {bookingKey} correction.");
         }
 
         if (validatedResult is null)
@@ -357,6 +401,12 @@ public sealed partial class MaterialTransferBookingService
             ("TX_FIRST", first),
             ("KEYTYPE", "C_LKOPF"),
             ("mode", "merge"));
+    }
+
+    private static bool TryPositiveOxaionDecimal(string value, out decimal parsed)
+    {
+        var normalized = (value ?? "").Trim().Replace(".", "").Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed) && parsed > 0m;
     }
 
     private async Task VerifyAndCloseCorrectionAsync(
