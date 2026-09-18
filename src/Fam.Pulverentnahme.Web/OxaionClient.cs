@@ -109,7 +109,7 @@ public sealed class OxaionSession : IAsyncDisposable
         _logger = logger;
     }
 
-    public async Task<OxaionCallResult> CallAsync(string program, string action, IReadOnlyDictionary<string, string>? dta, CancellationToken ct)
+    public async Task<OxaionCallResult> CallAsync(string program, string action, IReadOnlyDictionary<string, string>? dta, CancellationToken ct, bool allowXmlDeclarationOnly = false)
     {
         var form = new Dictionary<string, string>
         {
@@ -144,12 +144,32 @@ public sealed class OxaionSession : IAsyncDisposable
             throw new OxaionTransportException($"Transport error during {program} {action}; booking outcome may be uncertain.", ex);
         }
 
-        var xml = OxaionClient.ParseXml(raw);
+        XDocument xml;
+        try
+        {
+            xml = OxaionClient.ParseXml(raw);
+        }
+        catch (InvalidOperationException) when (allowXmlDeclarationOnly && IsXmlDeclarationOnly(raw))
+        {
+            // PW22021R *STORNO is confirmed by the 2026-09-18 FAM JET trace to return
+            // HTTP success with only the XML declaration. This is not considered booking proof;
+            // the caller must still verify the feedback list and the resulting FA/tank state.
+            xml = new XDocument(new XElement("EMPTY"));
+        }
+
         var error = xml.Descendants("ERROR").FirstOrDefault();
         if (error is not null)
             throw new InvalidOperationException($"Oxaion ERROR during {program} {action}: {error.Value.Trim()}");
 
         return new OxaionCallResult(raw, xml, ReadDta(xml));
+    }
+
+    private static bool IsXmlDeclarationOnly(string raw)
+    {
+        var value = (raw ?? "").Trim();
+        return value.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
+            && value.EndsWith("?>", StringComparison.Ordinal)
+            && value.IndexOf('<', 1) == value.LastIndexOf('<');
     }
 
     public static void AssertNoFcod(OxaionCallResult result)
