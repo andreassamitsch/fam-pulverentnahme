@@ -21,11 +21,17 @@
 
 Zusatz fuer Mitarbeiter-Anmeldung:
 
+[Android Smartphone / NFC]
+        |
+        | erkannter Mitarbeiterchip
+        v
 [ASP.NET Core Backend]
         |
-        | ausschliesslich lesender, parametrisierter SQL-Zugriff
+        | ausschliesslich lesender, parametrisierter Zugriff
         v
-[SYNCOS Credential DB / bestaetigte Benutzertabelle]
+[SYNCOS Benutzer-/RFID-Zuordnung]
+
+Der aktuell implementierte Passwort-Login bleibt bis zur NFC-Umstellung ein Entwicklungs-Zwischenstand.
 
 Optional, ausschliesslich fuer die WebApp:
 
@@ -49,8 +55,9 @@ Optional, ausschliesslich fuer die WebApp:
 - keine Oxaion-Zugangsdaten, Buchungsschluessel oder vertrauenswuerdige Buchungslogik im Frontend
 - Nachfuellquellen werden nicht als freie Lagerort-/Lagerplatz-/Chargenschluessel eingegeben, sondern aus den vom Backend gelieferten aktuellen Oxaion-Bestandspositionen ausgewaehlt
 - die Personalsuche zeigt weiterhin nur serverseitig zugelassene Oxaion-Treffer `PEPENU - PEPENA`
-- nach der Personalauswahl ist eine Passwortanmeldung erforderlich; das Klartextpasswort wird nur fuer den Login-Request gehalten und weder in `IndexedDB` noch im Buchungsvorgang gespeichert
-- der rekonstruierte SYNCOS-Legacy-Schluessel und die Passworttransformation gehoeren nicht ins JavaScript
+- finales Authentifizierungskonzept: NFC-Mitarbeiterchip; erfolgreiche eindeutige Chipzuordnung gilt als Anmeldung, ohne zusaetzliches Passwort
+- NFC-/RFID-Zuordnung und Sessionfreigabe werden serverseitig entschieden
+- der aktuell implementierte Passwortweg bleibt bis zur NFC-Umstellung ein Entwicklungs-Zwischenstand; dessen Legacy-Schluessel und Passworttransformation gehoeren weiterhin nicht ins JavaScript
 
 Der Browser-/Geraetespeicher ist nur ein Zwischenpuffer. Er ist nicht die fachlich fuehrende Datenhaltung.
 
@@ -89,7 +96,8 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - Aufruf ausschliesslich freigegebener Oxaion HTTP-Schnittstellen
 - sichere technische Protokollierung ohne Secrets
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
-- fuer die Mitarbeiter-Anmeldung: erneute exakte Oxaion-Personalpruefung, serverseitige SYNCOS-Legacy-Passworttransformation, zeitkonstanter Passwortvergleich und serverseitige Session
+- fuer die finale Mitarbeiter-Anmeldung: serverseitige eindeutige NFC-/RFID-Zuordnung und serverseitige Session; die erneute exakte Oxaion-Personalpruefung vor der Buchung bleibt bestehen
+- der vorhandene SYNCOS-Passwortvergleich bleibt bis zur NFC-Umstellung als Entwicklungs-Zwischenstand bestehen
 - `/api/mix` akzeptiert neue Buchungsaufrufe nur, wenn der angemeldete Mitarbeiter exakt zu `PersonnelNo` und `PersonnelName` des Vorgangs passt; die bestehende erneute Oxaion-Personalpruefung unmittelbar vor dem ersten schreibenden Aufruf bleibt zusaetzlich bestehen
 - fuer den STAGING-Nachfuellprototyp: lesender Endpunkt `GET /api/machine-stock`, der die im JET-Datenstrom bestaetigte Auflistung `Chargen pro Lagerort` kapselt; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
 - der Maschinenbestand ist nicht von einem gespeicherten Oxaion-Filter abhaengig: das Backend liest die vollstaendige `LB30230R`-Liste des Lagerorts und wertet direkt die bestaetigte Bedingung `LLAWEP.LALABE != 0` aus
@@ -100,11 +108,11 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 
 Dasselbe `clientOperationId` darf nicht zu mehreren wirksamen Oxaion-Buchungen fuehren. Wiederholtes Senden derselben Outbox-Nachricht muss serverseitig idempotent behandelt werden.
 
-### SYNCOS Credential DB
+### SYNCOS Benutzer-/RFID-Daten
 
 Der direkte Datenbankzugriff ist fuer diesen Projektteil eng begrenzt:
 
-- ausschliesslich lesender Zugriff fuer die Passwortpruefung;
+- ausschliesslich lesender Zugriff fuer die Mitarbeiter-/RFID-Zuordnung sowie, solange der Entwicklungs-Zwischenstand aktiv ist, fuer die Passwortpruefung;
 - keine Material-, Lager-, Benutzer- oder sonstigen fachlichen Schreiboperationen per SQL;
 - parametrisierter Lookup mit `@ObjectKey`;
 - die Abfrage liefert nur den fuer die Passwortpruefung benoetigten `PASSWORD`-Wert;
@@ -143,7 +151,7 @@ Sie ist kein Ersatz fuer Oxaion als fachlich fuehrendes ERP-System.
 
 Online wird der aktuelle Maschinenzustand vor einer produktiven Freigabe ueber das Backend aus der bestaetigten Oxaion-Logik ermittelt.
 
-Die Anmeldung mit Personalnummer und Passwort ist ebenfalls ein Online-Schritt. Eine abgelaufene Session wird offline nicht durch gecachte Passwoerter, transformierte Passwortwerte oder lokale Freigaben ersetzt. Nach Reconnect ist vor einer neuen produktiven Buchung eine erneute Online-Anmeldung erforderlich.
+Die finale NFC-Anmeldung ist ein Online-Schritt. Eine abgelaufene Session wird offline nicht durch gecachte Chipdaten, Passwoerter, transformierte Passwortwerte oder lokale Freigaben ersetzt. Nach Reconnect ist vor einer neuen produktiven Buchung eine erneute Online-Anmeldung erforderlich. Der aktuell implementierte Passwortweg bleibt bis zur NFC-Umstellung ein Entwicklungs-Zwischenstand.
 
 Im aktuellen STAGING-Nachfuellprototyp wird die ungefilterte `LB30230R`-Lagerortliste bis zum bestaetigten `<STOP/>` gelesen. Fuer `EOS1` enthielt der Referenzdatenstrom 25 Zeilen verschiedener Artikel und Chargen. Das Backend wendet darauf die in der Oxaion-Selektionsmaske nachgewiesene Bedingung `LLAWEP.LALABE <> 0` direkt an. Damit ist die Laufzeitlogik unabhaengig von Namen, Freigabe oder Existenz eines gespeicherten Oxaion-Filters.
 
@@ -176,8 +184,11 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 
 ## Deployment
 
-- Testbetrieb: vorhandener IIS auf dem Datenbankserver ist moeglich.
-- Bevorzugter Produktivbetrieb: eigener Web-/Application-Server beziehungsweise eigene VM mit IIS und ASP.NET Core Hosting Bundle.
+- Aktueller Entwicklungsbetrieb: weiterhin auf dem Client-Rechner; daran wird mit dieser Architekturentscheidung noch nichts geaendert.
+- Spaeterer Produktivbetrieb: eigener Web-/Application-Server beziehungsweise eigene VM.
+- Die Hosting-Variante ist bewusst noch offen: IIS mit ASP.NET Core Hosting Bundle oder ASP.NET Core/Kestrel als Windows-Dienst.
+- Beide Varianten muessen produktiv einen vertrauenswuerdigen HTTPS-Endpunkt bereitstellen; HTTPS ist fuer PWA/NFC und produktive Anmeldung verbindlich.
+- Naechster technischer Plattformschritt: Migration des derzeitigen `net8.0`-Backends auf .NET 10 LTS. Die Migration ist beschlossen, aber noch nicht im Code umgesetzt.
 - Kommunikation erfolgt verschluesselt per HTTPS.
 - Secrets werden ueber eine noch festzulegende sichere Laufzeitkonfiguration bereitgestellt und niemals im Repository gespeichert.
 - Der Oxaion-Laufzeitbenutzer ist nicht fest im Anwendungscode konfiguriert; der STAGING-Starter fragt Benutzer und Passwort interaktiv ab.
