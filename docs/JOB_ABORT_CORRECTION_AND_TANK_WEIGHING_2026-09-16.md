@@ -305,7 +305,8 @@ Bestaetigt:
 - Fensterzustand `TCODE=WIN2` / `LB20115J *LOADWIN2`
 - Referenzbuchung: EOS1 / RP.00010 / Mix `RP00010MIX_20260909_140218` / 0,001 kg
 - Tankbestand reduzierte sich exakt von 128,869 kg auf 128,868 kg
-- im STAGING-Mitschnitt verwendete Kostenstelle: `6000`.
+- im STAGING-Mitschnitt verwendete Kostenstelle: `6000`;
+- waehrend des Mitschnitts wurde die lokale `US50000`-Konfiguration fuer I2 auf `LBKLAS=J` (als Lagerbuchungsschluessel zugelassen) und `LBSKSB=0050000` angepasst. Die WebApp prueft diese bestaetigte STAGING-Konfiguration vor einer I2-Buchung und stoppt bei Abweichung.
 
 ### 6.3 I1 - positiver Mehrbestand
 
@@ -316,7 +317,9 @@ Bestaetigt:
 - dieselbe Lagerbeleglogik mit `TCODE=WIN2` / `LOADWIN2`
 - Referenzbuchung: EOS1 / RP.00010 / dieselbe Mix-Charge / 0,002 kg
 - Tankbestand erhoehte sich exakt von 128,868 kg auf 128,870 kg
-- im STAGING-Mitschnitt verwendete Kostenstelle: `5100`.
+- im STAGING-Mitschnitt verwendete Kostenstelle: `5100`;
+- waehrend des Mitschnitts wurde fuer I1 `LBKLAS=J` gesetzt. Die WebApp prueft diese Freigabe vor der Buchung;
+- nach Kostenstelle 5100 liefert der Referenzfall `VEP1804` (`Preis fehlt`). Der Mitschnitt zeigt anschliessend `US11600J *READ` fuer den Artikel und die Uebernahme von `TLDNPR` als `TX_BRPR` (Referenzwert 29,29030). Die WebApp liest diesen Preis deshalb bei `VEP1804` dynamisch aus Oxaion; der Referenzwert wird nicht hart codiert.
 
 Die Kostenstellen 6000/5100 sind durch diesen **FAM-STAGING-Ablauf** bestaetigt. Sie sind keine allgemeine Oxaion-Regel und duerfen bei spaeterem Firmen-/Produktivwechsel nicht ungeprueft uebernommen werden.
 
