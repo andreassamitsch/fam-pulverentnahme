@@ -24,7 +24,8 @@ public sealed record TankOutRequest(
     string Batch,
     decimal QuantityKg,
     string TargetWarehouse,
-    string TargetStorageBin) : ISeparatePersonnelRequest;
+    string TargetStorageBin,
+    decimal? WeighedQuantityKg = null) : ISeparatePersonnelRequest;
 
 public sealed record FillNewRequest(
     string ClientOperationId,
@@ -99,6 +100,7 @@ public sealed class SeparateOperation
     public decimal? ExpectedFaConsumedKg { get; set; }
     public decimal? TargetFaConsumedKg { get; set; }
     public int? ExpectedFaMaterialStatus { get; set; }
+    public string? RelatedOperationId { get; set; }
 
     public T ReadRequest<T>() =>
         JsonSerializer.Deserialize<T>(RequestJson, SeparateOperationStore.JsonOptions)
@@ -115,7 +117,8 @@ public sealed record SeparateOperationResponse(
     string? DocumentNo,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<MovementRow> Movements,
-    decimal? TargetFaConsumedKg = null);
+    decimal? TargetFaConsumedKg = null,
+    string? RelatedOperationId = null);
 
 public static class SeparateOperationMapping
 {
@@ -129,7 +132,8 @@ public static class SeparateOperationMapping
         tx.DocumentNo,
         tx.UpdatedAt,
         tx.LastMovements,
-        tx.TargetFaConsumedKg);
+        tx.TargetFaConsumedKg,
+        tx.RelatedOperationId);
 }
 
 public sealed class SeparateOperationStore
