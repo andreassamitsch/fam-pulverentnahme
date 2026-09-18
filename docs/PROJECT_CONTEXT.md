@@ -15,11 +15,22 @@ Die WebApp soll mit Oxaion kommunizieren. Das Frontend bleibt bewusst einfach. K
 - Auf dem Datenbankserver befinden sich aktuell auch SSRS Reporting Services und IIS.
 - Fuer Tests kann die WebApp auf dem vorhandenen IIS betrieben werden.
 
-### Bevorzugter Produktivbetrieb
+### Produktivbetrieb und aktueller Entwicklungsstand
 
-- eigener Web-/Application-Server beziehungsweise eigene VM
-- IIS
+Der aktuelle Entwicklungsbetrieb bleibt vorerst auf dem Client-Rechner. Fuer den spaeteren Produktivbetrieb ist ein eigener Web-/Application-Server beziehungsweise eine eigene VM vorgesehen.
+
+Verbindlich entschieden:
+
 - ASP.NET Core Backend
+- produktive Bereitstellung ueber HTTPS
+- naechster technischer Plattformschritt ist die Migration des Backends von derzeit `net8.0` auf .NET 10 LTS
+
+Noch bewusst offen:
+
+- Hosting ueber IIS oder
+- Betrieb des ASP.NET-Core-Backends als Windows-Dienst mit Kestrel
+
+Die Hosting-Entscheidung wird spaeter getroffen. Sie ist keine Voraussetzung fuer die NFC-Anmeldung; entscheidend fuer den Produktivbetrieb ist ein vertrauenswuerdiger HTTPS-Endpunkt.
 
 Die WebApp schreibt nicht direkt auf die Oxaion-Datenbank.
 
@@ -122,13 +133,26 @@ Verbindlich gilt:
 
 Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`.
 
-### Mitarbeiter
+### Mitarbeiter und Anmeldung
 
-Die Personalnummer ist die einzige Personaleingabe. Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
+Fuer die finale App ist die Anmeldung per NFC-Mitarbeiterchip verbindlich entschieden. Die verwendeten Chips sind mit dem vorgesehenen Android-/Browser-Ablauf funktionsfaehig.
 
-Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA` und verlangt eine bewusste Auswahl. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` wird nicht verwendet, da das Feld nicht fuer jeden Mitarbeiter gepflegt ist. `PENLAE` wird fuer den vollstaendigen Mitarbeiternamen in diesem Ablauf ebenfalls nicht verwendet.
+Verbindliche Zielregel:
 
-Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend die gewaehlte Personalnummer erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit der Browserauswahl. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md`.
+- NFC-Chip wird erkannt und eindeutig einem gueltigen Mitarbeiter zugeordnet -> der Mitarbeiter gilt als angemeldet.
+- Es ist bei erfolgreicher NFC-Anmeldung kein zusaetzliches Passwort erforderlich.
+- Die Zuordnung wird serverseitig gegen die vorhandene SYNCOS-RFID-Zuordnung geprueft; die konkrete NFC-Endpoint-/Session-Implementierung wird im naechsten Umsetzungsschritt in den bestehenden Backend-Authentifizierungsablauf integriert.
+- Die bestehende erneute Oxaion-Personalpruefung unmittelbar vor dem ersten schreibenden Materialbuchungsaufruf bleibt erhalten.
+- Eine produktive NFC-Anmeldung ist ein Online-Vorgang; es gibt keinen Offline-Bypass.
+- Produktiv wird die PWA ueber HTTPS betrieben.
+
+Der derzeit implementierte Login ueber Oxaion-Personalnummer plus SYNCOS-Passwort bleibt waehrend der Entwicklung am Client-Rechner vorerst als technischer Zwischenstand bestehen. Er ist nicht mehr das finale Authentifizierungskonzept.
+
+Fuer den aktuellen manuellen Entwicklungsweg gilt weiterhin: Fuehrende Nullen werden in der Bedienoberflaeche nicht verwendet. Die Suche bleibt eine AJAX-Suche mit kurzer Verzoegerung. Die eingegebene Ziffernfolge gilt als Praefix der normalisierten Oxaion-Personalnummer `PEPENU`: Eingabe `45` darf beispielsweise nur Personalnummern wie `450`, `451`, `452`, `453` usw. liefern, nicht `245`, `345` und keine Treffer, bei denen `45` nur in Kostenstelle, Name oder einem anderen Listenfeld vorkommt. Diese Regel wird im Backend erzwungen.
+
+Die WebApp zeigt Treffer ausschliesslich als `PEPENU - PEPENA`. Der vollstaendige Name kommt aus `PEPENA`; eine freie Namenseingabe gibt es nicht. `PESAKZ` und `PENLAE` werden dafuer nicht verwendet.
+
+Vor dem ersten schreibenden Materialbuchungsaufruf prueft das Backend den angemeldeten Mitarbeiter erneut ueber den bestaetigten feldbezogenen Oxaion-Filter `IPENU` und vergleicht danach `PEPENU` und `PEPENA` mit dem Vorgang. Die freie Oxaion-Suche allein ist fuer diese Sicherheitspruefung nicht ausreichend. Details stehen in `docs/OXAION_PERSONNEL_LOOKUP.md` und `docs/PERSONNEL_AUTHENTICATION.md`.
 
 ### Neue Mix-Charge und Buchungsdaten
 
@@ -335,7 +359,7 @@ Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Ins
 - Buchungsschluessel fuer Maschinenlager -> Pulverlager und noch nicht abgedeckte Gegenrichtungen
 - genaue Oxaion-Abfrage der Stammdatensperre und technische Ermittlung des sperrenden Benutzers
 - finale Maschinenliste und QR-Zuordnung; STAGING nutzt derzeit `EOS1` und `EOS2`
-- genaue Benutzer-Authentifizierung der WebApp
-- endgueltiger produktiver Server
+- technische Umsetzung der verbindlich beschlossenen NFC-Anmeldung und Ablösung des aktuellen Passwort-Entwicklungswegs
+- endgueltiger produktiver Server sowie Hosting-Variante IIS oder Windows-Dienst/Kestrel
 - maximale Offline-Gueligkeitsdauer und konkrete offline zulaessige Prozessschritte
 - IndexedDB-Schema, Migrationsstrategie und Frontend-/API-Kompatibilitaet bei PWA-Updates
