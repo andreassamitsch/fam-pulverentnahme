@@ -14,10 +14,22 @@ public sealed class TankOutService
     private readonly MachineTankService _tanks;
     private readonly PersonnelService _personnel;
     private readonly OxaionClient _oxaion;
+    private readonly InventoryCorrectionService _corrections;
 
-    public TankOutService(SeparateOperationStore store, MaterialTransferBookingService booking, MachineTankService tanks, PersonnelService personnel, OxaionClient oxaion)
+    public TankOutService(
+        SeparateOperationStore store,
+        MaterialTransferBookingService booking,
+        MachineTankService tanks,
+        PersonnelService personnel,
+        OxaionClient oxaion,
+        InventoryCorrectionService corrections)
     {
-        _store = store; _booking = booking; _tanks = tanks; _personnel = personnel; _oxaion = oxaion;
+        _store = store;
+        _booking = booking;
+        _tanks = tanks;
+        _personnel = personnel;
+        _oxaion = oxaion;
+        _corrections = corrections;
     }
 
     public Task<SeparateOperation?> GetAsync(string id, CancellationToken ct) => _store.GetAsync(Kind, id, ct);
@@ -48,12 +60,67 @@ public sealed class TankOutService
                 if (!StockEquals(current, request.Article, request.Batch, request.QuantityKg))
                     throw new ProcessConflictException($"Tank stock changed. Current: {current.Article}, {current.Batch}, {current.QuantityKg:0.###} kg.");
 
+                var systemKg = RoundKg(request.QuantityKg);
+                var weighedKg = RoundKg(request.WeighedQuantityKg ?? request.QuantityKg);
+                var deltaKg = weighedKg - systemKg;
+
+                if (Math.Abs(deltaKg) >= 0.0005m)
+                {
+                    var correctionKey = deltaKg > 0m ? "I1" : "I2";
+                    var correctionKg = Math.Abs(deltaKg);
+                    var childId = request.ClientOperationId + "-corr";
+                    tx.RelatedOperationId = childId;
+                    tx.Status = TransactionStatuses.Validating;
+                    await SaveEventAsync(tx, "CORRECTION_STARTING",
+                        $"Tank weighing differs from Oxaion by {deltaKg:0.###} kg. Starting {correctionKey} child operation {childId}.", ct);
+
+                    var correction = await _corrections.ExecuteAsync(new InventoryCorrectionRequest(
+                        childId,
+                        request.PersonnelNo,
+                        request.PersonnelName,
+                        request.TankWarehouse,
+                        request.TankWarehouseText,
+                        request.Article,
+                        request.ArticleText,
+                        request.Batch,
+                        systemKg,
+                        correctionKey,
+                        correctionKg), ct);
+
+                    if (correction.Status != TransactionStatuses.Success)
+                    {
+                        tx.Status = correction.Status is TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired
+                            ? TransactionStatuses.ManualReviewRequired
+                            : correction.Status;
+                        await SaveEventAsync(tx,
+                            tx.Status == TransactionStatuses.ManualReviewRequired ? "MANUAL_REVIEW_REQUIRED" : tx.Status,
+                            $"Bestandskorrektur {correctionKey} wurde nicht eindeutig erfolgreich abgeschlossen " +
+                            $"(Teilvorgang {childId}: {correction.Status}/{correction.Stage}). " +
+                            "Die LF/LE-Auslagerung wurde nicht gestartet.", ct);
+                        return tx;
+                    }
+
+                    var corrected = await _tanks.ReadStockAsync(request.TankWarehouse, ct);
+                    if (corrected.Status != MachineStockStatuses.Unique || corrected.Rows.Count != 1 ||
+                        !StockEquals(corrected.Rows[0], request.Article, request.Batch, weighedKg))
+                    {
+                        tx.Status = TransactionStatuses.ManualReviewRequired;
+                        await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED",
+                            $"Korrektur {correction.DocumentNo} ist bestätigt, aber der Tankbestand entspricht danach nicht exakt der Waage " +
+                            $"({weighedKg:0.###} kg). LF/LE wurde nicht gestartet. Nicht erneut korrigieren.", ct);
+                        return tx;
+                    }
+
+                    await SaveEventAsync(tx, "CORRECTION_CONFIRMED",
+                        $"Tankbestand wurde mit {correctionKey} auf die gewogenen {weighedKg:0.###} kg korrigiert und erneut bestätigt.", ct);
+                }
+
                 var targetText = await ResolveWarehouseTextAsync(request.TargetWarehouse, ct);
                 var specs = new[]
                 {
                     new TransferSpec(1, "LF", request.Article, request.ArticleText,
                         request.TankWarehouse, request.TankWarehouseText, "", request.Batch,
-                        request.TargetWarehouse, targetText, request.TargetStorageBin, "", request.QuantityKg)
+                        request.TargetWarehouse, targetText, request.TargetStorageBin, "", weighedKg)
                 };
                 await _booking.BookAsync(tx, DateOnly.FromDateTime(DateTime.Today), request.PersonnelNo, request.PersonnelName,
                     "Pulver aus Tank auf Lagerplatz", specs, ct);
@@ -100,12 +167,22 @@ public sealed class TankOutService
         var tx = await _store.GetAsync(Kind, id, ct) ?? throw new KeyNotFoundException();
         if (tx.Status == TransactionStatuses.Success) return tx;
         var request = tx.ReadRequest<TankOutRequest>();
+        if (string.IsNullOrWhiteSpace(tx.DocumentNo))
+        {
+            tx.Status = TransactionStatuses.ManualReviewRequired;
+            await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED",
+                "Für den Tank-Auslagerungsvorgang liegt noch kein LF/LE-Beleg vor. " +
+                "Falls zuvor eine I1/I2-Korrektur erfolgt ist, diese Teiltransaktion zuerst prüfen; die App startet LF/LE bei der Statusprüfung nicht automatisch.", ct);
+            return tx;
+        }
+
         var targetText = await ResolveWarehouseTextAsync(request.TargetWarehouse, ct);
+        var weighedKg = RoundKg(request.WeighedQuantityKg ?? request.QuantityKg);
         var specs = new[]
         {
             new TransferSpec(1, "LF", request.Article, request.ArticleText,
                 request.TankWarehouse, request.TankWarehouseText, "", request.Batch,
-                request.TargetWarehouse, targetText, request.TargetStorageBin, "", request.QuantityKg)
+                request.TargetWarehouse, targetText, request.TargetStorageBin, "", weighedKg)
         };
         await _booking.ReconcileAsync(tx, specs, ct);
         return tx;
@@ -136,12 +213,16 @@ public sealed class TankOutService
             || string.IsNullOrWhiteSpace(r.TargetWarehouse) || string.IsNullOrWhiteSpace(r.TargetStorageBin))
             throw new ArgumentException("Tank, article/batch, target warehouse/storage bin and personnel are required.");
         if (r.QuantityKg <= 0) throw new ArgumentException("Tank quantity must be > 0.");
+        var weighed = RoundKg(r.WeighedQuantityKg ?? r.QuantityKg);
+        if (weighed <= 0m) throw new ArgumentException("Gewogene Auslagerungsmenge muss > 0 sein.");
         if (string.Equals(r.TankWarehouse, r.TargetWarehouse, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Target warehouse must differ from machine tank warehouse.");
     }
 
     private static bool StockEquals(MachineStockRow row, string article, string batch, decimal qty) =>
         row.Article.Equals(article, StringComparison.OrdinalIgnoreCase) && row.Batch == batch && Math.Abs(row.QuantityKg - qty) < 0.0005m;
+
+    internal static decimal RoundKg(decimal value) => Math.Round(value, 3, MidpointRounding.AwayFromZero);
     private static SeparateOperation NewOperation(string kind, string id, string json) => new() { Kind = kind, ClientOperationId = id, RequestJson = json };
     private async Task SaveEventAsync(SeparateOperation tx, string stage, string message, CancellationToken ct)
     { tx.Stage = stage; tx.Message = message; tx.Events.Add(new TransactionEvent(DateTimeOffset.UtcNow, stage, message)); await _store.SaveAsync(tx, ct); }
