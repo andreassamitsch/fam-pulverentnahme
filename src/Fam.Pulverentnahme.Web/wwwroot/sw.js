@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v10-personnel-auth';
+const CACHE='fam-pulver-staging-v11-brand-assets';
 const ASSETS=[
   '/',
   '/index.html',
@@ -7,10 +7,13 @@ const ASSETS=[
   '/personnel-auth.js?v=20260903-personnel-auth',
   '/submit.js?v=20260903-personnel-auth',
   '/manifest.webmanifest',
+  '/icons/fam-pulver-master.svg',
   '/icons/favicon.svg',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
-  '/icons/icon-maskable-512.svg'
+  '/icons/favicon-32.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install',e=>{
