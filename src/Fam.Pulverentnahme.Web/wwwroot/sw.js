@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v32-weigh-abort-20260918';
+const CACHE='fam-pulver-staging-v33-job-abort-diagnostics-20260921';
 const ASSETS=[
   '/',
   '/index.html',
