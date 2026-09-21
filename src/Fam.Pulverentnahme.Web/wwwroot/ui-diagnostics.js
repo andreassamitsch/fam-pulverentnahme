@@ -1,12 +1,19 @@
 'use strict';
 
-// Lightweight STAGING UI diagnostics. This logger deliberately records only technical UI state:
-// no passwords, auth tokens, request bodies, connection strings or personnel names/numbers.
+// STAGING UI diagnostics: no passwords, tokens, request bodies or personnel data.
 (function(){
-  const VERSION='20260910-ui-diag-2';
+  const VERSION='20260921-ui-diag-3';
   const STORAGE_KEY='fam-pulver-ui-diag-v1';
   const FIRST_START_RELOAD_KEY='fam-pulver-first-controlled-start';
   const MAX_ENTRIES=220;
+  const PROCESS_PANELS={
+    'tank-out':'tankOutProcess',
+    'fill-new':'fillNewProcess',
+    'fa-consumption':'faConsumptionProcess',
+    'fa-abort-correction':'faAbortProcess',
+    'inventory':'inventoryProcess'
+  };
+  const LEGACY_IDS=['machineStep','sourcesSection','bookingStep','result'];
   let entries=[];
   let lastStateHash='';
   let blankSince=0;
@@ -14,7 +21,7 @@
 
   const el=id=>document.getElementById(id);
   const text=id=>String(el(id)?.textContent||'').trim().replace(/\s+/g,' ').slice(0,220);
-  const visible=node=>Boolean(node&&getComputedStyle(node).display!=='none'&&getComputedStyle(node).visibility!=='hidden');
+  const visible=node=>Boolean(node&&node.getClientRects().length&&getComputedStyle(node).display!=='none'&&getComputedStyle(node).visibility!=='hidden');
   const safeError=value=>String(value?.message||value||'Unbekannter Fehler').replace(/(password|token|authorization|cookie|connectionstring)\s*[:=]\s*[^\s,;]+/ig,'$1=<redacted>').slice(0,700);
   const now=()=>new Date().toISOString();
 
@@ -32,7 +39,6 @@
     if(entries.length>MAX_ENTRIES)entries=entries.slice(-MAX_ENTRIES);
     save();
   }
-
   function refreshFunctionLabel(){
     try{
       if(typeof window.refreshWorkerFlow!=='function')return 'none';
@@ -41,7 +47,6 @@
       return `${window.refreshWorkerFlow.name||'anonymous'}#${Math.abs(hash)}`;
     }catch{return 'unknown'}
   }
-
   function firstControlledReload(){try{return sessionStorage.getItem(FIRST_START_RELOAD_KEY)==='1'}catch{return false}}
   function navigationType(){try{return performance.getEntriesByType('navigation')?.[0]?.type||''}catch{return ''}}
 
@@ -53,15 +58,19 @@
     try{stockStatus=String(typeof machineStock!=='undefined'&&machineStock?.status||'')}catch{}
     const processModeScripts=[...document.scripts].map(x=>x.src||'').filter(x=>x.includes('/process-mode.js')).map(x=>x.replace(location.origin,''));
     const diagnosticScripts=[...document.scripts].map(x=>x.src||'').filter(x=>/ui-diagnostics|replenish-router-guard|process-mode-focus-fix|process-shell/.test(x)).map(x=>x.replace(location.origin,''));
-    const ids=['loginStep','processChoiceStep','machineStep','sourcesSection','bookingStep','result','tankOutProcess','fillNewProcess','faConsumptionProcess','inventoryProcess'];
+    const ids=['loginStep','processChoiceStep',...LEGACY_IDS,'tankOutProcess','fillNewProcess','faConsumptionProcess','faAbortProcess','inventoryProcess'];
     const visibleIds=ids.filter(id=>visible(el(id)));
+    const activeMode=document.querySelector('.processChoice.active')?.dataset?.mode||'';
+    const expectedPanelId=PROCESS_PANELS[activeMode]||'';
     const swController=navigator.serviceWorker?.controller||null;
     return {
       version:VERSION,
       shell:document.body.classList.contains('processShellProcess')?'process':document.body.classList.contains('processShellHome')?'home':'unknown',
       bodyClasses:document.body.className,
-      activeMode:document.querySelector('.processChoice.active')?.dataset?.mode||'',
+      activeMode,
       rememberedMode:(()=>{try{return sessionStorage.getItem('fam-pulver-last-process-mode')||''}catch{return ''}})(),
+      expectedPanelId,
+      expectedPanelVisible:expectedPanelId?visibleIds.includes(expectedPanelId):null,
       instruction:text('workerNextInstruction'),
       auth,selected,authenticated,
       refreshWorkerFlow:refreshFunctionLabel(),
@@ -99,13 +108,11 @@
     ];
     return head.concat(entries.map(x=>`${x.ts} | ${x.event} | ${JSON.stringify(x.details)}`)).join('\n');
   }
-
   function updateManualAreas(value){
     for(const id of ['diagnosticManualCopy','diagnosticModalText']){
       const area=el(id);if(area)area.value=value;
     }
   }
-
   async function copy(){
     const value=exportText();updateManualAreas(value);
     try{
@@ -116,7 +123,6 @@
     showCopyStatus('Automatisches Kopieren nicht möglich. Text ist markiert und kann manuell kopiert werden.','warn');
     return false;
   }
-
   function showCopyStatus(message,kind='neutral'){
     for(const id of ['diagnosticCopyStatus','diagnosticModalStatus']){
       const status=el(id);if(!status)continue;
@@ -128,27 +134,23 @@
     area=document.createElement('textarea');area.id='diagnosticManualCopy';area.className='diagnosticManualCopy hidden';area.readOnly=true;
     el('diagnosticFallback')?.appendChild(area);return area;
   }
-
   function openDiagnostic(){
-    ensureUi();
-    const modal=el('diagnosticModal');if(!modal)return;
+    ensureUi();const modal=el('diagnosticModal');if(!modal)return;
     log('DIAGNOSTIC_OPENED',snapshot());
     const area=el('diagnosticModalText');if(area)area.value=exportText();
     modal.classList.remove('hidden');
   }
   function closeDiagnostic(){el('diagnosticModal')?.classList.add('hidden')}
-
   function ensureUi(){
     const main=document.querySelector('main');if(!main)return;
     if(!el('diagnosticFallback')){
-      const card=document.createElement('section');
-      card.id='diagnosticFallback';card.className='card diagnosticFallback hidden';
+      const card=document.createElement('section');card.id='diagnosticFallback';card.className='card diagnosticFallback hidden';
       card.innerHTML='<h2>Anzeigeproblem erkannt</h2><div class="diagnosticText">Die App hat einen inkonsistenten UI-Zustand erkannt. Es wurde dadurch keine Buchung ausgelöst. Bitte Diagnose kopieren, falls die Anzeige nicht automatisch wiederhergestellt wird.</div><div class="actions"><button id="diagnosticRecoverBtn" class="primary" type="button">Anzeige wiederherstellen</button><button id="diagnosticCopyBtn" class="secondary" type="button">Diagnose kopieren</button></div><div id="diagnosticCopyStatus" class="status neutral">Das Diagnoseprotokoll enthält keine Passwörter oder Zugangsdaten.</div>';
       main.insertBefore(card,main.firstChild);
       el('diagnosticCopyBtn').onclick=()=>copy().catch(()=>{});
       el('diagnosticRecoverBtn').onclick=()=>{
-        log('MANUAL_RECOVERY_REQUESTED',snapshot());
-        if(window.FamReplenishGuard?.recover)window.FamReplenishGuard.recover('manual-diagnostic-card');
+        const state=snapshot();log('MANUAL_RECOVERY_REQUESTED',state);
+        if(state.activeMode==='replenish'&&window.FamReplenishGuard?.recover)window.FamReplenishGuard.recover('manual-diagnostic-card');
         else if(typeof window.refreshWorkerFlow==='function')window.refreshWorkerFlow();
       };
     }
@@ -164,17 +166,25 @@
       const health=el('healthBtn')?.closest('.actions');if(health)health.appendChild(button);
     }
     if(!el('diagnosticModal')){
-      const modal=document.createElement('div');modal.id='diagnosticModal';modal.className='diagnosticModal hidden';modal.innerHTML='<div class="diagnosticModalDialog"><div class="diagnosticModalHeader"><h2>Diagnose</h2><button id="diagnosticModalClose" class="secondary compact" type="button">Schließen</button></div><div class="diagnosticText">Diesen Text nach Auftreten des Fehlers kopieren und in den Projektchat einfügen.</div><textarea id="diagnosticModalText" class="diagnosticModalText" readonly></textarea><div class="actions"><button id="diagnosticModalCopy" class="primary" type="button">Diagnose kopieren</button></div><div id="diagnosticModalStatus" class="status neutral">Keine Passwörter, Tokens, Connection-Strings oder Mitarbeiterdaten werden protokolliert.</div></div>';document.body.appendChild(modal);
+      const modal=document.createElement('div');modal.id='diagnosticModal';modal.className='diagnosticModal hidden';
+      modal.innerHTML='<div class="diagnosticModalDialog"><div class="diagnosticModalHeader"><h2>Diagnose</h2><button id="diagnosticModalClose" class="secondary compact" type="button">Schließen</button></div><div class="diagnosticText">Diesen Text nach Auftreten des Fehlers kopieren und in den Projektchat einfügen.</div><textarea id="diagnosticModalText" class="diagnosticModalText" readonly></textarea><div class="actions"><button id="diagnosticModalCopy" class="primary" type="button">Diagnose kopieren</button></div><div id="diagnosticModalStatus" class="status neutral">Keine Passwörter, Tokens, Connection-Strings oder Mitarbeiterdaten werden protokolliert.</div></div>';
+      document.body.appendChild(modal);
       el('diagnosticModalClose').onclick=closeDiagnostic;el('diagnosticModalCopy').onclick=()=>copy().catch(()=>{});
     }
     if(!el('uiDiagnosticStyles')){
-      const style=document.createElement('style');style.id='uiDiagnosticStyles';style.textContent='.diagnosticHeaderBtn{white-space:nowrap;min-height:38px;padding:6px 9px;font-size:12px}.diagnosticFallback{border:2px solid #d48b16;background:#fff9e8}.diagnosticFallback h2{color:#8a5900}.diagnosticText{font-weight:750;line-height:1.45}.diagnosticManualCopy{width:100%;min-height:220px;margin-top:12px;box-sizing:border-box;font:12px/1.35 monospace}.diagnosticManualCopy.hidden{display:none}.diagnosticFallback.hidden{display:none!important}.diagnosticModal{position:fixed;z-index:12000;inset:0;background:rgba(4,18,28,.78);display:flex;align-items:center;justify-content:center;padding:12px}.diagnosticModal.hidden{display:none!important}.diagnosticModalDialog{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;padding:16px}.diagnosticModalHeader{display:flex;align-items:center;gap:10px;justify-content:space-between}.diagnosticModalHeader h2{margin:0}.diagnosticModalText{width:100%;height:48vh;min-height:260px;box-sizing:border-box;margin-top:12px;font:11px/1.35 monospace;white-space:pre;overflow:auto}@media(max-width:620px){.diagnosticHeaderBtn{padding:5px 7px;font-size:11px}}';document.head.appendChild(style);
+      const style=document.createElement('style');style.id='uiDiagnosticStyles';
+      style.textContent='.diagnosticHeaderBtn{white-space:nowrap;min-height:38px;padding:6px 9px;font-size:12px}.diagnosticFallback{border:2px solid #d48b16;background:#fff9e8}.diagnosticFallback h2{color:#8a5900}.diagnosticText{font-weight:750;line-height:1.45}.diagnosticManualCopy{width:100%;min-height:220px;margin-top:12px;box-sizing:border-box;font:12px/1.35 monospace}.diagnosticManualCopy.hidden{display:none}.diagnosticFallback.hidden{display:none!important}.diagnosticModal{position:fixed;z-index:12000;inset:0;background:rgba(4,18,28,.78);display:flex;align-items:center;justify-content:center;padding:12px}.diagnosticModal.hidden{display:none!important}.diagnosticModalDialog{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;padding:16px}.diagnosticModalHeader{display:flex;align-items:center;gap:10px;justify-content:space-between}.diagnosticModalHeader h2{margin:0}.diagnosticModalText{width:100%;height:48vh;min-height:260px;box-sizing:border-box;margin-top:12px;font:11px/1.35 monospace;white-space:pre;overflow:auto}@media(max-width:620px){.diagnosticHeaderBtn{padding:5px 7px;font-size:11px}}';
+      document.head.appendChild(style);
     }
   }
-
   function modalBlocking(){return visible(el('qrScannerModal'))||visible(el('processModal'))||visible(el('bookingResultModal'))||visible(el('bookingConfirmModal'))||visible(el('bookingBusyOverlay'))||visible(el('diagnosticModal'))}
   function hasVisibleProcessContent(state){
-    return state.visibleIds.some(id=>['machineStep','sourcesSection','bookingStep','result','tankOutProcess','fillNewProcess','faConsumptionProcess','inventoryProcess'].includes(id));
+    // Only the panel matching the active mode counts. This prevents false alarms for newly added modes
+    // (FA job abort) and avoids treating unrelated leftover panels as a healthy active process.
+    const expected=PROCESS_PANELS[state.activeMode];
+    if(expected)return state.visibleIds.includes(expected);
+    if(state.activeMode==='replenish'||state.rememberedMode==='replenish')return state.visibleIds.some(id=>LEGACY_IDS.includes(id));
+    return state.visibleIds.some(id=>Object.values(PROCESS_PANELS).includes(id)||LEGACY_IDS.includes(id));
   }
   function replenishmentExpected(state){return state.activeMode==='replenish'||(state.shell==='process'&&state.rememberedMode==='replenish')}
   function checkBlank(state){
@@ -186,15 +196,11 @@
     if(!blankReported){blankReported=true;log('BLANK_PROCESS_DETECTED',state)}
     el('diagnosticFallback')?.classList.remove('hidden');
   }
-
   function poll(){
-    ensureUi();
-    const state=snapshot();
-    const hash=JSON.stringify(state);
+    ensureUi();const state=snapshot();const hash=JSON.stringify(state);
     if(hash!==lastStateHash){lastStateHash=hash;log('STATE',state)}
     checkBlank(state);
   }
-
   load();
   window.FamDiag={log,snapshot,exportText,copy,open:openDiagnostic,version:VERSION};
   window.addEventListener('error',event=>log('WINDOW_ERROR',{message:safeError(event.error||event.message),file:String(event.filename||'').split('/').pop(),line:event.lineno||0,column:event.colno||0}));
@@ -206,7 +212,7 @@
   document.addEventListener('click',event=>{
     const choice=event.target?.closest?.('.processChoice');
     const action=choice?`process:${choice.dataset?.mode||''}`:event.target?.closest?.('button')?.id||'';
-    if((action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan','diagnosticHeaderBtn'].some(x=>action===x))||action.startsWith('process:'))log('CLICK',{action});
+    if((action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan','abortTankScan','abortOrderScan','diagnosticHeaderBtn'].some(x=>action===x))||action.startsWith('process:'))log('CLICK',{action});
   },true);
   log('DIAGNOSTICS_LOADED',{version:VERSION,firstControlledReload:firstControlledReload(),serviceWorkerControlled:Boolean(navigator.serviceWorker?.controller)});
   if(firstControlledReload())log('FIRST_CONTROLLED_START_AFTER_INSTALL',snapshot());
