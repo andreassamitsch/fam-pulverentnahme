@@ -45,6 +45,27 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
+    public void DiagnosticBlankCheckUsesAllCurrentProcessPanelsIncludingJobAbort()
+    {
+        var source = File.ReadAllText(Path.Combine(WebRoot(), "ui-diagnostics.js"));
+        var router = File.ReadAllText(Path.Combine(WebRoot(), "process-mode.js"));
+
+        Assert.Contains("'tank-out':'tankOutProcess'", source);
+        Assert.Contains("'fill-new':'fillNewProcess'", source);
+        Assert.Contains("'fa-consumption':'faConsumptionProcess'", source);
+        Assert.Contains("'fa-abort-correction':'faAbortProcess'", source);
+        Assert.Contains("'inventory':'inventoryProcess'", source);
+        Assert.Contains("'faAbortProcess'", source);
+        Assert.Contains("if(expected)return state.visibleIds.includes(expected)", source);
+        Assert.Contains("getClientRects().length", source);
+        Assert.Contains("expectedPanelVisible", source);
+        Assert.Contains("abortTankScan", source);
+        Assert.Contains("abortOrderScan", source);
+        Assert.Contains("abort.id='faAbortProcess'", router);
+        Assert.Contains("faAbortProcess", router);
+    }
+
+    [Fact]
     public void FirstUncontrolledPwaStartIsNormalizedBeforeProcessUse()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "connectivity-status.js"));
@@ -58,11 +79,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV32RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV33RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-staging-v32-weigh-abort-20260918", source);
+        Assert.Contains("fam-pulver-staging-v33-job-abort-diagnostics-20260921", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
