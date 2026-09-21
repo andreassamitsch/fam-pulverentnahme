@@ -96,7 +96,6 @@ public sealed class FaAbortCorrectionService
                 TargetFaConsumedKg = request.CorrectedActualConsumptionKg
             };
             await SaveEventAsync(tx, "CREATED", "FA job-abort correction created.", ct);
-
             var stornoSent = false;
             var stornoConfirmed = false;
             try
@@ -140,16 +139,12 @@ public sealed class FaAbortCorrectionService
                         request.TankBatch);
 
                     await SaveEventAsync(tx, "STORNO_TARGET_CONFIRMED",
-                        $"Unique Oxaion feedback selected for cancellation: {feedback.Key}, {feedback.QuantityKg:0.###} kg, {feedback.Warehouse}/{feedback.Batch}.", ct);
+                        $"Unique valid Oxaion feedback selected: {feedback.Key}, {feedback.QuantityKg:0.###} kg, {feedback.Warehouse}/{feedback.Batch}.", ct);
 
-                    var stornoInput = Merge(storno.Header.Dta, storno.State);
-                    stornoInput["SSID"] = storno.Ssid;
-                    stornoInput["ARFIRM"] = feedback.Firm;
-                    stornoInput["ARFAUN"] = feedback.OrderNo;
-                    stornoInput["ARYRML"] = feedback.ReportDate;
-                    stornoInput["ARRMZT"] = feedback.ReportTime;
-                    stornoInput["ARRMNR"] = feedback.ReportNo;
-
+                    // The captured Oxaion client posts the PW22021R *GETHDR result plus the
+                    // selected KEY fields. The previous Merge(header, PW22000J state) incorrectly
+                    // sent hundreds of unrelated dialog fields and overwrote header values.
+                    var stornoInput = BuildStornoPayload(storno.Header.Dta, storno.Ssid, feedback);
                     tx.Status = TransactionStatuses.SendingToOxaion;
                     stornoSent = true;
                     await SaveEventAsync(tx, "STORNO_SUBMITTING",
@@ -159,18 +154,16 @@ public sealed class FaAbortCorrectionService
                         "PW22021R", "*STORNO", stornoInput, ct, allowXmlDeclarationOnly: true);
                     OxaionSession.AssertNoFcod(response);
                     await SaveEventAsync(tx, "STORNO_RESPONSE_RECEIVED",
-                        "Oxaion accepted the STORNO call. The result is not trusted until feedback, FA and tank are re-read.", ct);
+                        "Oxaion responded to STORNO. Feedback list, FA and tank must all be verified before new MK.", ct);
 
                     var refreshed = await RefreshStornoListAsync(session, storno.Ssid, ct);
-                    var remaining = ParseFeedbacks(refreshed.Xml);
-                    if (remaining.Any(x => x.Key == feedback.Key))
+                    if (ParseFeedbacks(refreshed.Xml).Any(x => x.Key == feedback.Key))
                         throw new InvalidOperationException(
-                            $"The exact Oxaion feedback {feedback.Key} is still present after STORNO. Do not send STORNO again.");
+                            $"The exact valid Oxaion feedback {feedback.Key} is still in the standard storno list after STORNO. Do not send STORNO again.");
 
                     var materialAfter = await _materials.FindUniqueAsync(request.OrderNo, request.Article, ct);
                     var expectedTankAfterStorno = request.TankQuantityKg + request.ExpectedConsumedKg;
                     var tankAfter = await _tanks.ReadStockAsync(request.TankWarehouse, ct);
-
                     if (materialAfter.MaterialPosition != request.MaterialPosition
                         || Math.Abs(materialAfter.ConsumedKg) >= 0.0005m
                         || materialAfter.MaterialStatus != 0)
@@ -187,13 +180,13 @@ public sealed class FaAbortCorrectionService
                     stornoConfirmed = true;
                     tx.Status = TransactionStatuses.Validating;
                     await SaveEventAsync(tx, "STORNO_CONFIRMED",
-                        $"Original {request.ExpectedConsumedKg:0.###} kg feedback was cancelled exactly; FA is 0 kg/status 0 and tank restored to {expectedTankAfterStorno:0.###} kg.", ct);
+                        $"Original {request.ExpectedConsumedKg:0.###} kg feedback cancelled; FA 0 kg/status 0 and tank {expectedTankAfterStorno:0.###} kg confirmed.", ct);
 
                     if (request.CorrectedActualConsumptionKg <= 0.0005m)
                     {
                         tx.Status = TransactionStatuses.Success;
                         await SaveEventAsync(tx, "SUCCESS",
-                            "Job-abort correction completed: original feedback cancelled and corrected actual consumption is 0.000 kg, so no new MK booking was required.", ct);
+                            "Job-abort correction completed: original feedback cancelled and actual consumption 0.000 kg; no new MK needed.", ct);
                         return tx;
                     }
 
@@ -201,7 +194,6 @@ public sealed class FaAbortCorrectionService
                     tx.RelatedOperationId = childId;
                     await SaveEventAsync(tx, "CORRECTED_MK_STARTING",
                         $"Starting corrected MK child operation {childId} for {request.CorrectedActualConsumptionKg:0.###} kg.", ct);
-
                     var child = await _faConsumption.ExecuteAsync(new FaConsumptionRequest(
                         childId,
                         request.PersonnelNo,
@@ -266,9 +258,7 @@ public sealed class FaAbortCorrectionService
             }
             catch (OxaionRejectedException ex)
             {
-                tx.Status = stornoSent
-                    ? TransactionStatuses.ManualReviewRequired
-                    : TransactionStatuses.Rejected;
+                tx.Status = stornoSent ? TransactionStatuses.ManualReviewRequired : TransactionStatuses.Rejected;
                 await SaveEventAsync(tx, tx.Status,
                     stornoSent
                         ? $"Oxaion rejected a step after STORNO submission ({ex.Code}). Do not repeat the overall correction; check Oxaion manually. {ex.Message}"
@@ -285,12 +275,11 @@ public sealed class FaAbortCorrectionService
             catch (Exception ex)
             {
                 tx.Status = stornoConfirmed || stornoSent
-                    ? TransactionStatuses.ManualReviewRequired
-                    : TransactionStatuses.Conflict;
-                await SaveEventAsync(tx, tx.Status == TransactionStatuses.ManualReviewRequired ? "MANUAL_REVIEW_REQUIRED" : "CONFLICT",
+                    ? TransactionStatuses.ManualReviewRequired : TransactionStatuses.Conflict;
+                await SaveEventAsync(tx,
+                    tx.Status == TransactionStatuses.ManualReviewRequired ? "MANUAL_REVIEW_REQUIRED" : "CONFLICT",
                     ex.Message, ct);
             }
-
             return tx;
         }
         finally
@@ -303,28 +292,52 @@ public sealed class FaAbortCorrectionService
     {
         var tx = await _store.GetAsync(Kind, id, ct) ?? throw new KeyNotFoundException();
         if (tx.Status == TransactionStatuses.Success) return tx;
-
         if (!string.IsNullOrWhiteSpace(tx.RelatedOperationId))
         {
             var child = await _faConsumption.GetAsync(tx.RelatedOperationId, ct);
             if (child is not null && child.Status != TransactionStatuses.Success)
                 child = await _faConsumption.ReconcileAsync(tx.RelatedOperationId, ct);
-
             if (child?.Status == TransactionStatuses.Success)
             {
                 tx.Status = TransactionStatuses.ManualReviewRequired;
                 await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED",
-                    $"Der korrigierte MK-Teilvorgang {tx.RelatedOperationId} ist in Oxaion plausibel/erfolgreich, " +
-                    "der Gesamtvorgang wird nach vorherigem unklarem Zustand trotzdem nicht automatisch auf SUCCESS gesetzt. FA und Tank manuell final prüfen.", ct);
+                    $"Der korrigierte MK-Teilvorgang {tx.RelatedOperationId} ist in Oxaion plausibel/erfolgreich; " +
+                    "den Gesamtvorgang nach vorherigem unklarem Zustand nicht automatisch auf SUCCESS setzen. FA und Tank manuell prüfen.", ct);
                 return tx;
             }
         }
-
         tx.Status = TransactionStatuses.ManualReviewRequired;
         await SaveEventAsync(tx, "MANUAL_REVIEW_REQUIRED",
-            "Ein Jobabbruch-Storno darf nach unklarem Ausgang nicht automatisch wiederholt oder automatisch fortgesetzt werden. " +
-            "Originalrückmeldung, FA-Materialposition, Tank-Mix-Charge und gegebenenfalls den MK-Teilvorgang in Oxaion prüfen.", ct);
+            "Ein Jobabbruch-Storno darf nach unklarem Ausgang nicht automatisch wiederholt oder fortgesetzt werden. " +
+            "Originalrückmeldung, FA-Materialposition, Tank-Mix-Charge und gegebenenfalls MK-Teilvorgang in Oxaion prüfen.", ct);
         return tx;
+    }
+
+    internal static Dictionary<string, string> BuildStornoPayload(
+        IReadOnlyDictionary<string, string> header,
+        string ssid,
+        FaFeedbackReference feedback)
+    {
+        // The confirmed JET *STORNO request contains GET​HDR's 26-field DTA plus four
+        // report-key fields; ARFAUN and SSID were already present in the GET​HDR result.
+        var result = new Dictionary<string, string>(header, StringComparer.Ordinal)
+        {
+            ["SSID"] = ssid,
+            ["ARFIRM"] = feedback.Firm,
+            ["ARFAUN"] = feedback.OrderNo,
+            ["ARYRML"] = feedback.ReportDate,
+            ["ARRMZT"] = feedback.ReportTime,
+            ["ARRMNR"] = feedback.ReportNo
+        };
+        if (string.IsNullOrWhiteSpace(ssid) || string.IsNullOrWhiteSpace(feedback.Firm)
+            || string.IsNullOrWhiteSpace(feedback.ReportNo)
+            || string.IsNullOrWhiteSpace(feedback.ReportDate)
+            || string.IsNullOrWhiteSpace(feedback.ReportTime)
+            || string.IsNullOrWhiteSpace(feedback.OrderNo)
+            || !header.TryGetValue("ARFAUN", out var headerOrder)
+            || !string.Equals(headerOrder, feedback.OrderNo, StringComparison.Ordinal))
+            throw new ProcessConflictException("Oxaion-Storno-Header und Rückmeldeschlüssel sind nicht eindeutig kompatibel. Kein Storno ausgeführt.");
+        return result;
     }
 
     internal static FaFeedbackReference FindUniqueFeedback(
@@ -336,7 +349,11 @@ public sealed class FaAbortCorrectionService
         string warehouse,
         string batch)
     {
-        var matches = ParseFeedbacks(xml)
+        // PW22021R *FIRSTLIST is already filtered by the standard Oxaion storno dialog.
+        // Do not invent a second ARSTOR filter parameter. If a row explicitly carries
+        // ARSTOR, only N is eligible; rows without the field are from the prefiltered list.
+        var eligible = ParseFeedbacks(xml);
+        var matches = eligible
             .Where(x => x.OrderNo == orderNo
                 && x.MaterialPosition == materialPosition
                 && x.Article.Equals(article, StringComparison.OrdinalIgnoreCase)
@@ -344,14 +361,14 @@ public sealed class FaAbortCorrectionService
                 && x.Warehouse.Equals(warehouse, StringComparison.OrdinalIgnoreCase)
                 && x.Batch == batch)
             .ToList();
-
         return matches.Count switch
         {
             1 => matches[0],
             0 => throw new ProcessConflictException(
-                "Keine eindeutig passende Oxaion-Materialrückmeldung zum Stornieren gefunden. Es wurde nichts storniert."),
+                $"Keine passende gültige Oxaion-Materialrückmeldung gefunden (Liste: {xml.Descendants("ROW").Count()} Zeilen, " +
+                $"technisch auswertbar: {eligible.Count}). Bitte FA, Position, Menge, Tank/Mix und die Oxaion-Rückmeldeliste prüfen; es wurde nichts storniert."),
             _ => throw new ProcessConflictException(
-                $"Mehrere ({matches.Count}) passende Oxaion-Materialrückmeldungen gefunden. Automatischer Storno ist gesperrt.")
+                $"Mehrere ({matches.Count}) passende gültige Oxaion-Materialrückmeldungen gefunden. Automatischer Storno ist gesperrt.")
         };
     }
 
@@ -364,102 +381,66 @@ public sealed class FaAbortCorrectionService
             if (key is null) continue;
             string V(string name) => row.Element(name)?.Value.Trim() ?? "";
             string K(string name) => key.Element(name)?.Value.Trim() ?? "";
-
-            var posText = V("PWARMP.ARPOSN");
-            if (!int.TryParse(posText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var position))
+            var stornoStatus = V("PWARMP.ARSTOR");
+            if (string.IsNullOrEmpty(stornoStatus)) stornoStatus = V("ARSTOR");
+            if (!string.IsNullOrWhiteSpace(stornoStatus)
+                && !string.Equals(stornoStatus, "N", StringComparison.OrdinalIgnoreCase))
                 continue;
-
+            if (!int.TryParse(V("PWARMP.ARPOSN"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var position))
+                continue;
             var desc = V("_INTERN.WW_TX50");
             var amountMatch = Regex.Match(desc, @"(?<qty>[0-9]+(?:[.,][0-9]+)?)\s*kg", RegexOptions.IgnoreCase);
             if (!amountMatch.Success) continue;
-            var qtyText = amountMatch.Groups["qty"].Value.Replace(',', '.');
-            if (!decimal.TryParse(qtyText, NumberStyles.Number, CultureInfo.InvariantCulture, out var qty))
+            if (!decimal.TryParse(amountMatch.Groups["qty"].Value.Replace(',', '.'),
+                    NumberStyles.Number, CultureInfo.InvariantCulture, out var qty))
                 continue;
             var article = desc.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-
-            var source = V("_INTERN.WW_TX70B")
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var source = V("_INTERN.WW_TX70B").Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (source.Length < 3) continue;
-
             rows.Add(new FaFeedbackReference(
-                K("ARFIRM"),
-                K("ARRMNR"),
-                K("ARRMZT"),
-                K("ARFAUN"),
-                K("ARYRML"),
-                position,
-                V("PWARMP.ARAKKZ"),
-                article,
-                qty,
-                source[1],
-                source[2]));
+                K("ARFIRM"), K("ARRMNR"), K("ARRMZT"), K("ARFAUN"), K("ARYRML"),
+                position, V("PWARMP.ARAKKZ"), article, qty, source[1], source[2]));
         }
         return rows;
     }
 
-    private async Task<StornoContext> OpenStornoListAsync(
-        OxaionSession session,
-        FaAbortCorrectionRequest r,
-        CancellationToken ct)
+    private async Task<StornoContext> OpenStornoListAsync(OxaionSession session, FaAbortCorrectionRequest r, CancellationToken ct)
     {
         var pos = r.MaterialPosition.ToString(CultureInfo.InvariantCulture);
         var penu = PersonnelService.ToOxaionPersonnelNumber(r.PersonnelNo);
         var objectKey = r.OrderNo + r.MaterialPosition.ToString("00000", CultureInfo.InvariantCulture) + r.Article;
         var load = await session.CallAsync("PW22000J", "*LOADNEW", Dict(
-            ("STTXOA", "FAUNPOSN"),
-            ("AMPOSN", pos),
-            ("PCDPOSI", pos),
-            ("PCBGNR", r.OrderNo),
-            ("STTOBI", objectKey),
-            ("AMIDNK", r.Article),
-            ("PCANWG", "PPS"),
-            ("KEYTYPE", "PWAMA"),
-            ("STANWG", "PPS"),
-            ("STORNO", "J"),
-            ("AMFAUN", r.OrderNo),
-            ("ARAKKZ", "MK")), ct);
+            ("STTXOA", "FAUNPOSN"), ("AMPOSN", pos), ("PCDPOSI", pos),
+            ("PCBGNR", r.OrderNo), ("STTOBI", objectKey), ("AMIDNK", r.Article),
+            ("PCANWG", "PPS"), ("KEYTYPE", "PWAMA"), ("STANWG", "PPS"),
+            ("STORNO", "J"), ("AMFAUN", r.OrderNo), ("ARAKKZ", "MK")), ct);
         OxaionSession.AssertNoFcod(load);
-
         var state = Merge(load.Dta, Dict(
-            ("ARAKKZ", "M*"),
-            ("ARFAUN", r.OrderNo),
-            ("ARPOSN", pos),
-            ("ARPENU", penu),
-            ("ARFIRM", _options.Firm)));
+            ("ARAKKZ", "M*"), ("ARFAUN", r.OrderNo), ("ARPOSN", pos),
+            ("ARPENU", penu), ("ARFIRM", _options.Firm)));
         var ston = await session.CallAsync("PW22000J", "*STON", state, ct);
         OxaionSession.AssertNoFcod(ston);
         state = Merge(state, ston.Dta);
-
         var ssid = Get(state, "SSID");
         if (string.IsNullOrWhiteSpace(ssid))
             throw new InvalidOperationException("PW22000J *STON did not return an SSID.");
-
         var header = await session.CallAsync("PW22021R", "*GETHDR", state, ct);
         OxaionSession.AssertNoFcod(header);
         var list = await session.CallAsync("PW22021R", "*FIRSTLIST", Dict(
-            ("FLD", ""),
-            ("SSID", ssid),
-            ("PFLD", ""),
-            ("mode", "replace")), ct);
+            ("FLD", ""), ("SSID", ssid), ("PFLD", ""), ("mode", "replace")), ct);
         OxaionSession.AssertNoFcod(list);
         if (!list.Xml.Descendants("STOP").Any())
             throw new InvalidOperationException("PW22021R storno list did not return STOP; incomplete list is not accepted.");
-
         return new StornoContext(ssid, state, header, list);
     }
 
     private static async Task<OxaionCallResult> RefreshStornoListAsync(
-        OxaionSession session,
-        string ssid,
-        CancellationToken ct)
+        OxaionSession session, string ssid, CancellationToken ct)
     {
         var u01 = await session.CallAsync("PW22021R", "*GETU01", Dict(("SSID", ssid)), ct);
         OxaionSession.AssertNoFcod(u01);
         var list = await session.CallAsync("PW22021R", "*FIRSTLIST", Dict(
-            ("FLD", ""),
-            ("SSID", ssid),
-            ("PFLD", ""),
-            ("mode", "replace")), ct);
+            ("FLD", ""), ("SSID", ssid), ("PFLD", ""), ("mode", "replace")), ct);
         OxaionSession.AssertNoFcod(list);
         if (!list.Xml.Descendants("STOP").Any())
             throw new InvalidOperationException("PW22021R refreshed storno list did not return STOP.");
@@ -500,17 +481,13 @@ public sealed class FaAbortCorrectionService
     }
 
     private sealed record StornoContext(
-        string Ssid,
-        Dictionary<string, string> State,
-        OxaionCallResult Header,
-        OxaionCallResult List);
+        string Ssid, Dictionary<string, string> State, OxaionCallResult Header, OxaionCallResult List);
 
     private static Dictionary<string, string> Dict(params (string Key, string Value)[] values) =>
         values.ToDictionary(x => x.Key, x => x.Value ?? "", StringComparer.Ordinal);
 
     private static Dictionary<string, string> Merge(
-        IReadOnlyDictionary<string, string> a,
-        IReadOnlyDictionary<string, string> b)
+        IReadOnlyDictionary<string, string> a, IReadOnlyDictionary<string, string> b)
     {
         var result = new Dictionary<string, string>(a, StringComparer.Ordinal);
         foreach (var item in b) result[item.Key] = item.Value ?? "";
