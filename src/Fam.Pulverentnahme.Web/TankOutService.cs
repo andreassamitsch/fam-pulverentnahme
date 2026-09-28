@@ -92,11 +92,14 @@ public sealed class TankOutService
                         tx.Status = correction.Status is TransactionStatuses.Uncertain or TransactionStatuses.ManualReviewRequired
                             ? TransactionStatuses.ManualReviewRequired
                             : correction.Status;
+                        var correctionReason = string.IsNullOrWhiteSpace(correction.Message)
+                            ? "Oxaion hat keinen eindeutigen erfolgreichen Korrekturstatus geliefert."
+                            : correction.Message;
                         await SaveEventAsync(tx,
                             tx.Status == TransactionStatuses.ManualReviewRequired ? "MANUAL_REVIEW_REQUIRED" : tx.Status,
-                            $"Bestandskorrektur {correctionKey} wurde nicht eindeutig erfolgreich abgeschlossen " +
+                            $"Bestandskorrektur {correctionKey} wurde nicht gebucht: {correctionReason} " +
                             $"(Teilvorgang {childId}: {correction.Status}/{correction.Stage}). " +
-                            "Die LF/LE-Auslagerung wurde nicht gestartet.", ct);
+                            "Die LF/LE-Auslagerung wurde deshalb nicht gestartet.", ct);
                         return tx;
                     }
 
