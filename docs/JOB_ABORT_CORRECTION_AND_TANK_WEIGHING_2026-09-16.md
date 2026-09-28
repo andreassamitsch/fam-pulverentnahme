@@ -309,8 +309,8 @@ Bestaetigt:
 - Referenzbuchung: EOS1 / RP.00010 / Mix `RP00010MIX_20260909_140218` / 0,001 kg
 - Tankbestand reduzierte sich exakt von 128,869 kg auf 128,868 kg
 - im STAGING-Mitschnitt verwendete Kostenstelle: `6000`;
-- waehrend des Mitschnitts wurde die lokale `US50000`-Konfiguration fuer I2 auf `LBKLAS=J` (als Lagerbuchungsschluessel zugelassen) und `LBSKSB=0050000` angepasst. Die WebApp prueft diese bestaetigte STAGING-Konfiguration vor einer I2-Buchung und stoppt bei Abweichung.
-- Live-Test vom 28.09.2026: `LBKLAS=J` war weiterhin passend, `LBSKSB` wurde jedoch leer geliefert. Die App stoppte deshalb korrekt **vor** der Anlage eines Korrekturbelegs; auch der anschliessende LF/LE-Schritt wurde nicht gestartet. Vor dem naechsten Schwundtest ist die I2-Konfiguration in `US50000` auf den bestaetigten Referenzstand zu pruefen bzw. wiederherzustellen.
+- `LBKLAS=J` bleibt die notwendige Freigabe des Buchungsschluessels als Lagerbuchung. Die zwischenzeitlich im Test gesetzte Vorbelegung `LBSKSB=0050000` war **keine fachliche Voraussetzung** fuer FAM und wurde spaeter als falsche Vorbelegung erkannt. `LBSKSB` darf fuer I2 leer sein und wird von der WebApp nicht mehr als Freigabekriterium verwendet.
+- Die FAM-Kontierung wird in der Korrekturposition explizit gesetzt: Geschaeftsbereich `PSWERK=21`; Kostenstelle I2 `PSKSTL=6000`, I1 `PSKSTL=5100`. Damit ist die Buchung nicht von einer Sachkonto-/Kostenstellen-Vorbelegung im Buchungsschluessel abhaengig.
 
 ### 6.3 I1 - positiver Mehrbestand
 
