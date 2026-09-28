@@ -4,6 +4,8 @@ namespace Fam.Pulverentnahme.Web;
 
 public sealed partial class MaterialTransferBookingService
 {
+    internal const string FamCorrectionBusinessArea = "21";
+
     private static readonly HashSet<string> ConfirmedCorrectionCostCenterFcod =
         new(StringComparer.OrdinalIgnoreCase) { "KST0001", "KST1260" };
 
@@ -182,17 +184,27 @@ public sealed partial class MaterialTransferBookingService
         var returnedKey = Get(read.Dta, "LBBWKZ");
         var description = Get(read.Dta, "LBBWBZ");
         var lagerBookingAllowed = Get(read.Dta, "LBKLAS");
+        if (!CorrectionBookingKeyMatches(bookingKey, returnedKey, description, lagerBookingAllowed))
+            throw new ProcessConflictException(
+                $"Oxaion-Buchungsschlüssel {bookingKey} entspricht nicht der bestätigten FAM-Konfiguration. " +
+                $"Aktuell: '{returnedKey}' / '{description}', LBKLAS='{lagerBookingAllowed}'. Es wurde keine Korrektur gebucht.");
+
+    }
+
+    internal static bool CorrectionBookingKeyMatches(
+        string bookingKey,
+        string returnedKey,
+        string description,
+        string lagerBookingAllowed)
+    {
         var expectedDescription = bookingKey == "I2"
             ? "Bestandskorr. Abgang (Schwund)"
             : "Bestandskorrektur Zugang";
 
-        if (!string.Equals(returnedKey, bookingKey, StringComparison.Ordinal)
-            || !string.Equals(description, expectedDescription, StringComparison.Ordinal)
-            || !string.Equals(lagerBookingAllowed, "J", StringComparison.OrdinalIgnoreCase))
-            throw new ProcessConflictException(
-                $"Oxaion-Buchungsschlüssel {bookingKey} entspricht nicht der am 18.09.2026 bestätigten STAGING-Konfiguration. " +
-                $"Aktuell: '{returnedKey}' / '{description}', LBKLAS='{lagerBookingAllowed}'. Es wurde keine Korrektur gebucht.");
-
+        return bookingKey is "I1" or "I2"
+            && string.Equals(returnedKey, bookingKey, StringComparison.Ordinal)
+            && string.Equals(description, expectedDescription, StringComparison.Ordinal)
+            && string.Equals(lagerBookingAllowed, "J", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AddFirstCorrectionPositionAsync(
@@ -380,7 +392,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSBGTX", op.BookingText),
             ("TX_BGT1", op.Operator),
             ("PSFIRM", _options.Firm),
-            ("PSWERK", "21"),
+            ("PSWERK", FamCorrectionBusinessArea),
             ("PSPOSI", "1"),
             ("PSBWKZ", bookingKey),
             ("PSIDNR", article),
