@@ -44,6 +44,7 @@
   async function postOperation(url,request,kind,id){
     const r=await api(url,{method:'POST',body:JSON.stringify(request)});
     const b=r.body||{};
+    try{window.FamDiag?.log?.('OPERATION_RESULT',{kind,status:String(b.status||''),stage:String(b.stage||''),httpStatus:Number(r.status||0),message:String(b.message||b.detail||b.error||'').slice(0,700),hasDocumentNo:Boolean(b.documentNo),hasRelatedOperation:Boolean(b.relatedOperationId)})}catch{}
     if(r.ok&&b.status==='SUCCESS'){resultModal('Buchung erfolgreich',`✓ ${html(b.message||'Buchung wurde erfolgreich bestätigt.')}<br>${b.documentNo?`Beleg: <b>${html(b.documentNo)}</b>`:''}`,'ok');return true}
     const unsafe=b.status==='UNCERTAIN'||b.status==='MANUAL_REVIEW_REQUIRED';
     const title=unsafe?'Buchungsausgang unklar':b.status==='CONFLICT'?'Vorgang wurde gestoppt':'Buchung nicht durchgeführt';
