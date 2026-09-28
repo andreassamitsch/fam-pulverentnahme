@@ -310,6 +310,7 @@ Bestaetigt:
 - Tankbestand reduzierte sich exakt von 128,869 kg auf 128,868 kg
 - im STAGING-Mitschnitt verwendete Kostenstelle: `6000`;
 - waehrend des Mitschnitts wurde die lokale `US50000`-Konfiguration fuer I2 auf `LBKLAS=J` (als Lagerbuchungsschluessel zugelassen) und `LBSKSB=0050000` angepasst. Die WebApp prueft diese bestaetigte STAGING-Konfiguration vor einer I2-Buchung und stoppt bei Abweichung.
+- Live-Test vom 28.09.2026: `LBKLAS=J` war weiterhin passend, `LBSKSB` wurde jedoch leer geliefert. Die App stoppte deshalb korrekt **vor** der Anlage eines Korrekturbelegs; auch der anschliessende LF/LE-Schritt wurde nicht gestartet. Vor dem naechsten Schwundtest ist die I2-Konfiguration in `US50000` auf den bestaetigten Referenzstand zu pruefen bzw. wiederherzustellen.
 
 ### 6.3 I1 - positiver Mehrbestand
 
