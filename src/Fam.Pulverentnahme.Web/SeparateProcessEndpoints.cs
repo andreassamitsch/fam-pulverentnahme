@@ -131,6 +131,15 @@ public static class SeparateProcessFeatureExtensions
         endpoints.MapPost("/api/fa-consumption/{id}/reconcile", async (string id, HttpContext http, FaConsumptionService service, CancellationToken ct) =>
         { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
 
+        endpoints.MapPost("/api/fa-abort-correction/validate-source", async (FaAbortSourceCheckRequest request, HttpContext http, FaAbortCorrectionService service, CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            try { return Results.Ok(await service.ValidateSourceAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
         endpoints.MapPost("/api/fa-abort-correction", async (FaAbortCorrectionRequest request, HttpContext http, FaAbortCorrectionService service, CancellationToken ct) =>
         {
             if (!SessionMatches(http, request, out var auth)) return auth!;
