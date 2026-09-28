@@ -31,7 +31,7 @@ public sealed record FaAbortSourceCheckRequest(
     string TankBatch,
     string OrderNo,
     int MaterialPosition,
-    decimal ExpectedConsumedKg) : ISeparatePersonnelRequest;
+    decimal ExpectedConsumedKg);
 
 public sealed record FaAbortSourceCheckResponse(
     bool Allowed,
