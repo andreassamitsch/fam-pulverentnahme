@@ -349,27 +349,46 @@ public sealed class FaAbortCorrectionService
         string warehouse,
         string batch)
     {
-        // PW22021R *FIRSTLIST is already filtered by the standard Oxaion storno dialog.
-        // Do not invent a second ARSTOR filter parameter. If a row explicitly carries
-        // ARSTOR, only N is eligible; rows without the field are from the prefiltered list.
+        // PW22021R *FIRSTLIST is the standard Oxaion storno list and is already restricted
+        // to currently valid/stornable feedback rows. Therefore a single row matching the
+        // FA/material identity must not be rejected solely because the descriptive source
+        // text (WW_TX70B) is formatted differently from the currently scanned tank data.
+        // Tank/mix remain a disambiguator when several otherwise identical valid rows exist
+        // and are verified strictly again after STORNO before any corrected MK is started.
         var eligible = ParseFeedbacks(xml);
-        var matches = eligible
+        var coreMatches = eligible
             .Where(x => x.OrderNo == orderNo
                 && x.MaterialPosition == materialPosition
                 && x.Article.Equals(article, StringComparison.OrdinalIgnoreCase)
-                && Math.Abs(x.QuantityKg - quantityKg) < 0.0005m
-                && x.Warehouse.Equals(warehouse, StringComparison.OrdinalIgnoreCase)
-                && x.Batch == batch)
+                && Math.Abs(x.QuantityKg - quantityKg) < 0.0005m)
             .ToList();
-        return matches.Count switch
+
+        if (coreMatches.Count == 1)
+            return coreMatches[0];
+
+        if (coreMatches.Count > 1)
         {
-            1 => matches[0],
-            0 => throw new ProcessConflictException(
-                $"Keine passende gültige Oxaion-Materialrückmeldung gefunden (Liste: {xml.Descendants("ROW").Count()} Zeilen, " +
-                $"technisch auswertbar: {eligible.Count}). Bitte FA, Position, Menge, Tank/Mix und die Oxaion-Rückmeldeliste prüfen; es wurde nichts storniert."),
-            _ => throw new ProcessConflictException(
-                $"Mehrere ({matches.Count}) passende gültige Oxaion-Materialrückmeldungen gefunden. Automatischer Storno ist gesperrt.")
-        };
+            var sourceMatches = coreMatches
+                .Where(x => x.Warehouse.Equals(warehouse, StringComparison.OrdinalIgnoreCase)
+                    && x.Batch == batch)
+                .ToList();
+            if (sourceMatches.Count == 1)
+                return sourceMatches[0];
+
+            throw new ProcessConflictException(
+                $"Mehrere ({coreMatches.Count}) gültige Oxaion-Materialrückmeldungen passen zu FA, Position, Artikel und Menge; " +
+                $"davon passen {sourceMatches.Count} eindeutig zu Tank {warehouse} / Mix {batch}. Automatischer Storno ist gesperrt.");
+        }
+
+        var candidateSummary = eligible.Count == 1
+            ? $" Oxaion-Kandidat: FA={eligible[0].OrderNo}, Pos={eligible[0].MaterialPosition}, Artikel={eligible[0].Article}, " +
+              $"Menge={eligible[0].QuantityKg:0.###} kg, Quelle={eligible[0].Warehouse}/{eligible[0].Batch}."
+            : "";
+
+        throw new ProcessConflictException(
+            $"Keine passende gültige Oxaion-Materialrückmeldung gefunden (Liste: {xml.Descendants("ROW").Count()} Zeilen, " +
+            $"technisch auswertbar: {eligible.Count}). Erwartet: FA={orderNo}, Pos={materialPosition}, Artikel={article}, " +
+            $"Menge={quantityKg:0.###} kg.{candidateSummary} Es wurde nichts storniert.");
     }
 
     internal static IReadOnlyList<FaFeedbackReference> ParseFeedbacks(XDocument xml)
