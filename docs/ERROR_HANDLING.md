@@ -226,6 +226,9 @@ Seit 18.09.2026 gelten fuer die technisch bestaetigten Korrekturprozesse zusaetz
 
 ### FA-Jobabbruch
 
+- Bereits beim FA-Scan wird die gueltige Oxaion-Stornorueckmeldung rein lesend gegen den zuvor gescannten Tank und dessen Mix-Charge geprueft. Weicht Tank oder Mix-Charge von der Originalrueckmeldung ab, ist dies ein fachlicher Konflikt **vor jedem Schreibaufruf**: keine Mengeneingabe, kein Storno, keine neue MK. Bedienermeldung: Tankcharge hat sich seit der urspruenglichen FA-Buchung geaendert; Fall in Oxaion pruefen und gegebenenfalls manuell ueber Lagerbelege korrigieren.
+- Diese Vorpruefung ersetzt nicht die erneute serverseitige Quellpruefung unmittelbar vor dem Storno.
+
 - `PW22021R *STORNO` kann im bestaetigten FAM-Referenzfall bei HTTP-Erfolg nur die XML-Deklaration zurueckgeben. Diese Antwort ist **kein** Erfolgskriterium.
 - Nach einem Stornoaufruf gilt der Ausgang solange als nicht bestaetigt, bis alle drei Beweise vorliegen:
   1. exakter Rueckmeldeschluessel ist aus der `PW22021R`-Liste verschwunden;
