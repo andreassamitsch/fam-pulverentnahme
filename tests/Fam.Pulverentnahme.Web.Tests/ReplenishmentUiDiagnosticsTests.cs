@@ -63,6 +63,8 @@ public sealed class ReplenishmentUiDiagnosticsTests
         Assert.Contains("abortOrderScan", source);
         Assert.Contains("abort.id='faAbortProcess'", router);
         Assert.Contains("faAbortProcess", router);
+        Assert.Contains("OPERATION_RESULT", router);
+        Assert.Contains("stage:String(b.stage||'')", router);
     }
 
     [Fact]
@@ -79,11 +81,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV33RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV34RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-staging-v33-job-abort-diagnostics-20260921", source);
+        Assert.Contains("fam-pulver-staging-v34-storno-single-row-20260928", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
