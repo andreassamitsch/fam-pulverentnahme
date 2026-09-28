@@ -193,10 +193,6 @@ public sealed partial class MaterialTransferBookingService
                 $"Oxaion-Buchungsschlüssel {bookingKey} entspricht nicht der am 18.09.2026 bestätigten STAGING-Konfiguration. " +
                 $"Aktuell: '{returnedKey}' / '{description}', LBKLAS='{lagerBookingAllowed}'. Es wurde keine Korrektur gebucht.");
 
-        if (bookingKey == "I2" && !string.Equals(Get(read.Dta, "LBSKSB"), "0050000", StringComparison.Ordinal))
-            throw new ProcessConflictException(
-                $"I2 ist in US50000 nicht mehr wie im bestätigten FAM-STAGING-Mitschnitt kontiert (LBSKSB='{Get(read.Dta, "LBSKSB")}'). " +
-                "Es wurde keine Schwundkorrektur gebucht.");
     }
 
     private async Task AddFirstCorrectionPositionAsync(
@@ -384,6 +380,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSBGTX", op.BookingText),
             ("TX_BGT1", op.Operator),
             ("PSFIRM", _options.Firm),
+            ("PSWERK", "21"),
             ("PSPOSI", "1"),
             ("PSBWKZ", bookingKey),
             ("PSIDNR", article),
