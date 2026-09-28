@@ -6,6 +6,28 @@ namespace Fam.Pulverentnahme.Web.Tests;
 
 public sealed class JobAbortAndTankWeighingTests
 {
+    [Fact]
+    public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingIsSetByApp()
+    {
+        Assert.True(MaterialTransferBookingService.CorrectionBookingKeyMatches(
+            "I2",
+            "I2",
+            "Bestandskorr. Abgang (Schwund)",
+            "J"));
+
+        Assert.Equal("21", MaterialTransferBookingService.FamCorrectionBusinessArea);
+    }
+
+    [Fact]
+    public void I2CorrectionKeyStillRequiresLagerBookingPermission()
+    {
+        Assert.False(MaterialTransferBookingService.CorrectionBookingKeyMatches(
+            "I2",
+            "I2",
+            "Bestandskorr. Abgang (Schwund)",
+            "N"));
+    }
+
     [Theory]
     [InlineData("I2", 0.001)]
     [InlineData("I1", 0.002)]
