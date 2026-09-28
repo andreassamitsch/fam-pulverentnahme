@@ -289,9 +289,10 @@ Bestaetigte Sequenz fuer den Referenzfall `FA24FK00126 / Pos. 10 / RP.00010`:
 
 Verbindliche Implementierungsregel:
 
-- Die Oxaion-Standard-Stornoliste `PW22021R` liefert bereits nur gueltige/stornierbare Rueckmeldungen. Vor dem Storno muessen FA, Materialposition, Artikel und urspruengliche Menge uebereinstimmen.
-- Gibt es genau einen solchen Kern-Treffer, wird sein exakter Rueckmeldeschluessel verwendet. Tanklager und Mix-Charge sind in diesem Ein-Treffer-Fall kein zusaetzliches Blockierkriterium, weil die deskriptive Quellenanzeige `_INTERN.WW_TX70B` nicht als primaerer Oxaion-Schluessel dient.
-- Gibt es mehrere Kern-Treffer, duerfen Tanklager und Mix-Charge zur eindeutigen Aufloesung verwendet werden; bleibt danach null oder mehr als ein Treffer, wird der automatische Storno gesperrt.
+- Die Oxaion-Standard-Stornoliste `PW22021R` liefert bereits nur gueltige/stornierbare Rueckmeldungen. Fuer die automatische Jobabbruch-Korrektur muessen jedoch FA, Materialposition, Artikel, urspruengliche Menge, **Tanklager und Mix-Charge** der Originalrueckmeldung mit dem aktuell gescannten Tank uebereinstimmen.
+- Eine Rueckbuchung einer alten FA-Rueckmeldung auf einen Tank, dessen Mix-Charge sich inzwischen geaendert hat, ist fachlich nicht zulaessig und wird technisch gesperrt.
+- Die Pruefung erfolgt bereits unmittelbar nach dem FA-Scan ueber einen rein lesenden Aufbau der Oxaion-Stornoliste. Bei Charge-/Tankabweichung wird die Mengeneingabe nicht freigegeben; Meldung an den Bediener: Fertigungsauftrag kann nicht automatisch auf diesen Tank rueckgebucht werden, da sich die Tankcharge seit der urspruenglichen FA-Buchung geaendert hat. Fall in Oxaion pruefen und gegebenenfalls manuell ueber Lagerbelege korrigieren.
+- Dieselbe Quellpruefung wird unmittelbar vor dem echten `PW22021R *STORNO` nochmals serverseitig ausgefuehrt.
 - Nach dem Storno bleiben FA-Zustand und die exakte Rueckbuchung auf denselben Tank/dieselbe Mix-Charge zwingende Erfolgsnachweise.
 - Nach `*STORNO` muessen Rueckmeldeliste, FA-Materialzustand und Tank/Mix **alle** den erwarteten Zustand beweisen, bevor eine neue MK gesendet wird.
 - Bei unklarem Stornoausgang kein Blind-Retry und keine neue MK.
