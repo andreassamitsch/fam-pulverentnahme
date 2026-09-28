@@ -289,8 +289,10 @@ Bestaetigte Sequenz fuer den Referenzfall `FA24FK00126 / Pos. 10 / RP.00010`:
 
 Verbindliche Implementierungsregel:
 
-- Storno nur bei **genau einer** Rueckmeldung, die FA, Materialposition, Artikel, urspruengliche Menge, Tanklager und Mix-Charge gleichzeitig erfuellt.
-- Mehrere oder keine Treffer sperren den automatischen Storno.
+- Die Oxaion-Standard-Stornoliste `PW22021R` liefert bereits nur gueltige/stornierbare Rueckmeldungen. Vor dem Storno muessen FA, Materialposition, Artikel und urspruengliche Menge uebereinstimmen.
+- Gibt es genau einen solchen Kern-Treffer, wird sein exakter Rueckmeldeschluessel verwendet. Tanklager und Mix-Charge sind in diesem Ein-Treffer-Fall kein zusaetzliches Blockierkriterium, weil die deskriptive Quellenanzeige `_INTERN.WW_TX70B` nicht als primaerer Oxaion-Schluessel dient.
+- Gibt es mehrere Kern-Treffer, duerfen Tanklager und Mix-Charge zur eindeutigen Aufloesung verwendet werden; bleibt danach null oder mehr als ein Treffer, wird der automatische Storno gesperrt.
+- Nach dem Storno bleiben FA-Zustand und die exakte Rueckbuchung auf denselben Tank/dieselbe Mix-Charge zwingende Erfolgsnachweise.
 - Nach `*STORNO` muessen Rueckmeldeliste, FA-Materialzustand und Tank/Mix **alle** den erwarteten Zustand beweisen, bevor eine neue MK gesendet wird.
 - Bei unklarem Stornoausgang kein Blind-Retry und keine neue MK.
 
