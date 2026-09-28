@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v34-storno-single-row-20260928';
+const CACHE='fam-pulver-staging-v35-fa-abort-source-guard-20260928';
 const ASSETS=[
   '/',
   '/index.html',
@@ -15,7 +15,7 @@ const ASSETS=[
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20260904-scan-safety',
   '/worker-enhancements.js?v=20260904-worker-flow-3',
-  '/process-mode.js?v=20260928-storno-single-row-1',
+  '/process-mode.js?v=20260928-fa-abort-source-guard-1',
   '/process-mode-focus-fix.js?v=20260909-auth-grace-3',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
