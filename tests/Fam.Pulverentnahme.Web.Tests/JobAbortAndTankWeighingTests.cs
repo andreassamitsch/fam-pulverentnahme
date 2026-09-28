@@ -59,7 +59,7 @@ public sealed class JobAbortAndTankWeighingTests
     }
 
     [Fact]
-    public void SingleValidOxaionStornoRowIsAcceptedEvenIfSourceDisplayTextDiffers()
+    public void SingleValidOxaionStornoRowWithDifferentMixIsBlockedWithActionableMessage()
     {
         var xml = XDocument.Parse("""
 <PARM><TABLE>
@@ -68,7 +68,39 @@ public sealed class JobAbortAndTankWeighingTests
   <PWARMP.ARAKKZ>MK</PWARMP.ARAKKZ>
   <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
   <_INTERN.WW_TX50>RP.00010 2.815 kg</_INTERN.WW_TX50>
-  <_INTERN.WW_TX70B>RP.00010 EOS1 DISPLAYED_SOURCE_TEXT</_INTERN.WW_TX70B>
+  <_INTERN.WW_TX70B>RP.00010 EOS1 OLD_MIX</_INTERN.WW_TX70B>
+</ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var ex = Assert.Throws<ProcessConflictException>(() =>
+            FaAbortCorrectionService.FindUniqueFeedback(
+                xml,
+                "FA24FI00118",
+                10,
+                "RP.00010",
+                2.815m,
+                "EOS1",
+                "CURRENT_MIX"));
+
+        Assert.Contains("Tankcharge seit der ursprünglichen FA-Buchung geändert", ex.Message);
+        Assert.Contains("OLD_MIX", ex.Message);
+        Assert.Contains("CURRENT_MIX", ex.Message);
+        Assert.Contains("manuell über Lagerbelege", ex.Message);
+    }
+
+    [Fact]
+    public void SingleValidOxaionStornoRowWithSameTankAndMixIsAccepted()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW>
+  <KEY><ARFIRM>103</ARFIRM><ARRMNR>44001</ARRMNR><ARRMZT>15.02.06</ARRMZT><ARFAUN>FA24FI00118</ARFAUN><ARYRML>2026-09-08</ARYRML></KEY>
+  <PWARMP.ARAKKZ>MK</PWARMP.ARAKKZ>
+  <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
+  <_INTERN.WW_TX50>RP.00010 2.815 kg</_INTERN.WW_TX50>
+  <_INTERN.WW_TX70B>RP.00010 EOS1 RP00010MIX_20260909_140218</_INTERN.WW_TX70B>
 </ROW>
 <STOP/>
 </TABLE></PARM>
@@ -84,8 +116,7 @@ public sealed class JobAbortAndTankWeighingTests
             "RP00010MIX_20260909_140218");
 
         Assert.Equal("44001", row.ReportNo);
-        Assert.Equal("FA24FI00118", row.OrderNo);
-        Assert.Equal(2.815m, row.QuantityKg);
+        Assert.Equal("RP00010MIX_20260909_140218", row.Batch);
     }
 
     [Fact]
