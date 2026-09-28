@@ -116,7 +116,59 @@
   async function bookFa(){const n=faAmount();if(!faState.material||!faState.material.mkBookingAllowed||!Number.isFinite(n)||n<=0||busy)return;const p=person();const req={clientOperationId:newOperationId(),personnelNo:p.personnelNo,personnelName:p.fullName,tankWarehouse:faState.tank.warehouse,tankWarehouseText:faState.tank.warehouseText||faState.tank.warehouse,article:faState.row.article,articleText:faState.row.articleText||'',tankBatch:faState.row.batch,tankQuantityKg:Number(faState.row.quantityKg),orderNo:faState.order.orderNo,plannedMachineId:faState.order.plannedMachineId,materialPosition:Number(faState.material.materialPosition),expectedRequiredKg:Number(faState.material.requiredKg),expectedConsumedKg:Number(faState.material.consumedKg),expectedMaterialStatus:Number(faState.material.materialStatus),additionalConsumptionKg:n};if(!await confirmAction('FA-Verbrauch bestätigen',`FA <b>${html(req.orderNo)}</b> · Materialpos. ${html(req.materialPosition)}<br>Bereits gebucht: <b>${qty(req.expectedConsumedKg)} kg</b><br>Zusätzlich jetzt: <b>${qty(req.additionalConsumptionKg)} kg</b><br>Tank ${html(req.tankWarehouse)} · Charge ${html(req.tankBatch)}`))return;busy=true;refreshFa();try{if(await postOperation('/api/fa-consumption',req,'fa-consumption',req.clientOperationId)){faState.material=null;faState.order=null;el('faConsumptionAmount').value='';setInstruction('FA-Verbrauch erfolgreich gebucht. Neuen Vorgang auswählen.')}}finally{busy=false;refreshFa()}}
 
   async function scanAbortTank(){try{const x=await scanTank();if(x.stock.status!=='UNIQUE'||x.stock.rows?.length!==1)throw new Error(x.stock.status==='EMPTY'?'Tank ist leer. Für den bestätigten Jobabbruch-Storno muss die ursprüngliche Mix-Charge eindeutig im Tank liegen.':x.stock.message||'Tankbestand ist nicht eindeutig.');abortState={tank:x.machine,row:x.stock.rows[0],colors:x.stock.recognitionColors,order:null,material:null,amount:''};el('abortActualAmount').value='';setStatus('abortTankStatus','✓ Tankbestand eindeutig aus Oxaion gelesen.','ok');el('abortTankData').classList.remove('hidden');el('abortTankData').innerHTML=`${swatch(abortState.colors)}<b>${html(abortState.row.article)} ${html(abortState.row.articleText||'')}</b><br>Mix-Charge ${html(abortState.row.batch)} · aktueller Tankbestand ${qty(abortState.row.quantityKg)} kg`;el('abortOrderStep').classList.remove('lockedStep');el('abortOrderScan').disabled=false;setStatus('abortOrderStatus','Fertigungsauftrag des abgebrochenen Jobs scannen.');refreshAbort()}catch(e){if(e?.name!=='AbortError')setStatus('abortTankStatus','⛔ '+e.message,'bad')}}
-  async function scanAbortOrder(){if(!abortState.row)return;try{const raw=await scanQrCode({title:'Fertigungsauftrag scannen',help:'Erwartet: Rohmaterial+++Fertigungsauftrag+++Maschinen-ID'}),order=parseFa(raw);if(order.article.toUpperCase()!==String(abortState.row.article).toUpperCase())throw new Error(`FA enthält ${order.article}; im Tank liegt ${abortState.row.article}.`);const r=await api('/api/fa-material?'+new URLSearchParams({orderNo:order.orderNo,article:order.article}));if(!r.ok)throw new Error(r.body?.message||r.body?.detail||'Materialposition konnte nicht eindeutig ermittelt werden.');const m=r.body;if(Number(m.materialStatus)!==9||Number(m.consumedKg)<=0)throw new Error(`Jobabbruch-Korrektur ist für den bestätigten Stornoablauf nur bei Status 9 · Komplett abgebucht mit positivem Verbrauch zulässig. Aktuell Status ${m.materialStatus} ${m.materialStatusText||''}, ${qty(m.consumedKg)} kg.`);abortState.order=order;abortState.material=m;abortState.amount='';el('abortActualAmount').value='';el('abortOrderData').classList.remove('hidden');el('abortOrderData').innerHTML=`<div class="processDetailGrid"><div><span>Fertigungsauftrag</span><b>${html(order.orderNo)}</b></div><div><span>Materialposition</span><b>${html(m.materialPosition)}</b></div><div><span>Ursprünglich gebucht</span><b>${qty(m.consumedKg)} kg</b></div><div><span>Status</span><b>${html(m.materialStatus)} · ${html(m.materialStatusText||'')}</b></div><div><span>Tank-Mix</span><b>${html(abortState.row.batch)}</b></div><div><span>Tank vor Storno</span><b>${qty(abortState.row.quantityKg)} kg</b></div></div>`;setStatus('abortOrderStatus','✓ Komplett abgebuchte Materialposition gefunden. Beim Buchen wird zusätzlich die exakte Oxaion-Rückmeldung anhand FA, Position, Menge, Tank und Mix-Charge gesucht.','ok');el('abortAmountStep').classList.remove('lockedStep');el('abortActualAmount').focus();refreshAbort()}catch(e){abortState.order=null;abortState.material=null;setStatus('abortOrderStatus','⛔ '+e.message,'bad');el('abortOrderData').classList.add('hidden');el('abortAmountStep').classList.add('lockedStep');el('abortBookStep').classList.add('lockedStep')}}
+  async function scanAbortOrder(){
+    if(!abortState.row)return;
+    try{
+      const raw=await scanQrCode({title:'Fertigungsauftrag scannen',help:'Erwartet: Rohmaterial+++Fertigungsauftrag+++Maschinen-ID'});
+      const order=parseFa(raw);
+      if(order.article.toUpperCase()!==String(abortState.row.article).toUpperCase())
+        throw new Error(`FA enthält ${order.article}; im Tank liegt ${abortState.row.article}.`);
+
+      const r=await api('/api/fa-material?'+new URLSearchParams({orderNo:order.orderNo,article:order.article}));
+      if(!r.ok)throw new Error(r.body?.message||r.body?.detail||'Materialposition konnte nicht eindeutig ermittelt werden.');
+      const m=r.body;
+      if(Number(m.materialStatus)!==9||Number(m.consumedKg)<=0)
+        throw new Error(`Jobabbruch-Korrektur ist für den bestätigten Stornoablauf nur bei Status 9 · Komplett abgebucht mit positivem Verbrauch zulässig. Aktuell Status ${m.materialStatus} ${m.materialStatusText||''}, ${qty(m.consumedKg)} kg.`);
+
+      setStatus('abortOrderStatus','Ursprüngliche Oxaion-Rückmeldung und Tank-Mix-Charge werden geprüft …');
+      const p=person();
+      const sourceCheck=await api('/api/fa-abort-correction/validate-source',{
+        method:'POST',
+        body:JSON.stringify({
+          personnelNo:p.personnelNo,
+          personnelName:p.fullName,
+          tankWarehouse:abortState.tank.warehouse,
+          article:abortState.row.article,
+          tankBatch:abortState.row.batch,
+          orderNo:order.orderNo,
+          materialPosition:Number(m.materialPosition),
+          expectedConsumedKg:Number(m.consumedKg)
+        })
+      });
+      if(!sourceCheck.ok)
+        throw new Error(sourceCheck.body?.message||sourceCheck.body?.detail||sourceCheck.body?.error||'Ursprüngliche Rückmeldung konnte nicht sicher dem aktuellen Tank zugeordnet werden.');
+
+      abortState.order=order;
+      abortState.material=m;
+      abortState.amount='';
+      el('abortActualAmount').value='';
+      el('abortOrderData').classList.remove('hidden');
+      el('abortOrderData').innerHTML=`<div class="processDetailGrid"><div><span>Fertigungsauftrag</span><b>${html(order.orderNo)}</b></div><div><span>Materialposition</span><b>${html(m.materialPosition)}</b></div><div><span>Ursprünglich gebucht</span><b>${qty(m.consumedKg)} kg</b></div><div><span>Status</span><b>${html(m.materialStatus)} · ${html(m.materialStatusText||'')}</b></div><div><span>Bestätigte Rückbuchungsquelle</span><b>${html(sourceCheck.body?.sourceWarehouse||abortState.tank.warehouse)} / ${html(sourceCheck.body?.sourceBatch||abortState.row.batch)}</b></div><div><span>Tank vor Storno</span><b>${qty(abortState.row.quantityKg)} kg</b></div></div>`;
+      setStatus('abortOrderStatus','✓ Gültige Oxaion-Rückmeldung gehört zu diesem Tank und exakt dieser Mix-Charge. Automatische Jobabbruch-Korrektur ist zulässig.','ok');
+      el('abortAmountStep').classList.remove('lockedStep');
+      el('abortActualAmount').focus();
+      refreshAbort();
+    }catch(e){
+      abortState.order=null;
+      abortState.material=null;
+      setStatus('abortOrderStatus','⛔ '+e.message,'bad');
+      el('abortOrderData').classList.add('hidden');
+      el('abortAmountStep').classList.add('lockedStep');
+      el('abortBookStep').classList.add('lockedStep');
+      el('abortBookBtn').disabled=true;
+      setInstruction('Fertigungsauftrag kann nicht automatisch auf diesen Tank rückgebucht werden. Oxaion-Fall prüfen.');
+    }
+  }
   function abortAmount(){const s=String(abortState.amount??'').trim();if(s==='')return null;const n=Number(s.replace(',','.'));return Number.isFinite(n)?Math.round(n*1000)/1000:NaN}
   function refreshAbort(){if(!abortState.row||!abortState.material)return;const n=abortAmount(),original=Number(abortState.material.consumedKg||0),valid=Number.isFinite(n)&&n>=0&&n<original-.0005&&!busy;el('abortBookStep').classList.toggle('lockedStep',!valid);el('abortBookBtn').disabled=!valid;if(n===null)setStatus('abortAmountStatus',`Tatsächlich verbrauchte Menge eingeben. Ursprünglich gebucht: ${qty(original)} kg.`);else if(!Number.isFinite(n)||n<0)setStatus('abortAmountStatus','⛔ Ist-Verbrauch darf nicht negativ sein.','bad');else if(n>=original-.0005)setStatus('abortAmountStatus','⛔ Der korrigierte Verbrauch muss kleiner als die ursprüngliche Buchung sein; sonst ist keine Jobabbruch-Korrektur erforderlich.','bad');else setStatus('abortAmountStatus',`✓ Ursprünglich ${qty(original)} kg werden storniert; danach werden ${qty(n)} kg neu als tatsächlicher Verbrauch gebucht. Netto gehen ${qty(original-n)} kg auf dieselbe Tank-Mix-Charge zurück.`,'ok');el('abortSummary').innerHTML=`<b>${html(abortState.order.orderNo)} · Pos. ${html(abortState.material.materialPosition)}</b><br>Ursprüngliche Buchung: <b>${qty(original)} kg</b><br>Korrigierter Ist-Verbrauch: <b>${Number.isFinite(n)?qty(n)+' kg':'fehlt'}</b><br>Mix-Charge: ${html(abortState.row.batch)} · Tank ${html(abortState.tank.warehouse)}`;setInstruction(valid?'Jobabbruch-Korrektur prüfen und bewusst starten.':'Tatsächlichen Verbrauch nach Jobabbruch eingeben.');}
   async function bookAbort(){const n=abortAmount();if(!abortState.material||!Number.isFinite(n)||n<0||n>=Number(abortState.material.consumedKg)-.0005||busy)return;const p=person(),original=Number(abortState.material.consumedKg);const req={clientOperationId:newOperationId(),personnelNo:p.personnelNo,personnelName:p.fullName,tankWarehouse:abortState.tank.warehouse,tankWarehouseText:abortState.tank.warehouseText||abortState.tank.warehouse,article:abortState.row.article,articleText:abortState.row.articleText||'',tankBatch:abortState.row.batch,tankQuantityKg:Number(abortState.row.quantityKg),orderNo:abortState.order.orderNo,plannedMachineId:abortState.order.plannedMachineId,materialPosition:Number(abortState.material.materialPosition),expectedRequiredKg:Number(abortState.material.requiredKg),expectedConsumedKg:original,expectedMaterialStatus:Number(abortState.material.materialStatus),correctedActualConsumptionKg:n};if(!await confirmAction('Jobabbruch korrigieren',`FA <b>${html(req.orderNo)}</b> · Materialpos. ${html(req.materialPosition)}<br><b>1.</b> Exakte ursprüngliche Rückmeldung ${qty(original)} kg stornieren.<br><b>2.</b> Storno, FA=0 und Rückbuchung auf Tank/Mix verifizieren.<br><b>3.</b> ${qty(n)} kg tatsächlichen Verbrauch neu als MK buchen.<br><br>Netto-Rückgabe an ${html(req.tankWarehouse)} / ${html(req.tankBatch)}: <b>${qty(original-n)} kg</b><br><br><b>Bei unklarem Storno wird Schritt 3 nicht gestartet.</b>`,'Korrektur starten'))return;busy=true;refreshAbort();try{if(await postOperation('/api/fa-abort-correction',req,'fa-abort-correction',req.clientOperationId)){abortState={tank:null,row:null,colors:null,order:null,material:null,amount:''};el('abortActualAmount').value='';setInstruction('Jobabbruch-Korrektur erfolgreich abgeschlossen. Neuen Vorgang auswählen.')}}finally{busy=false;refreshAbort()}}
