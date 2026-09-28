@@ -133,7 +133,7 @@ public static class SeparateProcessFeatureExtensions
 
         endpoints.MapPost("/api/fa-abort-correction/validate-source", async (FaAbortSourceCheckRequest request, HttpContext http, FaAbortCorrectionService service, CancellationToken ct) =>
         {
-            if (!SessionMatches(http, request, out var auth)) return auth!;
+            if (!SessionMatches(http, request.PersonnelNo, request.PersonnelName, out var auth)) return auth!;
             try { return Results.Ok(await service.ValidateSourceAsync(request, ct)); }
             catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
             catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
@@ -162,6 +162,24 @@ public static class SeparateProcessFeatureExtensions
         if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(name))
         {
             result = Results.Json(new { status="AUTH_REQUIRED", message="Bitte Mitarbeiter anmelden." }, statusCode:401);
+            return false;
+        }
+        result = null;
+        return true;
+    }
+
+    private static bool SessionMatches(HttpContext http, string personnelNo, string personnelName, out IResult? result)
+    {
+        var no = http.Session.GetString(PersonnelAuthenticationSession.PersonnelNo);
+        var name = http.Session.GetString(PersonnelAuthenticationSession.PersonnelName);
+        if (string.IsNullOrWhiteSpace(no) || string.IsNullOrWhiteSpace(name))
+        {
+            result = Results.Json(new { status="AUTH_REQUIRED", stage="PERSONNEL_VALIDATION", message="Bitte Mitarbeiter anmelden." }, statusCode:401);
+            return false;
+        }
+        if (!string.Equals(no, personnelNo, StringComparison.Ordinal) || !string.Equals(name, personnelName, StringComparison.Ordinal))
+        {
+            result = Results.Json(new { status="AUTH_CONFLICT", stage="PERSONNEL_VALIDATION", message="Angemeldeter Mitarbeiter stimmt nicht mit der Prüfung überein." }, statusCode:403);
             return false;
         }
         result = null;
