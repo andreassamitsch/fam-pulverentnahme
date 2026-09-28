@@ -295,7 +295,7 @@ Seit 18.09.2026 ist der FAM-STAGING-Ablauf technisch bestaetigt und in der WebAp
 
 1. Tank und Fertigungsauftrag werden physisch gescannt und der aktuelle FA-/Tankzustand erneut aus Oxaion gelesen.
 2. Der Vorgang ist nur fuer die bestaetigte komplett abgebuchte Materialposition mit positivem Verbrauch vorgesehen.
-3. Die zu stornierende Originalrueckmeldung wird aus der Oxaion-Rueckmeldeliste nur dann automatisch ausgewaehlt, wenn genau ein Eintrag gleichzeitig FA, Materialposition, Artikel, urspruengliche Menge, Tanklager und Mix-Charge erfuellt.
+3. Die Oxaion-Standard-Stornoliste `PW22021R` gilt als bereits auf gueltige/stornierbare Rueckmeldungen gefiltert. Die App gleicht daraus FA, Materialposition, Artikel und urspruengliche Menge ab. Gibt es genau einen solchen gueltigen Kern-Treffer, wird dessen exakter Rueckmeldeschluessel verwendet. Tanklager/Mix-Charge dienen nur noch zur Aufloesung, falls mehrere Kern-Treffer existieren; nach dem Storno werden dieselbe Tank-Mix-Charge und die Rueckbuchungsmenge weiterhin zwingend exakt verifiziert.
 4. Der echte Oxaion-Storno laeuft ueber `PW22000J *LOADNEW` mit `STORNO=J`, `PW22000J *STON` und den gezielten `PW22021R *STORNO` der Rueckmeldung.
 5. Eine erfolgreiche HTTP-Antwort allein ist kein Erfolgsbeweis. Vor dem zweiten Schreibschritt muessen Rueckmeldeliste, FA-Materialposition und dieselbe Tank-Mix-Charge den erwarteten Stornozustand bestaetigen.
 6. Danach wird der vom Bediener tatsaechlich abgewogene Ist-Verbrauch mit der bereits bestaetigten normalen MK-Logik neu gebucht; bei 0,000 kg wird keine neue MK gesendet.
