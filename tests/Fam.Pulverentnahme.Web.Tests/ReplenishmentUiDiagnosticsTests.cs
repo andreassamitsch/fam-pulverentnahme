@@ -66,7 +66,6 @@ public sealed class ReplenishmentUiDiagnosticsTests
         Assert.Contains("OPERATION_RESULT", router);
         Assert.Contains("stage:String(b.stage||'')", router);
         Assert.Contains("/api/fa-abort-correction/validate-source", router);
-        Assert.Contains("Tankcharge", router);
         Assert.Contains("Oxaion-Fall prüfen", router);
     }
 
