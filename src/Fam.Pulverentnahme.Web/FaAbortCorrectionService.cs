@@ -23,6 +23,25 @@ public sealed record FaAbortCorrectionRequest(
     int ExpectedMaterialStatus,
     decimal CorrectedActualConsumptionKg) : ISeparatePersonnelRequest;
 
+public sealed record FaAbortSourceCheckRequest(
+    string PersonnelNo,
+    string PersonnelName,
+    string TankWarehouse,
+    string Article,
+    string TankBatch,
+    string OrderNo,
+    int MaterialPosition,
+    decimal ExpectedConsumedKg) : ISeparatePersonnelRequest;
+
+public sealed record FaAbortSourceCheckResponse(
+    bool Allowed,
+    string Message,
+    string SourceWarehouse,
+    string SourceBatch,
+    string ReportNo,
+    string ReportDate,
+    string ReportTime);
+
 internal sealed record FaFeedbackReference(
     string Firm,
     string ReportNo,
@@ -69,6 +88,61 @@ public sealed class FaAbortCorrectionService
     }
 
     public Task<SeparateOperation?> GetAsync(string id, CancellationToken ct) => _store.GetAsync(Kind, id, ct);
+
+    public async Task<FaAbortSourceCheckResponse> ValidateSourceAsync(
+        FaAbortSourceCheckRequest request,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.PersonnelNo)
+            || string.IsNullOrWhiteSpace(request.TankWarehouse)
+            || string.IsNullOrWhiteSpace(request.Article)
+            || string.IsNullOrWhiteSpace(request.TankBatch)
+            || string.IsNullOrWhiteSpace(request.OrderNo)
+            || request.MaterialPosition <= 0
+            || request.ExpectedConsumedKg <= 0m)
+            throw new ArgumentException("Mitarbeiter, Tank, Artikel/Mix, FA, Materialposition und ursprüngliche Verbrauchsmenge sind erforderlich.");
+
+        await using var session = await _oxaion.ConnectAsync(ct);
+        try
+        {
+            var storno = await OpenStornoListAsync(
+                session,
+                request.PersonnelNo,
+                request.OrderNo,
+                request.Article,
+                request.MaterialPosition,
+                ct);
+
+            var feedback = FindUniqueFeedback(
+                storno.List.Xml,
+                request.OrderNo,
+                request.MaterialPosition,
+                request.Article,
+                request.ExpectedConsumedKg,
+                request.TankWarehouse,
+                request.TankBatch);
+
+            return new FaAbortSourceCheckResponse(
+                true,
+                $"Die gültige Oxaion-Rückmeldung gehört zu Tank {feedback.Warehouse} / Mix-Charge {feedback.Batch}. Automatische Jobabbruch-Korrektur ist für diesen Tank zulässig.",
+                feedback.Warehouse,
+                feedback.Batch,
+                feedback.ReportNo,
+                feedback.ReportDate,
+                feedback.ReportTime);
+        }
+        finally
+        {
+            try
+            {
+                await session.CallAsync("PW22000J", "*CLOSE", new Dictionary<string, string>(), CancellationToken.None);
+            }
+            catch
+            {
+                // Read-only validation cleanup only.
+            }
+        }
+    }
 
     public async Task<SeparateOperation> ExecuteAsync(FaAbortCorrectionRequest request, CancellationToken ct)
     {
@@ -128,7 +202,13 @@ public sealed class FaAbortCorrectionService
                 await using var session = await _oxaion.ConnectAsync(ct);
                 try
                 {
-                    var storno = await OpenStornoListAsync(session, request, ct);
+                    var storno = await OpenStornoListAsync(
+                        session,
+                        request.PersonnelNo,
+                        request.OrderNo,
+                        request.Article,
+                        request.MaterialPosition,
+                        ct);
                     var feedback = FindUniqueFeedback(
                         storno.List.Xml,
                         request.OrderNo,
@@ -349,12 +429,10 @@ public sealed class FaAbortCorrectionService
         string warehouse,
         string batch)
     {
-        // PW22021R *FIRSTLIST is the standard Oxaion storno list and is already restricted
-        // to currently valid/stornable feedback rows. Therefore a single row matching the
-        // FA/material identity must not be rejected solely because the descriptive source
-        // text (WW_TX70B) is formatted differently from the currently scanned tank data.
-        // Tank/mix remain a disambiguator when several otherwise identical valid rows exist
-        // and are verified strictly again after STORNO before any corrected MK is started.
+        // PW22021R *FIRSTLIST is already the standard Oxaion list of valid/stornable
+        // feedback rows. Automatic job-abort correction is nevertheless allowed only
+        // when the original feedback source still matches the currently scanned tank
+        // and mix batch. Returning material to a different current batch is forbidden.
         var eligible = ParseFeedbacks(xml);
         var coreMatches = eligible
             .Where(x => x.OrderNo == orderNo
@@ -363,32 +441,45 @@ public sealed class FaAbortCorrectionService
                 && Math.Abs(x.QuantityKg - quantityKg) < 0.0005m)
             .ToList();
 
-        if (coreMatches.Count == 1)
-            return coreMatches[0];
-
-        if (coreMatches.Count > 1)
+        if (coreMatches.Count == 0)
         {
-            var sourceMatches = coreMatches
-                .Where(x => x.Warehouse.Equals(warehouse, StringComparison.OrdinalIgnoreCase)
-                    && x.Batch == batch)
-                .ToList();
-            if (sourceMatches.Count == 1)
-                return sourceMatches[0];
-
+            var candidateSummary = eligible.Count == 1
+                ? $" Oxaion-Kandidat: FA={eligible[0].OrderNo}, Pos={eligible[0].MaterialPosition}, Artikel={eligible[0].Article}, Menge={eligible[0].QuantityKg:0.###} kg."
+                : "";
             throw new ProcessConflictException(
-                $"Mehrere ({coreMatches.Count}) gültige Oxaion-Materialrückmeldungen passen zu FA, Position, Artikel und Menge; " +
-                $"davon passen {sourceMatches.Count} eindeutig zu Tank {warehouse} / Mix {batch}. Automatischer Storno ist gesperrt.");
+                $"Keine passende gültige Oxaion-Materialrückmeldung gefunden. Erwartet: FA={orderNo}, Pos={materialPosition}, Artikel={article}, Menge={quantityKg:0.###} kg.{candidateSummary} Es wurde nichts storniert.");
         }
 
-        var candidateSummary = eligible.Count == 1
-            ? $" Oxaion-Kandidat: FA={eligible[0].OrderNo}, Pos={eligible[0].MaterialPosition}, Artikel={eligible[0].Article}, " +
-              $"Menge={eligible[0].QuantityKg:0.###} kg, Quelle={eligible[0].Warehouse}/{eligible[0].Batch}."
-            : "";
+        var exactSourceMatches = coreMatches
+            .Where(x => x.Warehouse.Equals(warehouse, StringComparison.OrdinalIgnoreCase)
+                && x.Batch == batch)
+            .ToList();
+
+        if (exactSourceMatches.Count == 1)
+            return exactSourceMatches[0];
+
+        if (coreMatches.Count == 1)
+        {
+            var original = coreMatches[0];
+            if (string.IsNullOrWhiteSpace(original.Warehouse) || string.IsNullOrWhiteSpace(original.Batch))
+                throw new ProcessConflictException(
+                    "Dieser Fertigungsauftrag kann nicht automatisch rückgebucht werden, weil Tank/Mix-Charge der ursprünglichen Oxaion-Rückmeldung nicht eindeutig lesbar sind. " +
+                    "Bitte den Fall in Oxaion prüfen und gegebenenfalls manuell über Lagerbelege korrigieren. Es wurde nichts storniert.");
+
+            throw new ProcessConflictException(
+                $"Dieser Fertigungsauftrag kann nicht auf den gescannten Tank zurückgebucht werden, weil sich die Tankcharge seit der ursprünglichen FA-Buchung geändert hat. " +
+                $"Ursprüngliche Rückmeldung: Tank {original.Warehouse} / Mix-Charge {original.Batch}. " +
+                $"Aktuell gescannt: Tank {warehouse} / Mix-Charge {batch}. " +
+                "Automatische Rückbuchung ist gesperrt. Bitte den Fall in Oxaion prüfen und gegebenenfalls manuell über Lagerbelege korrigieren. Es wurde nichts storniert.");
+        }
+
+        if (exactSourceMatches.Count == 0)
+            throw new ProcessConflictException(
+                $"Es gibt {coreMatches.Count} gültige Oxaion-Rückmeldungen für FA, Position, Artikel und Menge, aber keine gehört zum aktuell gescannten Tank {warehouse} / Mix-Charge {batch}. " +
+                "Automatische Rückbuchung ist gesperrt. Bitte den Fall in Oxaion prüfen und gegebenenfalls manuell über Lagerbelege korrigieren. Es wurde nichts storniert.");
 
         throw new ProcessConflictException(
-            $"Keine passende gültige Oxaion-Materialrückmeldung gefunden (Liste: {xml.Descendants("ROW").Count()} Zeilen, " +
-            $"technisch auswertbar: {eligible.Count}). Erwartet: FA={orderNo}, Pos={materialPosition}, Artikel={article}, " +
-            $"Menge={quantityKg:0.###} kg.{candidateSummary} Es wurde nichts storniert.");
+            $"Mehrere ({exactSourceMatches.Count}) gültige Oxaion-Materialrückmeldungen passen zu FA, Position, Menge und Tank/Mix. Automatischer Storno ist gesperrt; bitte den Fall in Oxaion prüfen.");
     }
 
     internal static IReadOnlyList<FaFeedbackReference> ParseFeedbacks(XDocument xml)
@@ -423,19 +514,25 @@ public sealed class FaAbortCorrectionService
         return rows;
     }
 
-    private async Task<StornoContext> OpenStornoListAsync(OxaionSession session, FaAbortCorrectionRequest r, CancellationToken ct)
+    private async Task<StornoContext> OpenStornoListAsync(
+        OxaionSession session,
+        string personnelNo,
+        string orderNo,
+        string article,
+        int materialPosition,
+        CancellationToken ct)
     {
-        var pos = r.MaterialPosition.ToString(CultureInfo.InvariantCulture);
-        var penu = PersonnelService.ToOxaionPersonnelNumber(r.PersonnelNo);
-        var objectKey = r.OrderNo + r.MaterialPosition.ToString("00000", CultureInfo.InvariantCulture) + r.Article;
+        var pos = materialPosition.ToString(CultureInfo.InvariantCulture);
+        var penu = PersonnelService.ToOxaionPersonnelNumber(personnelNo);
+        var objectKey = orderNo + materialPosition.ToString("00000", CultureInfo.InvariantCulture) + article;
         var load = await session.CallAsync("PW22000J", "*LOADNEW", Dict(
             ("STTXOA", "FAUNPOSN"), ("AMPOSN", pos), ("PCDPOSI", pos),
-            ("PCBGNR", r.OrderNo), ("STTOBI", objectKey), ("AMIDNK", r.Article),
+            ("PCBGNR", orderNo), ("STTOBI", objectKey), ("AMIDNK", article),
             ("PCANWG", "PPS"), ("KEYTYPE", "PWAMA"), ("STANWG", "PPS"),
-            ("STORNO", "J"), ("AMFAUN", r.OrderNo), ("ARAKKZ", "MK")), ct);
+            ("STORNO", "J"), ("AMFAUN", orderNo), ("ARAKKZ", "MK")), ct);
         OxaionSession.AssertNoFcod(load);
         var state = Merge(load.Dta, Dict(
-            ("ARAKKZ", "M*"), ("ARFAUN", r.OrderNo), ("ARPOSN", pos),
+            ("ARAKKZ", "M*"), ("ARFAUN", orderNo), ("ARPOSN", pos),
             ("ARPENU", penu), ("ARFIRM", _options.Firm)));
         var ston = await session.CallAsync("PW22000J", "*STON", state, ct);
         OxaionSession.AssertNoFcod(ston);
