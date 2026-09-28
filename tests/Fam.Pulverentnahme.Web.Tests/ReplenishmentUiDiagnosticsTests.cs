@@ -65,6 +65,9 @@ public sealed class ReplenishmentUiDiagnosticsTests
         Assert.Contains("faAbortProcess", router);
         Assert.Contains("OPERATION_RESULT", router);
         Assert.Contains("stage:String(b.stage||'')", router);
+        Assert.Contains("/api/fa-abort-correction/validate-source", router);
+        Assert.Contains("Tankcharge", router);
+        Assert.Contains("Oxaion-Fall prüfen", router);
     }
 
     [Fact]
@@ -81,11 +84,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV34RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV35RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-staging-v34-storno-single-row-20260928", source);
+        Assert.Contains("fam-pulver-staging-v35-fa-abort-source-guard-20260928", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
