@@ -160,7 +160,7 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 
 - **Trigger:** Beim Vorgang `Pulver aus Tank auslagern` weicht die auf 0,001 kg normalisierte gewogene Netto-Pulvermenge `Qphys` vom unmittelbar zuvor bestaetigten Oxaion-Tankbestand `Qsys` ab.
 - **Pruefungen:** Mitarbeiter, Tank, Artikel, Mix-Charge und `Qsys` erneut online bestaetigen. Differenz ausschliesslich als `abs(Qphys-Qsys)` bestimmen.
-- **Backend-Aktion bei Minderbestand:** Eigene idempotente Teiltransaktion mit `I2 = Bestandskorr. Abgang (Schwund)` auf exakt Tank/Artikel/Mix-Charge. Im aktuellen FAM-STAGING-Referenzablauf Kostenstelle 6000.
+- **Backend-Aktion bei Minderbestand:** Eigene idempotente Teiltransaktion mit `I2 = Bestandskorr. Abgang (Schwund)` auf exakt Tank/Artikel/Mix-Charge. Die App setzt die FAM-Kontierung explizit in der Position: Geschaeftsbereich `PSWERK=21` und Kostenstelle `PSKSTL=6000`; eine leere `LBSKSB`-Vorbelegung im Buchungsschluessel ist zulaessig.
 - **Backend-Aktion bei Mehrbestand:** Eigene idempotente Teiltransaktion mit `I1 = Bestandskorrektur Zugang` auf exakt Tank/Artikel/Mix-Charge. Im aktuellen FAM-STAGING-Referenzablauf Kostenstelle 5100.
 - **Oxaion-Aktion:** Lagerbeleg `LB20100J`; Korrekturposition `LB20115J`, bestaetigter `TCODE=WIN2`-/`LOADWIN2`-Ablauf; Persistierung `LB20110R *UPD`; anschliessend Beleg schliessen und exakt verifizieren.
 - **Fortsetzung:** Erst nach eindeutig erfolgreicher Korrektur und erneut gelesenem Tankbestand exakt `Qphys` wird die bewaehrte `LF/LE`-Umlagerung ueber `Qphys` gestartet.
