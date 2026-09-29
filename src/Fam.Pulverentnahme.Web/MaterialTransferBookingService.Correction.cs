@@ -6,6 +6,13 @@ public sealed partial class MaterialTransferBookingService
 {
     internal const string FamCorrectionBusinessArea = "21";
 
+    internal static string CorrectionStockDirection(string bookingKey) => bookingKey switch
+    {
+        "I1" => "1", // Oxaion TX_B1SB01: Zugang
+        "I2" => "2", // Oxaion TX_B1SB01: Abgang
+        _ => throw new ArgumentOutOfRangeException(nameof(bookingKey), bookingKey, "Only I1/I2 correction directions are confirmed.")
+    };
+
     private static readonly HashSet<string> ConfirmedCorrectionCostCenterFcod =
         new(StringComparer.OrdinalIgnoreCase) { "KST0001", "KST1260" };
 
@@ -395,6 +402,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSWERK", FamCorrectionBusinessArea),
             ("PSPOSI", "1"),
             ("PSBWKZ", bookingKey),
+            ("TX_B1SB01", CorrectionStockDirection(bookingKey)),
             ("PSIDNR", article),
             ("I_PSIDNR", article),
             ("DEMO_IDNR", article),
