@@ -49,6 +49,9 @@ Bedienablauf:
 8. Vor einer schreibenden Buchung Tankbestand, Mitarbeiter, Lagerort und Lagerplatz erneut serverseitig validieren.
 9. Falls `Qphys` und `Qsys` nach der noch festzulegenden Waagen-/Rundungsregel abweichen, muss zuerst der Tankbestand auf den physisch festgestellten Bestand korrigiert und danach erneut gelesen werden.
 10. Erst wenn der Oxaion-Tankbestand der physisch bestaetigten Menge entspricht, wird die gewogene Menge mit der bestaetigten First-LF-/LF-LE-Logik ausgelagert.
+11. Erst nach eindeutigem `SUCCESS` und final verifizierter LF/LE-Auslagerung fragt die App: `Etiketten drucken?`.
+12. Bei `Ja` wird die positive ganze Stückzahl abgefragt und nochmals bestätigt; danach wird der am 29.09.2026 aufgezeichnete Oxaion-Lageretikettendruck auf der eindeutigen LE-Zielbewegung gestartet.
+13. Etikettendruck und Materialbuchung sind getrennte korrelierte Operationen. Ein Druckfehler ändert den erfolgreichen Tank-Out nicht.
 
 Verbindlich fuer die Mengenlogik:
 
@@ -60,7 +63,7 @@ Verbindlich fuer die Mengenlogik:
 - Ist der Ausgang einer Korrektur unklar, darf kein `LF` gestartet werden.
 - Ist die Korrektur erfolgreich, aber der anschliessende Transfer unklar, wird die Korrektur nicht automatisch rueckgaengig gemacht; der Gesamtvorgang geht in Klaerung.
 
-Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind `I1 = Bestandskorrektur Zugang` und `I2 = Bestandskorr. Abgang (Schwund)` technisch bestaetigt. Die WebApp verwendet fuer den aktuellen STAGING-Stand die im Mitschnitt nachgewiesenen Kostenstellen `I1 -> 5100` und `I2 -> 6000`; diese Zuordnung ist FAM-STAGING-spezifisch und muss bei einem Firmen-/Produktivwechsel erneut bestaetigt werden. I1/I2 werden als eigene korrelierte Teiltransaktion gebucht; erst nach exakt bestaetigtem Tankbestand wird die vorhandene LF/LE-Umlagerung gestartet.
+Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind `I1 = Bestandskorrektur Zugang` und `I2 = Bestandskorr. Abgang (Schwund)` technisch bestaetigt. Verbindlicher aktueller FAM-Stand seit 29.09.2026: **I1 und I2 verwenden beide `PSWERK=21` und `PSKSTL=5100`**. Die historische I2-Kombination 03/6000 ist damit für die WebApp abgelöst. I1/I2 werden als eigene korrelierte Teiltransaktion gebucht; erst nach exakt bestaetigtem Tankbestand wird die vorhandene LF/LE-Umlagerung gestartet.
 
 Verbindlich fuer die Zielauswahl:
 
@@ -71,6 +74,8 @@ Verbindlich fuer die Zielauswahl:
 - Auf Android startet die Auswahl ohne geoeffnete Bildschirmtastatur. Die Tastatur wird nur ueber das sichtbare Tastatur-Symbol bewusst aktiviert.
 
 Der First-LF-Fix und die noch notwendige Live-STAGING-Bestaetigung sind in `docs/STAGING_TEST_FIXES_2026-09-08.md` und `docs/OPEN_POINTS.md` festgehalten. Die neue Wiegungs-/Korrekturlogik sowie die dafuer noch erforderlichen Mitschnitte stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
+
+Der optionale Etikettendruck nach erfolgreicher Auslagerung ist in `docs/TANK_OUT_LABEL_PRINT_2026-09-29.md` dokumentiert. Die Bediener-Stückzahl wird als `EK99103R.MENGE` übergeben; die Druckwarteschlange wird aus der aktuellen Oxaion-`MN50100J *GETTABLE`-Konfiguration übernommen und nicht hart codiert.
 
 ## Neues Pulver in Tank fuellen
 
