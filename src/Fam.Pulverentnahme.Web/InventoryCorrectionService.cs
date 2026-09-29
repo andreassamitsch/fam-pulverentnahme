@@ -76,7 +76,6 @@ public sealed class InventoryCorrectionService
                         $"Tankbestand hat sich vor der {request.BookingKey}-Korrektur geändert. " +
                         $"Aktuell {row.Article}/{row.Batch}/{row.QuantityKg:0.###} kg.");
 
-                var costCenter = request.BookingKey == "I2" ? "6000" : "5100";
                 await _booking.BookInventoryCorrectionAsync(
                     tx,
                     DateOnly.FromDateTime(DateTime.Today),
@@ -90,7 +89,6 @@ public sealed class InventoryCorrectionService
                     request.TankWarehouseText,
                     request.Batch,
                     request.CorrectionQuantityKg,
-                    costCenter,
                     ct);
 
                 if (tx.Status != TransactionStatuses.Success)
