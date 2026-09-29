@@ -66,8 +66,9 @@ public sealed class TankOutLabelPrintService
             await using var session = await _oxaion.ConnectAsync(ct);
             try
             {
-                var movement = await ReadUniqueTargetMovementAsync(session, parent, parentRequest, ct);
                 documentOpened = true;
+                var target = await ReadUniqueTargetMovementAsync(session, parent, parentRequest, ct);
+                var movement = target.Movement;
 
                 await SaveEventAsync(tx, "LABEL_TARGET_CONFIRMED",
                     $"Zielbewegung LE auf {movement.Warehouse}/{movement.StorageBin} · Charge {movement.Batch} · {movement.Quantity:0.###} kg eindeutig bestätigt.", ct);
@@ -83,7 +84,7 @@ public sealed class TankOutLabelPrintService
                 OxaionSession.AssertNoFcod(await session.CallAsync(
                     "LB20090J",
                     "*CHKPOPUP",
-                    Merge(positionKey, Dict(("SSID", GetCurrentListSsid(parent.HeaderDta!)))),
+                    Merge(positionKey, Dict(("SSID", target.Ssid))),
                     ct));
 
                 var labelCall = await session.CallAsync("LB20100J", "*CALLA4ETI", positionKey, ct);
@@ -206,7 +207,7 @@ public sealed class TankOutLabelPrintService
         }
     }
 
-    private async Task<MovementRow> ReadUniqueTargetMovementAsync(
+    private async Task<(MovementRow Movement, string Ssid)> ReadUniqueTargetMovementAsync(
         OxaionSession session,
         SeparateOperation parent,
         TankOutRequest request,
@@ -227,9 +228,6 @@ public sealed class TankOutLabelPrintService
         if (string.IsNullOrWhiteSpace(ssid))
             throw new InvalidOperationException("LB20090J *SHORT did not return SSID for label printing.");
 
-        // Keep the list SSID in the header state for the trace-confirmed LB20090J *CHKPOPUP call.
-        parent.HeaderDta!["SSID"] = ssid;
-
         OxaionSession.AssertNoFcod(await session.CallAsync("LB20110R", "*GETHDR", Dict(("SSID", ssid)), ct));
         var list = await session.CallAsync("LB20110R", "*FIRSTLIST", Dict(
             ("FLD", ""),
@@ -242,7 +240,9 @@ public sealed class TankOutLabelPrintService
 
         var rows = MixBookingService.ParseMovements(list.Xml);
         var weighedKg = TankOutService.RoundKg(request.WeighedQuantityKg ?? request.QuantityKg);
-        return FindUniqueLabelMovement(rows, request.Article, request.Batch, request.TargetWarehouse, request.TargetStorageBin, weighedKg);
+        return (
+            FindUniqueLabelMovement(rows, request.Article, request.Batch, request.TargetWarehouse, request.TargetStorageBin, weighedKg),
+            ssid);
     }
 
     internal static MovementRow FindUniqueLabelMovement(
@@ -323,9 +323,6 @@ public sealed class TankOutLabelPrintService
             ("SLNANW", "LBS"),
             ("SLNPOS", "1"),
             ("PSBGNR", documentNo));
-
-    private static string GetCurrentListSsid(IReadOnlyDictionary<string, string> headerDta) =>
-        Get(headerDta, "SSID");
 
     private static void ValidateLabelLoad(IReadOnlyDictionary<string, string> dta, string documentNo, string timestamp)
     {
