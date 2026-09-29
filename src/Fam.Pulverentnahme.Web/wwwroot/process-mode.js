@@ -1,9 +1,10 @@
 'use strict';
 
 (function(){
-  const MODES={REPLENISH:'replenish',TANK_OUT:'tank-out',FILL_NEW:'fill-new',FA_CONSUMPTION:'fa-consumption',FA_ABORT:'fa-abort-correction',INVENTORY:'inventory'};
+  const MODES={REPLENISH:'replenish',TANK_OUT:'tank-out',LABEL_REPRINT:'label-reprint',FILL_NEW:'fill-new',FA_CONSUMPTION:'fa-consumption',FA_ABORT:'fa-abort-correction',INVENTORY:'inventory'};
   let mode=null,baseRefresh=null,busy=false;
   let outState=null;
+  let reprintState={candidates:[],selected:null};
   let fillState={tank:null,article:'',articleText:'',colors:null,sources:[],targetBatch:''};
   let faState={tank:null,row:null,colors:null,order:null,material:null,amount:''};
   let abortState={tank:null,row:null,colors:null,order:null,material:null,amount:''};
@@ -60,6 +61,7 @@
     const choice=document.createElement('section');choice.id='processChoiceStep';choice.className='card stepCard lockedStep';choice.innerHTML=`<h2>Vorgang auswählen</h2><div class="processGrid">
       <button class="processChoice" data-mode="replenish" type="button"><b>Pulver nachfüllen</b><span>Vorhandenes Pulver im Tank mit Charge(n) ergänzen</span></button>
       <button class="processChoice" data-mode="tank-out" type="button"><b>Pulver aus Tank auslagern</b><span>Kompletten Tankbestand auf Lagerort / Lagerplatz buchen</span></button>
+      <button class="processChoice" data-mode="label-reprint" type="button"><b>Etiketten nachdrucken</b><span>Etiketten zu einer bereits erfolgreichen Tank-Auslagerung erneut drucken</span></button>
       <button class="processChoice" data-mode="fill-new" type="button"><b>Neues Pulver in Tank füllen</b><span>Leeren Tank mit Charge(n) befüllen; immer neue Mix-Charge</span></button>
       <button class="processChoice" data-mode="fa-consumption" type="button"><b>Pulver auf Fertigungsauftrag buchen</b><span>Tank, Fertigungsauftrag und zusätzlichen Verbrauch erfassen</span></button>
       <button class="processChoice" data-mode="fa-abort-correction" type="button"><b>Korrekturbuchung Fertigungsauftrag (Jobabbruch)</b><span>Ursprünglichen Verbrauch stornieren und tatsächlichen Verbrauch neu buchen</span></button>
