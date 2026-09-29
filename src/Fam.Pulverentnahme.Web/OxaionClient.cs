@@ -164,7 +164,7 @@ public sealed class OxaionSession : IAsyncDisposable
         return new OxaionCallResult(raw, xml, ReadDta(xml));
     }
 
-    private static bool IsXmlDeclarationOnly(string raw)
+    internal static bool IsXmlDeclarationOnly(string raw)
     {
         var value = (raw ?? "").Trim();
         return value.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
