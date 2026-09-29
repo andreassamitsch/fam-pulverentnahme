@@ -61,6 +61,28 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            '.\scripts\start-staging.ps1',
+            '.\scripts\start-staging-published.ps1',
+            '.\scripts\staging-sql-secrets.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref]$tokens,
+              [ref]$errors
+            )
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+            }
+          }
+
       - name: Build
         run: dotnet build .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --configuration Release --no-restore
 
