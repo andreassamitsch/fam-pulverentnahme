@@ -229,6 +229,11 @@ Seit 18.09.2026 gelten fuer die technisch bestaetigten Korrekturprozesse zusaetz
 
 ### Etikettendruck nach erfolgreichem Tank-Out
 
+- Ein eigenständiger Nachdruck ist eine neue Drucktransaktion und darf nur auf einem bereits erfolgreichen Tank-Out basieren.
+- Frühere `SUCCESS`-Druckaufträge dürfen bewusst ergänzt werden; ihre erfolgreich angeforderte Etikettenanzahl wird angezeigt, aber nicht automatisch erneut verwendet.
+- Sobald für dieselbe Tank-Auslagerung ein Druckauftrag `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` ist, blockiert das Backend jeden neuen Druck mit neuer `clientOperationId`. Damit kann der Bediener die Kein-Blind-Reprint-Regel nicht über den Nachdruckdialog umgehen.
+- Der neue Druckoperator kann vom ursprünglichen Auslagerungsoperator abweichen; entscheidend ist eine gültige aktuelle Personal-Session, die exakt zum neuen Druckrequest passt.
+
 - Etikettendruck wird erst nach eindeutigem `SUCCESS` der Materialbuchung angeboten und ist eine **eigene** korrelierte Operation.
 - Ein Druckfehler darf den bereits erfolgreichen I1/I2-/LF/LE-Materialvorgang nicht auf Fehler zurücksetzen und niemals eine erneute Materialbuchung auslösen.
 - Vor `MN50100J *RUN` eindeutig abgelehnte/abgebrochene Druckvorbereitung bedeutet nur: Druck wurde nicht gestartet.
