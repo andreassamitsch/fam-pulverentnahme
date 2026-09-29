@@ -217,9 +217,9 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Testbetrieb: vorhandener IIS auf dem Datenbankserver ist moeglich.
 - Bevorzugter Produktivbetrieb: eigener Web-/Application-Server beziehungsweise eigene VM mit IIS und ASP.NET Core Hosting Bundle.
 - Kommunikation erfolgt produktiv verschluesselt per HTTPS; Web NFC benoetigt bereits technisch einen sicheren Kontext.
-- Secrets werden ueber eine noch festzulegende sichere Laufzeitkonfiguration bereitgestellt und niemals im Repository gespeichert.
+- Secrets werden niemals im Repository gespeichert. Fuer STAGING sind die beiden SQL-Connection-Strings per Windows-DPAPI benutzer-/rechnergebunden persistiert; die finale produktive Secret-Bereitstellung bleibt getrennt festzulegen.
 - Der Oxaion-Laufzeitbenutzer ist nicht fest im Anwendungscode konfiguriert; der STAGING-Starter fragt Benutzer und Passwort interaktiv ab.
-- Der STAGING-Starter fragt `Syncos__ConnectionString` und `OxaionSql__ConnectionString` getrennt und verdeckt ab, sofern sie nicht bereits als Umgebungsvariablen vorhanden sind.
+- Der STAGING-Starter verwendet fuer `Syncos__ConnectionString` und `OxaionSql__ConnectionString` folgende Reihenfolge: vorhandene Umgebungsvariable -> lokal per DPAPI gespeicherter Wert -> einmalige verdeckte Eingabe. Neu eingegebene Werte werden verschluesselt unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` gespeichert; `-ResetStoredSqlConnections` loescht diese lokale Speicherung bewusst.
 - `PersonnelAuthentication__ConnectionString` verwendet im STAGING-Starter denselben Syncos-Wert; der Oxaion-SQL-Wert wird nicht dafuer wiederverwendet.
 - PWA-Assets muessen mit einer kontrollierten Cache- und Versionsstrategie ausgeliefert werden.
 
