@@ -531,8 +531,10 @@ public sealed partial class MaterialTransferBookingService
             ("mode", "replace"));
         if (!string.IsNullOrWhiteSpace(plainField))
             first["PFLD"] = plainField;
-        if (!string.IsNullOrWhiteSpace(search))
-            first["SEARCH"] = search;
+        // The recorded F4 list requests always carry XMLSight=*SEARCH and SEARCH,
+        // including SEARCH="" for the batch list.
+        first["XMLSight"] = "*SEARCH";
+        first["SEARCH"] = search ?? "";
         if (includeNewActg)
             first["NEW_ACTG"] = "TRUE";
 
