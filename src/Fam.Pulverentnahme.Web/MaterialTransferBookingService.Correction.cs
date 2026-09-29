@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Xml.Linq;
 
 namespace Fam.Pulverentnahme.Web;
 
@@ -245,8 +246,11 @@ public sealed partial class MaterialTransferBookingService
             ("PSBGDT", Iso(bookingDate)),
             ("PSBGKZ", "MB"),
             ("PSFIRM", _options.Firm),
+            ("PSPOSI", "1"),
             ("PSBMN1", "0,000"),
             ("PSBMN2", "0,000"),
+            ("TX_B1SB01", ExpectedCorrectionStockDirection(bookingKey)),
+            ("TX_FIRST", "J"),
             ("KEYTYPE", CorrectionDialogKeyType),
             ("SSID", ssid),
             ("SNR", "1"),
@@ -263,20 +267,20 @@ public sealed partial class MaterialTransferBookingService
         OxaionSession.AssertNoFcod(created);
         var state = Merge(seed, created.Dta);
         var amount = FormatQty(quantityKg);
-
-        var description = bookingKey == "I2"
-            ? "Bestandskorr. Abgang (Schwund)"
-            : "Bestandskorrektur Zugang";
         var expectedDirection = ExpectedCorrectionStockDirection(bookingKey);
 
-        // Fresh JET recordings from 2026-09-29 show that the successful I1/I2 dialog
-        // sends the final accounting and direction already in the first PUTNEW:
-        // PSWERK=21, PSKSTL=5100, TX_KSTL=3D-Druck, TX_B1SB01=1/2 and KEYTYPE=LKOPF.
+        // Do not jump directly to the final-looking form payload. The fresh successful
+        // 2026-09-29 JET traces prove that LB20115J first runs the field-specific F4/plain
+        // lookups. Besides validating the real keys, those calls establish the same dialog
+        // state Oxaion uses before entryChkIDNR04. TX_* description fields are taken from
+        // those Oxaion responses rather than invented by the WebApp.
+        state = await PrepareCorrectionDialogStateAsync(
+            session, tx, state, bookingKey, article, warehouse, batch, amount, ct);
+
         var firstPass = Merge(state, CorrectionFields(
             tx, bookingDate, op, bookingKey, article, articleText,
             warehouse, warehouseText, batch,
             "0,000", amount, "J"));
-        firstPass["TX_BWKZ"] = description;
 
         var firstResult = await session.CallAsync("LB20115J", "*PUTNEW", firstPass, ct);
         var firstFcod = FirstText(firstResult.Xml, "FCOD");
@@ -335,6 +339,222 @@ public sealed partial class MaterialTransferBookingService
             $"{bookingKey} correction position confirmed exactly by Oxaion.", ct);
     }
 
+    private async Task<Dictionary<string, string>> PrepareCorrectionDialogStateAsync(
+        OxaionSession session,
+        SeparateOperation tx,
+        Dictionary<string, string> state,
+        string bookingKey,
+        string article,
+        string warehouse,
+        string batch,
+        string amount,
+        CancellationToken ct)
+    {
+        state["TX_B1SB01"] = ExpectedCorrectionStockDirection(bookingKey);
+        state["TX_FIRST"] = "J";
+        state["PSPOSI"] = "1";
+        state["I_PSIDNR"] = article;
+
+        // 1) Booking key: LB20115J *F4 -> US50002R.
+        var bookingKeyF4 = Merge(state, Dict(
+            ("PSBWKZ", bookingKey),
+            ("MFLD", "PSBWKZ"),
+            ("PFIELD", "TX_BWKZ"),
+            ("FIELD", "*NONE PSBWKZ")));
+        var bookingRows = await ReadCorrectionF4RowsAsync(
+            session,
+            bookingKeyF4,
+            "US50002R",
+            "*NONE PSBWKZ",
+            "TX_BWKZ",
+            "PSBWKZ",
+            bookingKey,
+            includeNewActg: false,
+            ct);
+        var bookingMatch = RequireSingleCorrectionRow(
+            bookingRows,
+            row => Key(row, "PSBWKZ").Equals(bookingKey, StringComparison.Ordinal),
+            $"Buchungsschlüssel {bookingKey}");
+        state["PSBWKZ"] = bookingKey;
+        state["TX_BWKZ"] = Key(bookingMatch, "TX_BWKZ");
+        await SaveEventAsync(tx, "CORRECTION_DIALOG_BOOKING_KEY_VALIDATED",
+            $"{bookingKey} was resolved through the confirmed LB20115J/US50002R F4 path.", ct);
+
+        // 2) Warehouse: LB20115J *F4 -> US16601R.
+        state["PSBMN2"] = amount;
+        var warehouseF4 = Merge(state, Dict(
+            ("PSLAGO", warehouse),
+            ("MFLD", "PSLAGO"),
+            ("PFIELD", "TX_LAGO"),
+            ("FIELD", "PSLAGO")));
+        var warehouseRows = await ReadCorrectionF4RowsAsync(
+            session,
+            warehouseF4,
+            "US16601R",
+            "PSLAGO",
+            "TX_LAGO",
+            "PSLAGO",
+            warehouse,
+            includeNewActg: false,
+            ct);
+        var warehouseMatch = RequireSingleCorrectionRow(
+            warehouseRows,
+            row => Key(row, "PSLAGO").Equals(warehouse, StringComparison.OrdinalIgnoreCase),
+            $"Lagerort {warehouse}");
+        state["PSLAGO"] = warehouse;
+        state["TX_LAGO"] = Key(warehouseMatch, "TX_LAGO");
+        await SaveEventAsync(tx, "CORRECTION_DIALOG_WAREHOUSE_VALIDATED",
+            $"Warehouse {warehouse} was resolved through the confirmed LB20115J/US16601R F4 path.", ct);
+
+        // 3) Batch/article: LB20115J *F4 -> US17402R. The UI opens the batch list and
+        // selects the exact batch/article pair; it does not type a display text into TX_*.
+        var batchF4 = Merge(state, Dict(
+            ("PSPONR", ""),
+            ("MFLD", "PSPONR"),
+            ("FIELD", "PSPONR PSIDNR")));
+        var batchRows = await ReadCorrectionF4RowsAsync(
+            session,
+            batchF4,
+            "US17402R",
+            "PSPONR PSIDNR",
+            "",
+            "PSPONR",
+            "",
+            includeNewActg: true,
+            ct);
+        var batchMatch = RequireSingleCorrectionRow(
+            batchRows,
+            row => Key(row, "PSPONR").Equals(batch, StringComparison.Ordinal)
+                && Key(row, "PSIDNR").Equals(article, StringComparison.OrdinalIgnoreCase),
+            $"Charge {batch} / Artikel {article}");
+        state["PSPONR"] = batch;
+        state["PSIDNR"] = article;
+        state["I_PSIDNR"] = article;
+        state["POIDNR"] = Key(batchMatch, "POIDNR");
+        if (string.IsNullOrWhiteSpace(state["POIDNR"])) state["POIDNR"] = article;
+        await SaveEventAsync(tx, "CORRECTION_DIALOG_BATCH_VALIDATED",
+            $"Batch {batch} / article {article} was resolved through the confirmed LB20115J/US17402R F4 path.", ct);
+
+        // 4) Article display text comes from Oxaion's confirmed GETPLAIN path.
+        var articlePlain = await session.CallAsync("US00006J", "*GETPLAIN", Dict(
+            ("I_PSIDNR", article),
+            ("MFLD", "PSIDNR"),
+            ("PGMN", "LB20115J"),
+            ("PSIDNR", article),
+            ("PFIELD", "TX_IDNR"),
+            ("FIELD", "PSIDNR")), ct);
+        OxaionSession.AssertNoFcod(articlePlain);
+        var articleText = Get(articlePlain.Dta, "TX_IDNR");
+        if (string.IsNullOrWhiteSpace(articleText))
+            throw new ProcessConflictException(
+                $"Oxaion lieferte für Artikel {article} über den bestätigten GETPLAIN-Weg keine Bezeichnung.");
+        state["TX_IDNR"] = articleText;
+        await SaveEventAsync(tx, "CORRECTION_DIALOG_ARTICLE_RESOLVED",
+            $"Article {article} display text was resolved by Oxaion.", ct);
+
+        // 5) Fixed FAM accounting keys are 21 / 5100, but the display description is still
+        // resolved from the real Oxaion cost-center list. This validates the pair and avoids
+        // hard-coding TX_KSTL.
+        OxaionSession.AssertNoFcod(await session.CallAsync("US00006J", "*GETPLAIN", Dict(
+            ("MFLD", "PSKSTL"),
+            ("PGMN", "LB20115J"),
+            ("PSWERK", FamCorrectionBusinessArea),
+            ("PFIELD", "TX_KSTL"),
+            ("FIELD", "*NONE PSWERK PSKSTL"),
+            ("PSKSTL", "")), ct));
+
+        state["PSWERK"] = FamCorrectionBusinessArea;
+        state["PSKSTL"] = FamCorrectionCostCenter;
+        var costCenterF4 = Merge(state, Dict(
+            ("MFLD", "PSKSTL"),
+            ("PFIELD", "TX_KSTL"),
+            ("FIELD", "*NONE PSWERK PSKSTL")));
+        var costCenterRows = await ReadCorrectionF4RowsAsync(
+            session,
+            costCenterF4,
+            "US11001R",
+            "*NONE PSWERK PSKSTL",
+            "TX_KSTL",
+            "PSKSTL",
+            FamCorrectionCostCenter,
+            includeNewActg: false,
+            ct);
+        var costCenterMatch = RequireSingleCorrectionRow(
+            costCenterRows,
+            row => Key(row, "PSWERK").Equals(FamCorrectionBusinessArea, StringComparison.Ordinal)
+                && Key(row, "PSKSTL").Equals(FamCorrectionCostCenter, StringComparison.Ordinal),
+            $"GB {FamCorrectionBusinessArea} / Kostenstelle {FamCorrectionCostCenter}");
+        state["PSWERK"] = FamCorrectionBusinessArea;
+        state["PSKSTL"] = FamCorrectionCostCenter;
+        state["TX_KSTL"] = Key(costCenterMatch, "TX_KSTL");
+        if (string.IsNullOrWhiteSpace(state["TX_KSTL"]))
+            throw new ProcessConflictException(
+                $"Oxaion lieferte für GB {FamCorrectionBusinessArea} / Kostenstelle {FamCorrectionCostCenter} keine Bezeichnung.");
+        await SaveEventAsync(tx, "CORRECTION_DIALOG_COST_CENTER_VALIDATED",
+            $"GB {FamCorrectionBusinessArea} / KST {FamCorrectionCostCenter} was resolved through the confirmed LB20115J/US11001R F4 path.", ct);
+
+        return state;
+    }
+
+    private async Task<IReadOnlyList<XElement>> ReadCorrectionF4RowsAsync(
+        OxaionSession session,
+        Dictionary<string, string> positionState,
+        string expectedProgram,
+        string fields,
+        string plainField,
+        string masterField,
+        string search,
+        bool includeNewActg,
+        CancellationToken ct)
+    {
+        var lookup = await session.CallAsync("LB20115J", "*F4", positionState, ct);
+        OxaionSession.AssertNoFcod(lookup);
+        var listSsid = Get(lookup.Dta, "SSID");
+        if (string.IsNullOrWhiteSpace(listSsid)
+            || !string.Equals(Get(lookup.Dta, "PGMN"), expectedProgram, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"LB20115J F4 for {masterField} did not open the confirmed {expectedProgram} list.");
+
+        var header = Dict(
+            ("FLD", fields),
+            ("CPY-FRSSID", ""),
+            ("NOHWPgm", expectedProgram.EndsWith("R", StringComparison.Ordinal)
+                ? expectedProgram[..^1]
+                : expectedProgram),
+            ("SSID", listSsid));
+        if (!string.IsNullOrWhiteSpace(plainField))
+            header["PFLD"] = plainField;
+        OxaionSession.AssertNoFcod(await session.CallAsync(expectedProgram, "*GETHDR", header, ct));
+
+        var first = Dict(
+            ("FLD", fields),
+            ("SSID", listSsid),
+            ("mode", "replace"));
+        if (!string.IsNullOrWhiteSpace(plainField))
+            first["PFLD"] = plainField;
+        if (!string.IsNullOrWhiteSpace(search))
+            first["SEARCH"] = search;
+        if (includeNewActg)
+            first["NEW_ACTG"] = "TRUE";
+
+        return await ReadCompleteF4RowsAsync(session, expectedProgram, listSsid, first, ct);
+    }
+
+    private static XElement RequireSingleCorrectionRow(
+        IReadOnlyList<XElement> rows,
+        Func<XElement, bool> predicate,
+        string description)
+    {
+        var matches = rows.Where(predicate).ToList();
+        if (matches.Count != 1)
+            throw new ProcessConflictException(
+                $"{description} wurde in der bestätigten Oxaion-Auswahlliste nicht eindeutig gefunden (Treffer: {matches.Count}).");
+        return matches[0];
+    }
+
+    private static string Key(XElement row, string name)
+        => row.Element("KEY")?.Element(name)?.Value.Trim() ?? "";
+
     private Dictionary<string, string> CorrectionFields(
         SeparateOperation tx,
         DateOnly bookingDate,
@@ -362,18 +582,12 @@ public sealed partial class MaterialTransferBookingService
             ("PSBWKZ", bookingKey),
             ("TX_B1SB01", ExpectedCorrectionStockDirection(bookingKey)),
             ("PSIDNR", article),
-            ("I_PSIDNR", article),
-            ("DEMO_IDNR", article),
-            ("POIDNR", article),
-            ("TX_IDNR", articleText ?? ""),
             ("PSLAGO", warehouse),
-            ("TX_LAGO", TextOrCode(warehouseText, warehouse)),
             ("PSLAPL", ""),
             ("PSPONR", batch),
             ("PSBMN1", q1),
             ("PSBMN2", q2),
             ("PSKSTL", FamCorrectionCostCenter),
-            ("TX_KSTL", FamCorrectionCostCenterText),
             ("TX_FIRST", first),
             ("KEYTYPE", CorrectionDialogKeyType),
             ("mode", "merge"));
