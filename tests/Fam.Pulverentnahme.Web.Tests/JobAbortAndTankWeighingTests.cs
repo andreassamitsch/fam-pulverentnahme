@@ -7,23 +7,62 @@ namespace Fam.Pulverentnahme.Web.Tests;
 public sealed class JobAbortAndTankWeighingTests
 {
     [Theory]
-    [InlineData("I1", "1")]
-    [InlineData("I2", "2")]
-    public void CorrectionUsesConfirmedOxaionStockDirection(string bookingKey, string expectedDirection)
+    [InlineData("I1", "1", "KST1260")]
+    [InlineData("I2", "2", "KST0001")]
+    public void CorrectionUsesConfirmedOxaionValidationStates(
+        string bookingKey,
+        string expectedDirection,
+        string expectedCostCenterFcod)
     {
-        Assert.Equal(expectedDirection, MaterialTransferBookingService.CorrectionStockDirection(bookingKey));
+        Assert.Equal(expectedDirection, MaterialTransferBookingService.ExpectedCorrectionStockDirection(bookingKey));
+        Assert.Equal(expectedCostCenterFcod, MaterialTransferBookingService.ExpectedCorrectionCostCenterFcod(bookingKey));
     }
 
     [Fact]
-    public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingIsSetByApp()
+    public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingComesFromValidatedPosition()
     {
         Assert.True(MaterialTransferBookingService.CorrectionBookingKeyMatches(
             "I2",
             "I2",
             "Bestandskorr. Abgang (Schwund)",
             "J"));
+    }
 
-        Assert.Equal("21", MaterialTransferBookingService.FamCorrectionBusinessArea);
+    [Theory]
+    [InlineData("6000", "03", "Allgemeine Produktionskosten")]
+    [InlineData("5100", "21", "3D-Druck")]
+    public void CorrectionCostCenterSelectionUsesExactOxaionF4Pair(
+        string costCenter,
+        string expectedBusinessArea,
+        string expectedText)
+    {
+        var rows = XDocument.Parse("""
+<TABLE>
+  <ROW><KEY><TX_KSTL>Allgemein</TX_KSTL><PSWERK>00</PSWERK><PSKSTL>9000</PSKSTL></KEY></ROW>
+  <ROW><KEY><TX_KSTL>Allgemeine Produktionskosten</TX_KSTL><PSWERK>03</PSWERK><PSKSTL>6000</PSKSTL></KEY></ROW>
+  <ROW><KEY><TX_KSTL>3D-Druck</TX_KSTL><PSWERK>21</PSWERK><PSKSTL>5100</PSKSTL></KEY></ROW>
+</TABLE>
+""").Descendants("ROW");
+
+        var selected = MaterialTransferBookingService.SelectCorrectionCostCenter(rows, costCenter);
+
+        Assert.Equal(expectedBusinessArea, selected.BusinessArea);
+        Assert.Equal(costCenter, selected.CostCenter);
+        Assert.Equal(expectedText, selected.Description);
+    }
+
+    [Fact]
+    public void CorrectionCostCenterSelectionFailsClosedWhenCostCenterIsAmbiguous()
+    {
+        var rows = XDocument.Parse("""
+<TABLE>
+  <ROW><KEY><TX_KSTL>A</TX_KSTL><PSWERK>03</PSWERK><PSKSTL>6000</PSKSTL></KEY></ROW>
+  <ROW><KEY><TX_KSTL>B</TX_KSTL><PSWERK>21</PSWERK><PSKSTL>6000</PSKSTL></KEY></ROW>
+</TABLE>
+""").Descendants("ROW");
+
+        Assert.Throws<ProcessConflictException>(() =>
+            MaterialTransferBookingService.SelectCorrectionCostCenter(rows, "6000"));
     }
 
     [Fact]
