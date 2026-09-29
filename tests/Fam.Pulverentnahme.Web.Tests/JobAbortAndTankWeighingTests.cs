@@ -6,6 +6,14 @@ namespace Fam.Pulverentnahme.Web.Tests;
 
 public sealed class JobAbortAndTankWeighingTests
 {
+    [Theory]
+    [InlineData("I1", "1")]
+    [InlineData("I2", "2")]
+    public void CorrectionUsesConfirmedOxaionStockDirection(string bookingKey, string expectedDirection)
+    {
+        Assert.Equal(expectedDirection, MaterialTransferBookingService.CorrectionStockDirection(bookingKey));
+    }
+
     [Fact]
     public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingIsSetByApp()
     {
