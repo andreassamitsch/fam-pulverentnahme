@@ -218,7 +218,8 @@ Seit 18.09.2026 gelten fuer die technisch bestaetigten Korrekturprozesse zusaetz
 
 ### Tankwiegung vor LF/LE
 
-- Wenn ein I1/I2-Teilvorgang bereits einen Oxaion-Lagerbelegkopf erzeugt hat und danach `LB20115J *PUTNEW` technisch abbricht, bleibt der Teilvorgang `MANUAL_REVIEW_REQUIRED`. Auch wenn noch keine bestaetigte Lagerbewegung vorliegt, darf der Gesamtvorgang nicht blind mit neuer `clientOperationId` wiederholt werden, bevor der Teilvorgang beziehungsweise der angelegte Oxaion-Beleg abgeglichen wurde.
+- Wenn ein I1/I2-Teilvorgang bereits einen Oxaion-Lagerbelegkopf erzeugt hat und danach im Dialogaufbau oder bei `LB20115J *PUTNEW` technisch abbricht, bleibt der Teilvorgang `MANUAL_REVIEW_REQUIRED`. Auch wenn noch keine bestaetigte Lagerbewegung vorliegt, darf der Gesamtvorgang nicht blind mit neuer `clientOperationId` wiederholt werden, bevor der Teilvorgang beziehungsweise der angelegte Oxaion-Beleg abgeglichen wurde.
+- Sonderfall aus den frischen I1/I2-Mitschnitten: `US00006J *GETPLAIN` fuer `PSKSTL` liefert erfolgreich nur die XML-Deklaration ohne `PARM`/`DTA`. Dieser leere Response darf nur an diesem explizit bestaetigten Dialogschritt als erwarteter Erfolg behandelt werden; er ist **kein** allgemeines Signal, leere Oxaion-Antworten zu akzeptieren.
 
 - Eine erforderliche I1-/I2-Bestandskorrektur ist eine eigene idempotente Teiltransaktion mit eigener `clientOperationId`-Ableitung.
 - Bei `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` der Korrektur darf **kein** LF/LE-Transfer gestartet werden.
