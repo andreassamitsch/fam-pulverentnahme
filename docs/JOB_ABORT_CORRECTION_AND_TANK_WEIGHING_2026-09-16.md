@@ -308,10 +308,10 @@ Bestaetigt:
 - Fensterzustand `TCODE=WIN2` / `LB20115J *LOADWIN2`
 - Referenzbuchung: EOS1 / RP.00010 / Mix `RP00010MIX_20260909_140218` / 0,001 kg
 - Tankbestand reduzierte sich exakt von 128,869 kg auf 128,868 kg
-- im STAGING-Mitschnitt verwendete Kostenstelle: `6000`;
+- historischer STAGING-Mitschnitt: Kostenstelle `6000`; **neue verbindliche FAM-Kontierung ab 29.09.2026: `PSWERK=21`, `PSKSTL=5100` auch fuer I2**;
 - `LBKLAS=J` bleibt die notwendige Freigabe des Buchungsschluessels als Lagerbuchung. Die zwischenzeitlich im Test gesetzte Vorbelegung `LBSKSB=0050000` war **keine fachliche Voraussetzung** fuer FAM und wurde spaeter als falsche Vorbelegung erkannt. `LBSKSB` darf fuer I2 leer sein und wird von der WebApp nicht mehr als Freigabekriterium verwendet.
-- Die Kostenstelle bleibt fuer den FAM-Ablauf festgelegt (I2 `PSKSTL=6000`, I1 `PSKSTL=5100`). Der Geschaeftsbereich darf aber nicht vor dem ersten `PUTNEW` pauschal mit `21` belegt werden. Im erfolgreichen Mitschnitt wird nach `KST0001`/`KST1260` die Kostenstellen-F4-Liste `LB20115J *F4 -> US11001R` geoeffnet und der eindeutige Paarwert uebernommen: I2/6000 -> `PSWERK=03` (`Allgemeine Produktionskosten`), I1/5100 -> `PSWERK=21` (`3D-Druck`).
-- Android-Live-Tests vom 29.09.2026: Sowohl vor als auch nach dem zwischenzeitlichen expliziten Setzen von `TX_B1SB01` brach der erste I2-`LB20115J *PUTNEW` in `entryChkIDNR04` mit NullPointerException ab. Der erneute Feld-fuer-Feld-Abgleich mit dem erfolgreichen 18.09.-JET zeigt den eigentlichen Ablaufunterschied: Der erste I2-Request hat `PSWERK`, `PSKSTL` und `TX_B1SB01` leer. Oxaion antwortet mit `KST0001`; danach liefert die F4-Kostenstellenliste fuer 6000 den Geschaeftsbereich 03. Erst der folgende erfolgreiche `PUTNEW` liefert `TCODE=WIN2` und `TX_B1SB01=2`. Die WebApp spielt nun genau diese Reihenfolge nach und validiert die von Oxaion abgeleitete Richtung vor dem Persistieren.
+- Verbindliche Fachentscheidung vom 29.09.2026: Die WebApp verwendet fuer **beide** Bestandskorrekturen I1 und I2 immer `PSWERK=21` und `PSKSTL=5100`. Damit wird die historische I2-Kombination 03/6000 bewusst nicht mehr nachgebildet und die Kostenstellen-F4-Auswahl fuer die WebApp-Kontierung entfaellt.
+- Android-Live-Tests vom 29.09.2026: Der Versuch mit dem dynamisch nachgebildeten historischen Kostenstellenablauf scheiterte weiterhin bereits im ersten I2-`LB20115J *PUTNEW` mit `NullPointerException` in `entryChkIDNR04`; Korrekturbeleg `FA26MB00089` wurde als Kopf angelegt, aber ohne bestaetigte Bewegung. Die neue 21/5100-Entscheidung ist deshalb auch technisch als explizite Vorbelegung der Korrekturposition umgesetzt. `TX_B1SB01` wird weiterhin nicht erfunden; der von Oxaion gelieferte Richtungszustand wird vor `LB20110R *UPD` gegen 2 fuer I2 bzw. 1 fuer I1 geprueft.
 
 ### 6.3 I1 - positiver Mehrbestand
 
@@ -326,7 +326,7 @@ Bestaetigt:
 - waehrend des Mitschnitts wurde fuer I1 `LBKLAS=J` gesetzt. Die WebApp prueft diese Freigabe vor der Buchung;
 - nach Kostenstelle 5100 liefert der Referenzfall `VEP1804` (`Preis fehlt`). Der Mitschnitt zeigt anschliessend `US11600J *READ` fuer den Artikel und die Uebernahme von `TLDNPR` als `TX_BRPR` (Referenzwert 29,29030). Die WebApp liest diesen Preis deshalb bei `VEP1804` dynamisch aus Oxaion; der Referenzwert wird nicht hart codiert.
 
-Die Kostenstellen 6000/5100 sind durch diesen **FAM-STAGING-Ablauf** bestaetigt. Auch die im Referenzmitschitt aufgeloesten Paare 03/6000 (I2) und 21/5100 (I1) sind STAGING-spezifisch. Die WebApp liest deshalb den Geschaeftsbereich ueber die Oxaion-F4-Liste statt ihn hart zu codieren. Die Kostenstellen selbst duerfen bei spaeterem Firmen-/Produktivwechsel nicht ungeprueft uebernommen werden.
+Der historische Mitschnitt bleibt als technischer Nachweis fuer den Oxaion-Dialogablauf erhalten, ist fuer die aktuelle FAM-Kontierung aber ueberholt. Fachlich verbindlich ist jetzt fuer I1 und I2 ausschliesslich **GB 21 / Kostenstelle 5100**. Ein neuer STAGING-Livetest dieser Kombination ist noch erforderlich.
 
 ### 6.4 Implementierter Tank-Auslagerungsablauf
 
