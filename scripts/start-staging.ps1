@@ -1,10 +1,17 @@
 [CmdletBinding()]
 param(
-    [int]$Port = 5080
+    [int]$Port = 5080,
+    [switch]$ResetStoredSqlConnections
 )
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
+
+$sqlSecretHelper = Join-Path $PSScriptRoot "staging-sql-secrets.ps1"
+if (-not (Test-Path -LiteralPath $sqlSecretHelper)) {
+    throw "SQL secret helper not found: $sqlSecretHelper"
+}
+. $sqlSecretHelper
 
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root "src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj"
@@ -26,29 +33,9 @@ $securePassword = Read-Host "Oxaion STAGING password for $oxaionUser" -AsSecureS
 $credential = New-Object System.Management.Automation.PSCredential($oxaionUser, $securePassword)
 $plainPassword = $credential.GetNetworkCredential().Password
 
-$syncosConnectionString = $env:Syncos__ConnectionString
-if ([string]::IsNullOrWhiteSpace($syncosConnectionString)) {
-    Write-Host ""
-    Write-Host "Syncos STAGING wird fuer NFC und den Passwort-Fallback benoetigt." -ForegroundColor Cyan
-    $secureSyncos = Read-Host "SYNCOS STAGING SQL connection string" -AsSecureString
-    $syncosCredential = New-Object System.Management.Automation.PSCredential("syncos", $secureSyncos)
-    $syncosConnectionString = $syncosCredential.GetNetworkCredential().Password
-}
-if ([string]::IsNullOrWhiteSpace($syncosConnectionString)) {
-    throw "Syncos SQL connection string must not be empty for personnel authentication."
-}
-
-$oxaionSqlConnectionString = $env:OxaionSql__ConnectionString
-if ([string]::IsNullOrWhiteSpace($oxaionSqlConnectionString)) {
-    Write-Host ""
-    Write-Host "Fuer die RP.* Lagerbestandsansicht wird eine separate, rein lesende SQL-Verbindung zur richtigen Oxaion STAGING Datenbank benoetigt." -ForegroundColor Cyan
-    $secureOxaionSql = Read-Host "OXAION STAGING SQL connection string (read-only inventory)" -AsSecureString
-    $oxaionSqlCredential = New-Object System.Management.Automation.PSCredential("oxaion-sql", $secureOxaionSql)
-    $oxaionSqlConnectionString = $oxaionSqlCredential.GetNetworkCredential().Password
-}
-if ([string]::IsNullOrWhiteSpace($oxaionSqlConnectionString)) {
-    throw "Oxaion SQL connection string must not be empty for the RP.* inventory view."
-}
+$sqlConnections = Resolve-FamStagingSqlConnections -ResetStoredSqlConnections:$ResetStoredSqlConnections
+$syncosConnectionString = $sqlConnections.SyncosConnectionString
+$oxaionSqlConnectionString = $sqlConnections.OxaionSqlConnectionString
 
 try {
     $env:Oxaion__User = $oxaionUser
@@ -61,6 +48,7 @@ try {
     Write-Host "FAM Pulverentnahme STAGING" -ForegroundColor Cyan
     Write-Host "Oxaion HTTP: http://oxapp.cnc-domain.fuchshofer:11118 / Firma 103 / User $oxaionUser" -ForegroundColor DarkGray
     Write-Host "Syncos RFID + Passwortpruefung: konfiguriert" -ForegroundColor DarkGray
+    Write-Host "SQL-Verbindungen: verschluesselt gespeichert fuer diesen Windows-Benutzer (falls nicht per Umgebungsvariable vorgegeben)" -ForegroundColor DarkGray
     Write-Host "Oxaion SQL Lagerbestandsansicht: konfiguriert (read-only)" -ForegroundColor DarkGray
     Write-Host "WebApp: http://localhost:$Port" -ForegroundColor Green
     Write-Host "Android im selben Netz: http://<IP-DIESES-PCS>:$Port" -ForegroundColor Green
