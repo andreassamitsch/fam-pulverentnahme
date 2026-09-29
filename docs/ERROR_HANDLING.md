@@ -227,6 +227,16 @@ Seit 18.09.2026 gelten fuer die technisch bestaetigten Korrekturprozesse zusaetz
 - Ist I1/I2 bestaetigt, aber der spaetere LF/LE-Transfer unklar, wird die Korrektur weder automatisch storniert noch erneut gebucht. Nur der LF/LE-Teil darf ueber seine vorhandene lesende Verifikation geklaert werden.
 - Ein Reconcile des Gesamtvorgangs startet niemals nachtraeglich automatisch einen noch nicht begonnenen LF/LE-Schreibschritt.
 
+### Etikettendruck nach erfolgreichem Tank-Out
+
+- Etikettendruck wird erst nach eindeutigem `SUCCESS` der Materialbuchung angeboten und ist eine **eigene** korrelierte Operation.
+- Ein Druckfehler darf den bereits erfolgreichen I1/I2-/LF/LE-Materialvorgang nicht auf Fehler zurücksetzen und niemals eine erneute Materialbuchung auslösen.
+- Vor `MN50100J *RUN` eindeutig abgelehnte/abgebrochene Druckvorbereitung bedeutet nur: Druck wurde nicht gestartet.
+- Sobald `MN50100J *RUN` versendet wurde, beweist ein Timeout, Connection Reset oder fehlende Antwort nicht, dass kein Druckauftrag entstanden ist. Status `UNCERTAIN` beziehungsweise `MANUAL_REVIEW_REQUIRED`.
+- In diesem Fall **kein Blind-Reprint**. Drucker und Oxaion-Druckwarteschlange prüfen.
+- Eine erfolgreiche `MN50100J *RUN`-Antwort bestätigt die Übergabe des Druckauftrags an Oxaion, nicht das physische Herauskommen der Etiketten.
+- `MN50100J *HIDEDLG` liefert im bestätigten Referenzmitschnitt nur die XML-Deklaration; declaration-only ist ausschließlich für diesen explizit bestätigten Aufruf zulässig.
+
 ### FA-Jobabbruch
 
 - Bereits beim FA-Scan wird die gueltige Oxaion-Stornorueckmeldung rein lesend gegen den zuvor gescannten Tank und dessen Mix-Charge geprueft. Weicht Tank oder Mix-Charge von der Originalrueckmeldung ab, ist dies ein fachlicher Konflikt **vor jedem Schreibaufruf**: keine Mengeneingabe, kein Storno, keine neue MK. Bedienermeldung: Tankcharge hat sich seit der urspruenglichen FA-Buchung geaendert; Fall in Oxaion pruefen und gegebenenfalls manuell ueber Lagerbelege korrigieren.
