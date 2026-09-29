@@ -7,7 +7,6 @@ public sealed partial class MaterialTransferBookingService
 {
     internal const string FamCorrectionBusinessArea = "21";
     internal const string FamCorrectionCostCenter = "5100";
-    internal const string FamCorrectionCostCenterText = "3D-Druck";
     internal const string CorrectionDialogKeyType = "LKOPF";
 
     internal static string ExpectedCorrectionStockDirection(string bookingKey) => bookingKey switch
