@@ -317,6 +317,7 @@ Bestaetigt:
 - `TX_BWKZ`, `TX_IDNR`, `TX_LAGO` und `TX_KSTL` sind dabei die aus den Oxaion-Auswahllisten/GETPLAIN-Antworten uebernommenen Anzeige-/Bezeichnungstexte. Sie werden von der WebApp nicht mehr hart codiert. `TX_B1SB01` ist eine Ausnahme vom Namensmuster: es ist der bestaetigte Richtungs-/Dialogzustand und kein Beschreibungstext.
 - Danach folgen `LB20115J *LOADWIN2`, ein finales `*PUTNEW` mit `PSBMN1=PSBMN2=0,001` und `TX_FIRST=N`, danach `LB20110R *UPD` mit `KEYTYPE=LKOPF`. Die UPD-Liste bestaetigt eine einzelne I2-Bewegung von 0,001 kg auf `PSWERK=21` / `PSKSTL=5100`.
 - Der App-Live-Test mit Belegkopf `FA26MB00091` zeigte, dass das direkte Senden des fertig aussehenden Formularzustands **ohne** die vorgelagerten F4-/GETPLAIN-Schritte weiterhin in `entryChkIDNR04` mit NullPointerException scheitert. Deshalb spielt die WebApp jetzt die bestaetigte lesende Dialogfolge vor dem ersten `PUTNEW` nach.
+- Live-Test danach mit `FA26MB00092`: Buchungsschluessel, Lagerort, Charge/Artikel und Artikel-GETPLAIN wurden erfolgreich erreicht. Der Ablauf stoppte anschliessend mit `Oxaion response was not valid XML`. Der Mitschnittvergleich belegt: `US00006J *GETPLAIN` fuer `PSKSTL` antwortet sowohl bei der erfolgreichen I1- als auch I2-Aufzeichnung nur mit der XML-Deklaration (`<?xml ...?>`) und ohne Nutzdaten. Dieser declaration-only-Response ist deshalb fuer **genau diesen** bestaetigten Dialogschritt erlaubt; die eigentliche Kostenstellenpruefung folgt danach ueber `LB20115J *F4 -> US11001R`.
 
 ### 6.3 I1 - positiver Mehrbestand
 
