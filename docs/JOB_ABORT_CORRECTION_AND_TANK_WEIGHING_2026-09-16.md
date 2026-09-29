@@ -311,7 +311,10 @@ Bestaetigt:
 - historischer STAGING-Mitschnitt: Kostenstelle `6000`; **neue verbindliche FAM-Kontierung ab 29.09.2026: `PSWERK=21`, `PSKSTL=5100` auch fuer I2**;
 - `LBKLAS=J` bleibt die notwendige Freigabe des Buchungsschluessels als Lagerbuchung. Die zwischenzeitlich im Test gesetzte Vorbelegung `LBSKSB=0050000` war **keine fachliche Voraussetzung** fuer FAM und wurde spaeter als falsche Vorbelegung erkannt. `LBSKSB` darf fuer I2 leer sein und wird von der WebApp nicht mehr als Freigabekriterium verwendet.
 - Verbindliche Fachentscheidung vom 29.09.2026: Die WebApp verwendet fuer **beide** Bestandskorrekturen I1 und I2 immer `PSWERK=21` und `PSKSTL=5100`. Damit wird die historische I2-Kombination 03/6000 bewusst nicht mehr nachgebildet und die Kostenstellen-F4-Auswahl fuer die WebApp-Kontierung entfaellt.
-- Android-Live-Tests vom 29.09.2026: Der Versuch mit dem dynamisch nachgebildeten historischen Kostenstellenablauf scheiterte weiterhin bereits im ersten I2-`LB20115J *PUTNEW` mit `NullPointerException` in `entryChkIDNR04`; Korrekturbeleg `FA26MB00089` wurde als Kopf angelegt, aber ohne bestaetigte Bewegung. Die neue 21/5100-Entscheidung ist deshalb auch technisch als explizite Vorbelegung der Korrekturposition umgesetzt. `TX_B1SB01` wird weiterhin nicht erfunden; der von Oxaion gelieferte Richtungszustand wird vor `LB20110R *UPD` gegen 2 fuer I2 bzw. 1 fuer I1 geprueft.
+- Android-Live-Tests vom 29.09.2026: Mehrere App-Versuche scheiterten bereits im ersten I2-`LB20115J *PUTNEW` mit `NullPointerException` in `entryChkIDNR04`; zuletzt entstand nur Belegkopf `FA26MB00090`, ohne bestaetigte Bewegung.
+- Daraufhin wurde I2 manuell **neu erfolgreich aufgezeichnet**. Der erfolgreiche erste `LB20115J *PUTNEW` enthaelt fuer den Referenzfall 0,001 kg: `KEYTYPE=LKOPF`, `PSBWKZ=I2`, `PSWERK=21`, `PSKSTL=5100`, `TX_KSTL=3D-Druck`, `TX_B1SB01=2`, `TX_FIRST=J`, `PSBMN1=0,000`, `PSBMN2=0,001`, Artikel `RP.00010`, Lagerort `EOS1` und die aktuelle Mix-Charge. Die Antwort liefert direkt `TCODE=WIN2`.
+- Danach folgen exakt `LB20115J *LOADWIN2`, ein finales `*PUTNEW` mit `PSBMN1=PSBMN2=0,001` und `TX_FIRST=N`, danach `LB20110R *UPD` mit `KEYTYPE=LKOPF`. Die UPD-Liste bestaetigt eine einzelne I2-Bewegung von 0,001 kg auf `PSWERK=21` / `PSKSTL=5100`.
+- Konkrete korrigierte Abweichungen der WebApp: Im Korrekturpositionspfad wurde bislang `KEYTYPE=C_LKOPF` verwendet; ausserdem fehlten im ersten Request der bereits bestaetigte Richtungszustand und der Kostenstellentext. Die WebApp bildet jetzt den neu aufgezeichneten Requestzustand direkt nach.
 
 ### 6.3 I1 - positiver Mehrbestand
 
@@ -324,7 +327,8 @@ Bestaetigt:
 - Tankbestand erhoehte sich exakt von 128,868 kg auf 128,870 kg
 - im STAGING-Mitschnitt verwendete Kostenstelle: `5100`;
 - waehrend des Mitschnitts wurde fuer I1 `LBKLAS=J` gesetzt. Die WebApp prueft diese Freigabe vor der Buchung;
-- nach Kostenstelle 5100 liefert der Referenzfall `VEP1804` (`Preis fehlt`). Der Mitschnitt zeigt anschliessend `US11600J *READ` fuer den Artikel und die Uebernahme von `TLDNPR` als `TX_BRPR` (Referenzwert 29,29030). Die WebApp liest diesen Preis deshalb bei `VEP1804` dynamisch aus Oxaion; der Referenzwert wird nicht hart codiert.
+- Der historische 18.09.-Mitschnitt enthielt nach Kostenstelle 5100 noch den Zwischenzustand `VEP1804` und einen Preis-Leseweg. Die **neue erfolgreiche I1-Aufzeichnung vom 29.09.2026** zeigt fuer GB 21 / KST 5100 dagegen keinen solchen Zwischenfehler: Der erste `LB20115J *PUTNEW` mit `KEYTYPE=LKOPF`, `TX_B1SB01=1`, `TX_KSTL=3D-Druck`, `TX_FIRST=J`, `PSBMN1=0,000`, `PSBMN2=0,001` liefert direkt `TCODE=WIN2`. Danach folgen `LOADWIN2`, finales `PUTNEW` und `LB20110R *UPD`; die UPD-Liste bestaetigt eine einzelne I1-Bewegung von 0,001 kg auf `PSWERK=21` / `PSKSTL=5100`.
+- Fuer den aktuellen WebApp-Pfad ist deshalb die neue direkte 21/5100-Sequenz verbindlich. Der alte `VEP1804`-/Preis-Fallback wird fuer diesen Ablauf nicht mehr als erwarteter Zwischenzustand verwendet.
 
 Der historische Mitschnitt bleibt als technischer Nachweis fuer den Oxaion-Dialogablauf erhalten, ist fuer die aktuelle FAM-Kontierung aber ueberholt. Fachlich verbindlich ist jetzt fuer I1 und I2 ausschliesslich **GB 21 / Kostenstelle 5100**. Ein neuer STAGING-Livetest dieser Kombination ist noch erforderlich.
 
