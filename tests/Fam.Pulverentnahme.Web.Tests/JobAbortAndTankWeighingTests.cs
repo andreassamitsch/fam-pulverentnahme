@@ -24,6 +24,19 @@ public sealed class JobAbortAndTankWeighingTests
     }
 
     [Fact]
+    public void CorrectionCarriesAllPackageMediumInternalMirrorFieldsRequiredByLb20115()
+    {
+        var fields = MaterialTransferBookingService.CorrectionPackageInternalMirrorFields();
+
+        Assert.Equal("", fields["TX_PCKMS"]);
+        Assert.Equal("", fields["I_TX_PCKMS"]);
+        Assert.Equal("", fields["TX_PCKMM"]);
+        Assert.Equal("", fields["I_TX_PCKMM"]);
+        Assert.Equal("", fields["TX_PCKMZ"]);
+        Assert.Equal("", fields["I_TX_PCKMZ"]);
+    }
+
+    [Fact]
     public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingComesFromValidatedPosition()
     {
         Assert.True(MaterialTransferBookingService.CorrectionBookingKeyMatches(
