@@ -103,6 +103,18 @@ public static class SeparateProcessFeatureExtensions
             catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
             catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
         });
+        endpoints.MapGet("/api/tank-out/label-reprint-candidates", async (
+            string? q,
+            int? limit,
+            HttpContext http,
+            TankOutLabelPrintService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.ListReprintCandidatesAsync(q, limit ?? 30, ct)); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
         endpoints.MapGet("/api/tank-out/{id}", async (string id, HttpContext http, TankOutService service, CancellationToken ct) =>
         { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
         endpoints.MapPost("/api/tank-out/{id}/reconcile", async (string id, HttpContext http, TankOutService service, CancellationToken ct) =>
