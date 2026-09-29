@@ -34,6 +34,22 @@ public sealed record TankOutLabelPrintRequest(
     string TankOutOperationId,
     int LabelCount) : ISeparatePersonnelRequest;
 
+public sealed record TankOutLabelReprintCandidate(
+    string TankOutOperationId,
+    string DocumentNo,
+    DateTimeOffset CompletedAt,
+    string Article,
+    string ArticleText,
+    string Batch,
+    decimal QuantityKg,
+    string TargetWarehouse,
+    string TargetStorageBin,
+    int SuccessfulLabelsRequested,
+    string? LastPrintStatus,
+    DateTimeOffset? LastPrintAt,
+    bool ReprintBlocked,
+    string ReprintBlockReason);
+
 public sealed record FillNewRequest(
     string ClientOperationId,
     string PersonnelNo,
@@ -176,16 +192,42 @@ public sealed class SeparateOperationStore
         File.Move(temp, path, true);
     }
 
+    public async Task<IReadOnlyList<SeparateOperation>> ListAsync(string kind, CancellationToken ct)
+    {
+        var safeKind = Safe(kind);
+        if (safeKind.Length == 0) throw new ArgumentException("Invalid transaction kind.");
+
+        var files = Directory.EnumerateFiles(_directory, safeKind + "_*.json", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .ToArray();
+        var result = new List<SeparateOperation>(files.Length);
+        foreach (var file in files)
+        {
+            ct.ThrowIfCancellationRequested();
+            await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var operation = await JsonSerializer.DeserializeAsync<SeparateOperation>(stream, JsonOptions, ct);
+            if (operation is not null && string.Equals(operation.Kind, kind, StringComparison.Ordinal))
+                result.Add(operation);
+        }
+
+        return result
+            .OrderByDescending(x => x.UpdatedAt)
+            .ThenByDescending(x => x.CreatedAt)
+            .ToArray();
+    }
+
     public static string SerializeRequest<T>(T request) => JsonSerializer.Serialize(request, JsonOptions);
 
     private string PathFor(string kind, string id)
     {
-        static string Safe(string value) => string.Concat((value ?? "").Where(c => char.IsLetterOrDigit(c) || c is '-' or '_'));
         var k = Safe(kind);
         var i = Safe(id);
         if (k.Length == 0 || i.Length == 0) throw new ArgumentException("Invalid transaction key.");
         return Path.Combine(_directory, k + "_" + i + ".json");
     }
+
+    private static string Safe(string value) =>
+        string.Concat((value ?? "").Where(c => char.IsLetterOrDigit(c) || c is '-' or '_'));
 }
 
 public sealed class ProcessConflictException(string message) : Exception(message);
