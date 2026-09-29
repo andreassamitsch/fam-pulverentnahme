@@ -64,6 +64,64 @@ public sealed class SeparateProcessFeaturesTests
     }
 
     [Fact]
+    public void TankOutLabelPrintTargetsExactVerifiedLeMovement()
+    {
+        MovementRow[] rows =
+        [
+            new("1", "LF", "RP.00010", "MIX1", "EOS1", "", 127m, "2026-09-29-16.15.40.250000"),
+            new("1", "LE", "RP.00010", "MIX1", "FAMLAB", "KA1", 127m, "2026-09-29-16.15.40.289000")
+        ];
+
+        var row = TankOutLabelPrintService.FindUniqueLabelMovement(
+            rows, "RP.00010", "MIX1", "FAMLAB", "KA1", 127m);
+
+        Assert.Equal("LE", row.BookingKey);
+        Assert.Equal("2026-09-29-16.15.40.289000", row.Timestamp);
+    }
+
+    [Fact]
+    public void TankOutLabelPrintRejectsAmbiguousTargetMovement()
+    {
+        MovementRow[] rows =
+        [
+            new("1", "LE", "RP.00010", "MIX1", "FAMLAB", "KA1", 127m, "t1"),
+            new("1", "LE", "RP.00010", "MIX1", "FAMLAB", "KA1", 127m, "t2")
+        ];
+
+        Assert.Throws<ProcessConflictException>(() =>
+            TankOutLabelPrintService.FindUniqueLabelMovement(
+                rows, "RP.00010", "MIX1", "FAMLAB", "KA1", 127m));
+    }
+
+    [Fact]
+    public void WarehouseLabelPrintConfigUsesRecordedEk99102FormAndDynamicQueue()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW SELECTED="TRUE">
+  <KEY>
+    <PRINTPGM>EK99102J</PRINTPGM><PG>EK99102J</PG><ARBR>N</ARBR><TMPT></TMPT>
+    <DBLA>J</DBLA><OFLW>0</OFLW><PRPT>DEFAULT</PRPT><UARC>N</UARC>
+    <PRTF>*EK99102P</PRTF><CTYC>*USER</CTYC>
+  </KEY>
+  <PRT>J</PRT><PRTF>*EK99102P</PRTF><BEZC>Etikett Wareneingang</BEZC>
+  <FORA></FORA><UGOUTQ>TESTQUEUE</UGOUTQ><UGANKO>1</UGANKO><UGPASO></UGPASO>
+  <UGHOLD>J</UGHOLD><UGSAVE>J</UGSAVE><IUARC>N</IUARC><UGCTYC>*USER</UGCTYC>
+</ROW><STOP/>
+</TABLE></PARM>
+""");
+
+        var row = TankOutLabelPrintService.FindUniqueWarehouseLabelPrintConfig(xml);
+        var payload = TankOutLabelPrintService.BuildPrintTablePayload(row);
+
+        Assert.Equal("*EK99102P", payload["PRTF"]);
+        Assert.Equal("EK99102J", payload["PRINTPGM"]);
+        Assert.Equal("TESTQUEUE", payload["UGOUTQ"]);
+        Assert.Equal("1", payload["UGANKO"]);
+        Assert.Equal("J", payload["UGHOLD"]);
+    }
+
+    [Fact]
     public void TankOutVerificationRequiresExactLfLePair()
     {
         var spec = new TransferSpec(1, "LF", "RP.00010", "AlSi10Mg", "EOS1", "EOS 1 -Tank", "", "MIX1",
