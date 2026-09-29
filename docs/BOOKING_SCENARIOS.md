@@ -168,6 +168,10 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Ergebnisstatus:** Gesamtvorgang `SUCCESS` nur, wenn gegebenenfalls I1/I2 sowie LF/LE jeweils eindeutig verifiziert sind.
 - **Fehlerbehandlung:** Unklarer I1/I2-Ausgang blockiert LF/LE. Eine bereits bestaetigte Korrektur wird bei spaeter unklarem LF/LE-Ausgang nicht automatisch rueckgaengig gemacht oder erneut gebucht.
 
+- **Optionaler Schritt nach Erfolg:** Erst wenn die I1/I2-Korrektur (falls erforderlich), der Tank-Re-Read und die LF/LE-Auslagerung eindeutig erfolgreich verifiziert sind, darf die App Etikettendruck anbieten. Gedruckt wird auf Basis der eindeutigen Zielbewegung `LE` derselben Position, Charge, Ziel-Lagerort/Lagerplatz und Menge.
+- **Drucksequenz:** `LB31004R` -> `LB20090J *CHKPOPUP` -> `LB20100J *CALLA4ETI` -> `EK99103R *LOAD/*PRINTCFG` -> `MN50100J *GET/*GETTABLE/*HIDEDLG/*CHECK/*CHECKTBL/*PUTTBL/*RUN`. Die Bediener-Stückzahl ist `EK99103R.MENGE`; `UGANKO` bleibt die aus Oxaion gelesene Kopienzahl des Druckjobs.
+- **Transaktionsgrenze:** Etikettendruck hat eine eigene `clientOperationId` und ändert den bereits erfolgreichen Tank-Out nicht. Nach unklarem `MN50100J *RUN` kein Blind-Reprint.
+
 ## Szenario Q: Korrekturbuchung Fertigungsauftrag nach Jobabbruch
 
 - **Trigger:** Pulver wurde bereits beim Druckstart auf den Fertigungsauftrag gebucht; der Druckjob wurde abgebrochen und der gewogene tatsaechliche Ist-Verbrauch ist kleiner als der urspruenglich gebuchte Verbrauch.
