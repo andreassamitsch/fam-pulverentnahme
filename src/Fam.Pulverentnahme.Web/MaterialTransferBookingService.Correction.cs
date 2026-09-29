@@ -6,13 +6,8 @@ public sealed partial class MaterialTransferBookingService
 {
     internal const string FamCorrectionBusinessArea = "21";
     internal const string FamCorrectionCostCenter = "5100";
-
-    internal static string ExpectedCorrectionCostCenterFcod(string bookingKey) => bookingKey switch
-    {
-        "I1" => "KST1260",
-        "I2" => "KST0001",
-        _ => throw new ArgumentOutOfRangeException(nameof(bookingKey), bookingKey, "Only I1/I2 correction validation states are confirmed.")
-    };
+    internal const string FamCorrectionCostCenterText = "3D-Druck";
+    internal const string CorrectionDialogKeyType = "LKOPF";
 
     internal static string ExpectedCorrectionStockDirection(string bookingKey) => bookingKey switch
     {
@@ -252,7 +247,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSFIRM", _options.Firm),
             ("PSBMN1", "0,000"),
             ("PSBMN2", "0,000"),
-            ("KEYTYPE", "C_LKOPF"),
+            ("KEYTYPE", CorrectionDialogKeyType),
             ("SSID", ssid),
             ("SNR", "1"),
             ("WSTR", "1"),
@@ -269,87 +264,40 @@ public sealed partial class MaterialTransferBookingService
         var state = Merge(seed, created.Dta);
         var amount = FormatQty(quantityKg);
 
-        OxaionCallResult? validatedResult = null;
-        var enteredCostCenter = false;
-        var selectedPrice = "";
         var description = bookingKey == "I2"
             ? "Bestandskorr. Abgang (Schwund)"
             : "Bestandskorrektur Zugang";
+        var expectedDirection = ExpectedCorrectionStockDirection(bookingKey);
 
-        for (var attempt = 1; attempt <= 6; attempt++)
-        {
-            var firstPass = Merge(state, CorrectionFields(
-                tx, bookingDate, op, bookingKey, article, articleText,
-                warehouse, warehouseText, batch,
-                attempt == 1 ? "0,000" : amount, amount, "J"));
+        // Fresh JET recordings from 2026-09-29 show that the successful I1/I2 dialog
+        // sends the final accounting and direction already in the first PUTNEW:
+        // PSWERK=21, PSKSTL=5100, TX_KSTL=3D-Druck, TX_B1SB01=1/2 and KEYTYPE=LKOPF.
+        var firstPass = Merge(state, CorrectionFields(
+            tx, bookingDate, op, bookingKey, article, articleText,
+            warehouse, warehouseText, batch,
+            "0,000", amount, "J"));
+        firstPass["TX_BWKZ"] = description;
 
-            firstPass["TX_BWKZ"] = description;
-            if (!string.IsNullOrWhiteSpace(selectedPrice))
-                firstPass["TX_BRPR"] = selectedPrice;
-
-            var result = await session.CallAsync("LB20115J", "*PUTNEW", firstPass, ct);
-            state = Merge(firstPass, result.Dta);
-
-            var tcode = FirstText(result.Xml, "TCODE");
-            if (string.Equals(tcode, "WIN2", StringComparison.Ordinal))
-            {
-                validatedResult = result;
-                break;
-            }
-
-            var fcod = FirstText(result.Xml, "FCOD");
-            if (string.IsNullOrWhiteSpace(fcod))
-                continue;
-
-            if (string.Equals(fcod, ExpectedCorrectionCostCenterFcod(bookingKey), StringComparison.OrdinalIgnoreCase))
-            {
-                enteredCostCenter = true;
-                state["PSBMN1"] = amount;
-                state["PSWERK"] = FamCorrectionBusinessArea;
-                state["PSKSTL"] = FamCorrectionCostCenter;
-                await SaveEventAsync(tx, "CORRECTION_COST_CENTER_REQUIRED",
-                    $"{bookingKey} returned the confirmed {fcod} cost-accounting validation. " +
-                    $"Continuing with the binding FAM accounting GB {FamCorrectionBusinessArea} / KST {FamCorrectionCostCenter}.", ct);
-                continue;
-            }
-
-            if (string.Equals(fcod, "VEP1804", StringComparison.Ordinal) && bookingKey == "I1")
-            {
-                var priceRead = await session.CallAsync("US11600J", "*READ", Dict(
-                    ("TLIDNR", article),
-                    ("source-xml", "US116002"),
-                    ("KEYTYPE", "UTLST2")), ct);
-                OxaionSession.AssertNoFcod(priceRead);
-                selectedPrice = Get(priceRead.Dta, "TLDNPR");
-                if (!TryPositiveOxaionDecimal(selectedPrice, out _))
-                    throw new ProcessConflictException(
-                        $"I1 verlangt laut Oxaion einen positiven Preis, aber US11600J/TLDNPR liefert für {article} keinen verwendbaren Wert. " +
-                        "Es wurde keine positive Bestandskorrektur persistiert.");
-
-                state["TX_BRPR"] = selectedPrice;
-                enteredCostCenter = true;
-                state["PSBMN1"] = amount;
-                state["PSWERK"] = FamCorrectionBusinessArea;
-                state["PSKSTL"] = FamCorrectionCostCenter;
-                await SaveEventAsync(tx, "CORRECTION_PRICE_REQUIRED",
-                    $"I1 returned confirmed VEP1804. Current article price TLDNPR was read from Oxaion and will be used; no price is hard-coded.", ct);
-                continue;
-            }
-
-            OxaionSession.AssertNoFcod(result);
+        var firstResult = await session.CallAsync("LB20115J", "*PUTNEW", firstPass, ct);
+        var firstFcod = FirstText(firstResult.Xml, "FCOD");
+        if (!string.IsNullOrWhiteSpace(firstFcod))
             throw new InvalidOperationException(
-                $"Unexpected Oxaion validation state {fcod} for {bookingKey} correction.");
+                $"Fresh confirmed {bookingKey} trace expects direct TCODE=WIN2, but Oxaion returned FCOD={firstFcod}. No LB20110R *UPD was sent.");
+
+        var firstTcode = FirstText(firstResult.Xml, "TCODE");
+        if (!string.Equals(firstTcode, "WIN2", StringComparison.Ordinal))
+        {
+            OxaionSession.AssertNoFcod(firstResult);
+            throw new InvalidOperationException(
+                $"{bookingKey} correction did not reach the freshly confirmed TCODE=WIN2 state. No LB20110R *UPD was sent.");
         }
 
-        if (validatedResult is null)
+        var returnedDirection = Get(firstResult.Dta, "TX_B1SB01");
+        if (!string.Equals(returnedDirection, expectedDirection, StringComparison.Ordinal))
             throw new InvalidOperationException(
-                $"{bookingKey} correction did not reach the confirmed TCODE=WIN2 state. No LB20110R *UPD was sent.");
+                $"{bookingKey} reached TCODE=WIN2, but Oxaion returned TX_B1SB01='{returnedDirection}' instead of '{expectedDirection}'. No LB20110R *UPD was sent.");
 
-        var expectedDirection = ExpectedCorrectionStockDirection(bookingKey);
-        var actualDirection = Get(state, "TX_B1SB01");
-        if (!string.Equals(actualDirection, expectedDirection, StringComparison.Ordinal))
-            throw new InvalidOperationException(
-                $"{bookingKey} reached TCODE=WIN2, but Oxaion returned TX_B1SB01='{actualDirection}' instead of the confirmed '{expectedDirection}'. No LB20110R *UPD was sent.");
+        state = Merge(firstPass, firstResult.Dta);
 
         var win = await session.CallAsync("LB20115J", "*LOADWIN2", Dict(
             ("NOHWPgm", "LB201152"),
@@ -374,7 +322,7 @@ public sealed partial class MaterialTransferBookingService
         var update = await session.CallAsync("LB20110R", "*UPD", Merge(persistedState, Dict(
             ("SSID", ssid),
             ("mode", "update"),
-            ("KEYTYPE", "C_LKOPF"))), ct);
+            ("KEYTYPE", CorrectionDialogKeyType))), ct);
         OxaionSession.AssertNoFcod(update);
 
         var rows = MixBookingService.ParseMovements(update.Xml)
@@ -412,6 +360,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSWERK", FamCorrectionBusinessArea),
             ("PSPOSI", "1"),
             ("PSBWKZ", bookingKey),
+            ("TX_B1SB01", ExpectedCorrectionStockDirection(bookingKey)),
             ("PSIDNR", article),
             ("I_PSIDNR", article),
             ("DEMO_IDNR", article),
@@ -424,17 +373,10 @@ public sealed partial class MaterialTransferBookingService
             ("PSBMN1", q1),
             ("PSBMN2", q2),
             ("PSKSTL", FamCorrectionCostCenter),
+            ("TX_KSTL", FamCorrectionCostCenterText),
             ("TX_FIRST", first),
-            ("KEYTYPE", "C_LKOPF"),
+            ("KEYTYPE", CorrectionDialogKeyType),
             ("mode", "merge"));
-    }
-
-    private static bool TryPositiveOxaionDecimal(string value, out decimal parsed)
-    {
-        var normalized = (value ?? "").Trim();
-        if (normalized.Contains(','))
-            normalized = normalized.Replace(".", "").Replace(',', '.');
-        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed) && parsed > 0m;
     }
 
     private async Task VerifyAndCloseCorrectionAsync(
