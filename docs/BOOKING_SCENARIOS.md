@@ -182,3 +182,15 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Neue Rueckmeldung:** Nur nach dieser dreifachen Bestaetigung wird der gewogene korrigierte Ist-Verbrauch mit der bestaetigten normalen MK-Logik neu gebucht. Bei `0,000 kg` ist keine neue MK erforderlich.
 - **Ergebnisstatus:** `SUCCESS` erst nach finaler exakter Verifikation von FA-Materialposition und Tank/Mix.
 - **Fehlerbehandlung:** Bei unklarem Storno kein Blind-Retry und keine neue MK. Ist der Storno sicher erfolgreich, aber die neue MK unklar oder fehlgeschlagen, bleibt dieser Zwischenzustand sichtbar; der Gesamtvorgang darf nicht erneut von vorne gestartet werden.
+
+
+## Szenario Q: Etiketten-Nachdruck
+
+- **Trigger:** Bediener benötigt nach einer eindeutig erfolgreichen Tank-Auslagerung weitere Etiketten oder der physische Drucker hat einen bereits erfolgreich an Oxaion übergebenen Druckauftrag nicht ausgegeben.
+- **Quelle:** ausschließlich gespeicherter Tank-Out mit `SUCCESS`, Lagerbeleg und unverändertem ursprünglichem Request.
+- **Auswahl:** Lagerbeleg / Artikel / Charge / Ziel; bisherige erfolgreiche Etikettenanzahl wird angezeigt.
+- **Backend-Aktion:** neue eigene Druck-`clientOperationId`; ursprüngliche Tank-Out-ID als Referenz; exakte erneute LE-Verifikation; danach derselbe bestätigte `LB31004R -> LB20090J -> LB20100J -> EK99103R -> MN50100J`-Druckpfad.
+- **Kein Materialwrite:** keine I1/I2-, LF/LE- oder sonstige Lagerbuchung.
+- **Personal:** der aktuell angemeldete Mitarbeiter darf vom ursprünglichen Auslagerungsmitarbeiter abweichen; der Nachdruck protokolliert den aktuell handelnden Mitarbeiter.
+- **Sperre:** existiert ein Druckvorgang derselben Auslagerung mit `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`, wird kein neuer Druckauftrag gestartet.
+- **Wiederholter Erfolg:** ein früherer `SUCCESS` darf bewusst durch einen neuen Nachdruck ergänzt werden; jeder Auftrag bleibt als separate Transaktion nachvollziehbar.
