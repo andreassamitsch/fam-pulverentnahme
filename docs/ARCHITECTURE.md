@@ -232,3 +232,8 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 - Bei unklarem Buchungsergebnis bleibt der Vorgang offen beziehungsweise wird zur manuellen Pruefung markiert; er wird nicht blind wiederholt.
 - Offline erfasste Daten sind keine bestaetigten ERP-Buchungen.
 - Weitere konkrete Oxaion-Aufrufe, produktive Session-/Rolloutdetails und noch offene Offline-Grenzen sind in `docs/OPEN_POINTS.md` gefuehrt.
+
+
+### Etikettendruck nach erfolgreichem Tank-Out
+
+Nach erfolgreicher Materialauslagerung wird der optionale Lageretikettendruck als eigene Backend-Operation ausgeführt. Das Backend prüft dazu die eindeutige LE-Zielbewegung des bereits gebuchten Lagerbelegs und verwendet anschließend ausschließlich die im JET-Mitschnitt vom 29.09.2026 bestätigten Oxaion-Druckprogramme. Materialbuchung und Druckstatus bleiben getrennt; die aktuelle Druckerwarteschlange wird aus Oxaion gelesen und nicht fest im Frontend oder Backend hinterlegt.
