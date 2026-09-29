@@ -64,6 +64,72 @@ public sealed class SeparateProcessFeaturesTests
     }
 
     [Fact]
+    public void LabelReprintCandidateCountsConfirmedLabelsAndBlocksUnclearPrint()
+    {
+        var tankRequest = new TankOutRequest(
+            "tank-1", "446", "Andreas Samitsch", "EOS1", "EOS 1 -Tank",
+            "RP.00010", "AlSi10Mg", "MIX1", 127m, "FAMLAB", "KA1", 127m);
+        var tank = new SeparateOperation
+        {
+            Kind = TankOutService.Kind,
+            ClientOperationId = "tank-1",
+            Status = TransactionStatuses.Success,
+            DocumentNo = "FA26MB00101",
+            RequestJson = SeparateOperationStore.SerializeRequest(tankRequest),
+            UpdatedAt = new DateTimeOffset(2026, 9, 29, 16, 15, 0, TimeSpan.Zero)
+        };
+
+        SeparateOperation Print(string id, string status, int count, int minute) => new()
+        {
+            Kind = TankOutLabelPrintService.Kind,
+            ClientOperationId = id,
+            Status = status,
+            RelatedOperationId = "tank-1",
+            RequestJson = SeparateOperationStore.SerializeRequest(
+                new TankOutLabelPrintRequest(id, "446", "Andreas Samitsch", "tank-1", count)),
+            UpdatedAt = new DateTimeOffset(2026, 9, 29, 16, minute, 0, TimeSpan.Zero)
+        };
+
+        var candidate = TankOutLabelPrintService.BuildReprintCandidate(tank,
+        [
+            Print("p1", TransactionStatuses.Success, 6, 16),
+            Print("p2", TransactionStatuses.Success, 2, 17),
+            Print("p3", TransactionStatuses.Rejected, 99, 18),
+            Print("p4", TransactionStatuses.Uncertain, 3, 19)
+        ]);
+
+        Assert.Equal(8, candidate.SuccessfulLabelsRequested);
+        Assert.True(candidate.ReprintBlocked);
+        Assert.Equal(TransactionStatuses.Uncertain, candidate.LastPrintStatus);
+        Assert.Contains("p4", candidate.ReprintBlockReason);
+    }
+
+    [Theory]
+    [InlineData("FA26MB00101", true)]
+    [InlineData("rp.00010", true)]
+    [InlineData("mix1", true)]
+    [InlineData("KA1", true)]
+    [InlineData("something-else", false)]
+    public void LabelReprintCandidateSearchesDocumentArticleBatchAndDestination(string query, bool expected)
+    {
+        var candidate = new TankOutLabelReprintCandidate(
+            "tank-1", "FA26MB00101", DateTimeOffset.UtcNow, "RP.00010", "AlSi10Mg",
+            "MIX1", 127m, "FAMLAB", "KA1", 6, TransactionStatuses.Success,
+            DateTimeOffset.UtcNow, false, "");
+
+        Assert.Equal(expected, TankOutLabelPrintService.MatchesQuery(candidate, query));
+    }
+
+    [Theory]
+    [InlineData("UNCERTAIN", true)]
+    [InlineData("MANUAL_REVIEW_REQUIRED", true)]
+    [InlineData("SUCCESS", false)]
+    [InlineData("REJECTED", false)]
+    [InlineData("CONFLICT", false)]
+    public void LabelReprintBlocksOnlyUnclearPriorPrints(string status, bool expected) =>
+        Assert.Equal(expected, TankOutLabelPrintService.IsUnclearPrintStatus(status));
+
+    [Fact]
     public void TankOutLabelPrintTargetsExactVerifiedLeMovement()
     {
         MovementRow[] rows =
