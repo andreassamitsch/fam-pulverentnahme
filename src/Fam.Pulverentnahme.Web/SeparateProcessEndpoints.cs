@@ -13,6 +13,7 @@ public static class SeparateProcessFeatureExtensions
         services.AddSingleton<SeparateOperationStore>();
         services.AddSingleton<MaterialTransferBookingService>();
         services.AddSingleton<TankOutService>();
+        services.AddSingleton<TankOutLabelPrintService>();
         services.AddSingleton<FillNewService>();
         services.AddSingleton<FaMaterialService>();
         services.AddSingleton<FaConsumptionService>();
@@ -106,6 +107,30 @@ public static class SeparateProcessFeatureExtensions
         { if (!SessionAuthenticated(http, out var auth)) return auth!; return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound(); });
         endpoints.MapPost("/api/tank-out/{id}/reconcile", async (string id, HttpContext http, TankOutService service, CancellationToken ct) =>
         { if (!SessionAuthenticated(http, out var auth)) return auth!; try { return OperationResult(await service.ReconcileAsync(id, ct)); } catch (KeyNotFoundException) { return Results.NotFound(); } });
+
+        endpoints.MapPost("/api/tank-out/{id}/labels", async (
+            string id,
+            TankOutLabelPrintRequest request,
+            HttpContext http,
+            TankOutLabelPrintService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            if (!string.Equals(id, request.TankOutOperationId, StringComparison.Ordinal))
+                return Results.BadRequest(new { error="Tank-out operation id in route and request must match." });
+            try { return OperationResult(await service.ExecuteAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+        });
+        endpoints.MapGet("/api/tank-out-label-print/{id}", async (
+            string id,
+            HttpContext http,
+            TankOutLabelPrintService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound();
+        });
 
         endpoints.MapPost("/api/fill-new", async (FillNewRequest request, HttpContext http, FillNewService service, CancellationToken ct) =>
         {
