@@ -269,6 +269,8 @@ Mindestens anzuzeigen sind:
 
 Beim Vorgang `Pulver aus Tank auslagern` ist seit 18.09.2026 die physische Wiegung verpflichtender Bestandteil des Ablaufs. Angezeigt werden Oxaion-Systembestand `Qsys`, gewogene Netto-Pulvermenge `Qphys` und die Differenz. Fuer den aktuellen STAGING-Stand werden Mengen auf 0,001 kg normalisiert. Bei Minderbestand wird die Differenz vor der Umlagerung mit dem technisch bestaetigten Buchungsschluessel `I2 = Bestandskorr. Abgang (Schwund)` auf genau Tank/Artikel/Mix-Charge korrigiert; bei Mehrbestand entsprechend mit `I1 = Bestandskorrektur Zugang`. Nach jeder Korrektur wird der Tank erneut aus Oxaion gelesen und muss exakt `Qphys` entsprechen. Erst danach wird die gewogene Menge mit der bestaetigten `LF/LE`-Umlagerung bewegt. Bei unklarem Korrekturausgang wird kein `LF` gestartet.
 
+Nach eindeutig erfolgreicher und verifizierter LF/LE-Auslagerung fragt die WebApp optional, ob Etiketten gedruckt werden sollen. Bei `Ja` wird eine positive ganze Stückzahl abgefragt und separat bestätigt. Der Druck basiert auf der eindeutig verifizierten **LE-Zielbewegung** und folgt dem am 29.09.2026 aufgezeichneten Ablauf `LB31004R -> LB20090J *CHKPOPUP -> LB20100J *CALLA4ETI -> EK99103R -> MN50100J`. Der Druck ist eine eigene korrelierte Operation und kann die bereits erfolgreiche Materialbuchung nicht rückgängig machen. Bei unklarem Ausgang von `MN50100J *RUN` gilt kein Blind-Reprint.
+
 Kann Oxaion keinen eindeutigen Bestand ermitteln, darf die WebApp nicht raten. Der Vorgang wird beispielsweise in folgenden Faellen gestoppt:
 
 - kein Systembestand, obwohl physisch Pulver vorhanden ist
