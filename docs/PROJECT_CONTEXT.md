@@ -154,6 +154,7 @@ Verbindlich gilt:
 - Mehrere Nachfuellchargen duerfen in einem Vorgang verwendet werden. Dieselbe exakte Oxaion-Bestandsposition darf innerhalb eines Vorgangs nicht doppelt ausgewaehlt werden.
 - Direkt vor der ersten schreibenden Oxaion-Materialbuchung validiert das Backend jede Nachfuellquelle erneut anhand von Artikel, Lagerort, internem Lagerplatzschluessel, Charge und verfuegbarer Menge. Bei Abweichung wird keine Materialbuchung gestartet.
 - Fuer I1/I2-Bestandskorrekturen im FAM-Tankprozess wird die Kostenrechnungszuordnung von der WebApp explizit in der Lagerbelegposition gesetzt. Verbindlicher aktueller Stand: Geschaeftsbereich `PSWERK=21`; Kostenstelle `PSKSTL=6000` fuer I2-Schwund und `PSKSTL=5100` fuer I1-Mehrbestand. Eine Vorbelegung `LBSKSB` im Buchungsschluessel ist dafuer nicht erforderlich und darf leer sein.
+- Fuer dieselben I1/I2-Korrekturpositionen wird auch die Oxaion-Bewegungsrichtung explizit gesetzt: `TX_B1SB01=2` fuer I2/Abgang und `TX_B1SB01=1` fuer I1/Zugang. Der Live-Fehler vom 29.09.2026 zeigte, dass dieser Dialogzustand vor der Artikelpruefung vorhanden sein muss; er ist nicht durch GB oder Kostenstelle ersetzt.
 
 Technische Details stehen in `docs/OXAION_SOURCE_STOCK_LOOKUP.md`, `docs/QR_CODE_WORKFLOW.md` und `docs/WORKER_GUIDED_UI.md`.
 
