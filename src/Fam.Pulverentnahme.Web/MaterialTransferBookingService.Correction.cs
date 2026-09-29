@@ -9,6 +9,23 @@ public sealed partial class MaterialTransferBookingService
     internal const string FamCorrectionCostCenter = "5100";
     internal const string CorrectionDialogKeyType = "LKOPF";
 
+    internal static IReadOnlyDictionary<string, string> CorrectionPackageInternalMirrorFields()
+        => new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["TX_PCKMS"] = "",
+            ["I_TX_PCKMS"] = "",
+            ["TX_PCKMM"] = "",
+            ["I_TX_PCKMM"] = "",
+            ["TX_PCKMZ"] = "",
+            ["I_TX_PCKMZ"] = ""
+        };
+
+    private static void ApplyCorrectionPackageInternalMirrorFields(IDictionary<string, string> state)
+    {
+        foreach (var pair in CorrectionPackageInternalMirrorFields())
+            state[pair.Key] = pair.Value;
+    }
+
     internal static string ExpectedCorrectionStockDirection(string bookingKey) => bookingKey switch
     {
         "I1" => "1",
@@ -265,6 +282,11 @@ public sealed partial class MaterialTransferBookingService
         var created = await session.CallAsync("LB20115J", "*NEW", seed, ct);
         OxaionSession.AssertNoFcod(created);
         var state = Merge(seed, created.Dta);
+        // LB20115M_EntryPoints.entryChkIDNR04 clears the three package-medium text fields
+        // and immediately dereferences their internal mirror fields. The Oxaion source also
+        // emits I_TX_PCKMS/I_TX_PCKMM/I_TX_PCKMZ together with the external TX_* values.
+        // Keep all six fields present and empty for the confirmed powder correction dialog.
+        ApplyCorrectionPackageInternalMirrorFields(state);
         var amount = FormatQty(quantityKg);
         var expectedDirection = ExpectedCorrectionStockDirection(bookingKey);
 
@@ -576,7 +598,7 @@ public sealed partial class MaterialTransferBookingService
         string q2,
         string first)
     {
-        return Dict(
+        var fields = Dict(
             ("PSANWG", "LBS"),
             ("PSBGKZ", "MB"),
             ("PSBGNR", tx.DocumentNo!),
@@ -598,6 +620,8 @@ public sealed partial class MaterialTransferBookingService
             ("TX_FIRST", first),
             ("KEYTYPE", CorrectionDialogKeyType),
             ("mode", "merge"));
+        ApplyCorrectionPackageInternalMirrorFields(fields);
+        return fields;
     }
 
     private async Task VerifyAndCloseCorrectionAsync(
