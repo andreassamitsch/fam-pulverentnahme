@@ -19,14 +19,53 @@ public sealed class TankOutLabelPrintService
     public Task<SeparateOperation?> GetAsync(string id, CancellationToken ct) =>
         _store.GetAsync(Kind, id, ct);
 
+
+    public async Task<IReadOnlyList<TankOutLabelReprintCandidate>> ListReprintCandidatesAsync(
+        string? query,
+        int limit,
+        CancellationToken ct)
+    {
+        var normalizedQuery = (query ?? "").Trim();
+        var take = Math.Clamp(limit, 1, 100);
+        var tankOuts = await _store.ListAsync(TankOutService.Kind, ct);
+        var prints = await _store.ListAsync(Kind, ct);
+
+        var candidates = new List<TankOutLabelReprintCandidate>();
+        foreach (var tankOut in tankOuts)
+        {
+            if (!string.Equals(tankOut.Status, TransactionStatuses.Success, StringComparison.Ordinal)
+                || string.IsNullOrWhiteSpace(tankOut.DocumentNo))
+                continue;
+
+            var relatedPrints = prints
+                .Where(x => string.Equals(x.RelatedOperationId, tankOut.ClientOperationId, StringComparison.Ordinal))
+                .OrderByDescending(x => x.UpdatedAt)
+                .ToArray();
+
+            var candidate = BuildReprintCandidate(tankOut, relatedPrints);
+            if (!MatchesQuery(candidate, normalizedQuery))
+                continue;
+
+            candidates.Add(candidate);
+            if (candidates.Count >= take)
+                break;
+        }
+
+        return candidates;
+    }
+
     public async Task<SeparateOperation> ExecuteAsync(TankOutLabelPrintRequest request, CancellationToken ct)
     {
         Validate(request);
 
         var gate = _store.GetLock(Kind, request.ClientOperationId);
+        var parentGate = _store.GetLock(Kind + "-parent", request.TankOutOperationId);
         await gate.WaitAsync(ct);
         try
         {
+            await parentGate.WaitAsync(ct);
+            try
+            {
             var requestJson = SeparateOperationStore.SerializeRequest(request);
             var existing = await _store.GetAsync(Kind, request.ClientOperationId, ct);
             if (existing is not null)
@@ -45,9 +84,16 @@ public sealed class TankOutLabelPrintService
                 throw new ProcessConflictException("Der erfolgreiche Tank-Auslagerungsvorgang enthält keinen verifizierbaren Oxaion-Beleg.");
 
             var parentRequest = parent.ReadRequest<TankOutRequest>();
-            if (!string.Equals(parentRequest.PersonnelNo, request.PersonnelNo, StringComparison.Ordinal)
-                || !string.Equals(parentRequest.PersonnelName, request.PersonnelName, StringComparison.Ordinal))
-                throw new ProcessConflictException("Mitarbeiter des Druckauftrags stimmt nicht mit dem abgeschlossenen Tank-Auslagerungsvorgang überein.");
+            var existingPrints = (await _store.ListAsync(Kind, ct))
+                .Where(x => string.Equals(x.RelatedOperationId, request.TankOutOperationId, StringComparison.Ordinal)
+                    && !string.Equals(x.ClientOperationId, request.ClientOperationId, StringComparison.Ordinal))
+                .OrderByDescending(x => x.UpdatedAt)
+                .ToArray();
+            var unresolvedPrint = existingPrints.FirstOrDefault(x => IsUnclearPrintStatus(x.Status));
+            if (unresolvedPrint is not null)
+                throw new ProcessConflictException(
+                    $"Für diese Tank-Auslagerung existiert bereits ein unklarer Etikettendruck ({unresolvedPrint.ClientOperationId}, {unresolvedPrint.Status}). " +
+                    "Drucker bzw. Oxaion-Druckwarteschlange zuerst klären; kein Blind-Nachdruck.");
 
             var tx = new SeparateOperation
             {
@@ -200,6 +246,11 @@ public sealed class TankOutLabelPrintService
             }
 
             return tx;
+            }
+            finally
+            {
+                parentGate.Release();
+            }
         }
         finally
         {
