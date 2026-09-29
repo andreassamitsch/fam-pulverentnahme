@@ -7,15 +7,13 @@ namespace Fam.Pulverentnahme.Web.Tests;
 public sealed class JobAbortAndTankWeighingTests
 {
     [Theory]
-    [InlineData("I1", "1", "KST1260")]
-    [InlineData("I2", "2", "KST0001")]
-    public void CorrectionUsesConfirmedOxaionValidationStates(
+    [InlineData("I1", "1")]
+    [InlineData("I2", "2")]
+    public void CorrectionUsesFreshlyRecordedOxaionDirection(
         string bookingKey,
-        string expectedDirection,
-        string expectedCostCenterFcod)
+        string expectedDirection)
     {
         Assert.Equal(expectedDirection, MaterialTransferBookingService.ExpectedCorrectionStockDirection(bookingKey));
-        Assert.Equal(expectedCostCenterFcod, MaterialTransferBookingService.ExpectedCorrectionCostCenterFcod(bookingKey));
     }
 
     [Fact]
@@ -29,10 +27,12 @@ public sealed class JobAbortAndTankWeighingTests
     }
 
     [Fact]
-    public void BothInventoryCorrectionKeysUseBindingFamAccounting()
+    public void BothInventoryCorrectionKeysUseBindingFamAccountingAndRecordedDialogContext()
     {
         Assert.Equal("21", MaterialTransferBookingService.FamCorrectionBusinessArea);
         Assert.Equal("5100", MaterialTransferBookingService.FamCorrectionCostCenter);
+        Assert.Equal("3D-Druck", MaterialTransferBookingService.FamCorrectionCostCenterText);
+        Assert.Equal("LKOPF", MaterialTransferBookingService.CorrectionDialogKeyType);
     }
 
     [Fact]
