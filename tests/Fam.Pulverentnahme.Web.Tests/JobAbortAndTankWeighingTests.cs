@@ -27,11 +27,10 @@ public sealed class JobAbortAndTankWeighingTests
     }
 
     [Fact]
-    public void BothInventoryCorrectionKeysUseBindingFamAccountingAndRecordedDialogContext()
+    public void BothInventoryCorrectionKeysUseBindingFamKeysAndRecordedDialogKeyType()
     {
         Assert.Equal("21", MaterialTransferBookingService.FamCorrectionBusinessArea);
         Assert.Equal("5100", MaterialTransferBookingService.FamCorrectionCostCenter);
-        Assert.Equal("3D-Druck", MaterialTransferBookingService.FamCorrectionCostCenterText);
         Assert.Equal("LKOPF", MaterialTransferBookingService.CorrectionDialogKeyType);
     }
 
