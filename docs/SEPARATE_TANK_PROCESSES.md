@@ -10,6 +10,7 @@ Nach erfolgreicher Mitarbeiter-Anmeldung waehlt der Bediener einen eigenstaendig
 
 - `Pulver nachfuellen`
 - `Pulver aus Tank auslagern`
+- `Etiketten nachdrucken`
 - `Neues Pulver in Tank fuellen`
 - `Pulver auf Fertigungsauftrag buchen`
 - `Korrekturbuchung Fertigungsauftrag (Jobabbruch)`
@@ -76,6 +77,26 @@ Verbindlich fuer die Zielauswahl:
 Der First-LF-Fix und die noch notwendige Live-STAGING-Bestaetigung sind in `docs/STAGING_TEST_FIXES_2026-09-08.md` und `docs/OPEN_POINTS.md` festgehalten. Die neue Wiegungs-/Korrekturlogik sowie die dafuer noch erforderlichen Mitschnitte stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
 
 Der optionale Etikettendruck nach erfolgreicher Auslagerung ist in `docs/TANK_OUT_LABEL_PRINT_2026-09-29.md` dokumentiert. Die Bediener-Stückzahl wird als `EK99103R.MENGE` übergeben; die Druckwarteschlange wird aus der aktuellen Oxaion-`MN50100J *GETTABLE`-Konfiguration übernommen und nicht hart codiert.
+
+## Etiketten nachdrucken
+
+Der Nachdruck ist ein eigener Bedienvorgang ohne Materialbuchung.
+
+1. Mitarbeiter ist angemeldet.
+2. Die App lädt serverseitig gespeicherte Tank-Auslagerungen mit eindeutigem `SUCCESS`.
+3. Die Liste kann nach Lagerbeleg, Artikel, Charge, Ziel-Lagerort oder Ziel-Lagerplatz gefiltert werden.
+4. Der Bediener wählt bewusst die gewünschte Auslagerung.
+5. Angezeigt werden Lagerbeleg, Artikel, Charge, ausgelagerte Menge, Ziel sowie die Summe der bisher erfolgreich angeforderten Etiketten.
+6. Die zusätzlich benötigte Etikettenanzahl wird als positive ganze Stückzahl eingegeben und bestätigt.
+7. Der Backend-Druckpfad revalidiert erneut die eindeutige `LE`-Zielbewegung des ursprünglichen Lagerbelegs und führt danach denselben bestätigten Oxaion-Etikettendruck wie beim direkten Post-SUCCESS-Druck aus.
+
+Der Nachdruck erhält eine neue eigene `clientOperationId`; die ursprüngliche Tank-Out-`clientOperationId` bleibt nur die fachliche Referenz. Dadurch ist jeder Druckauftrag einzeln nachvollziehbar, ohne die Materialbuchung erneut auszulösen.
+
+Der aktuell angemeldete Mitarbeiter kann einen Nachdruck für eine frühere Auslagerung ausführen, auch wenn die Auslagerung von einem anderen Mitarbeiter gebucht wurde. Die Personal-Session muss exakt zum neuen Druckrequest passen; der Druckauftrag protokolliert damit den tatsächlich handelnden Mitarbeiter.
+
+Ein vorheriger Druckstatus `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` derselben Auslagerung sperrt jeden neuen Druck. In diesem Fall muss zuerst Drucker beziehungsweise Oxaion-Druckwarteschlange geklärt werden. Ein bereits erfolgreich an Oxaion übergebener Druck darf dagegen bewusst durch einen neuen Nachdruck ergänzt werden, beispielsweise wenn zusätzliche Etiketten benötigt werden oder der physische Drucker nachweislich nicht ausgegeben hat.
+
+Details: `docs/TANK_OUT_LABEL_PRINT_2026-09-29.md`.
 
 ## Neues Pulver in Tank fuellen
 
