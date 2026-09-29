@@ -17,6 +17,13 @@ public sealed class JobAbortAndTankWeighingTests
     }
 
     [Fact]
+    public void RecordedCostCenterGetPlainResponseIsXmlDeclarationOnly()
+    {
+        Assert.True(OxaionSession.IsXmlDeclarationOnly("<?xml version=\"1.0\" encoding=\"UTF-8\"?> \r\n"));
+        Assert.False(OxaionSession.IsXmlDeclarationOnly("<?xml version=\"1.0\"?><PARM/>"));
+    }
+
+    [Fact]
     public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingComesFromValidatedPosition()
     {
         Assert.True(MaterialTransferBookingService.CorrectionBookingKeyMatches(
