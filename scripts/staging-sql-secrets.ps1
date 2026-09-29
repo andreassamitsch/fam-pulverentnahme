@@ -64,8 +64,10 @@ function Convert-StoredCipherToPlainText {
 function Set-FamStagingSqlSecretStore {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$SyncosCipher,
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$OxaionSqlCipher
     )
 
