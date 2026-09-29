@@ -121,11 +121,11 @@ Danach erfolgt innerhalb des Buchungsablaufs weiterhin die exakte Oxaion-Persona
 
 ## Secrets
 
-Fuer STAGING werden Connection Strings nur zur Laufzeit gesetzt.
+Fuer STAGING werden SQL-Connection-Strings weiterhin nur serverseitig verwendet. Nach einmaliger verdeckter Eingabe duerfen sie lokal per Windows-DPAPI fuer denselben Windows-Benutzer und Rechner verschluesselt gespeichert und bei spaeteren Starts wiederverwendet werden.
 
 Der Self-contained-Starter verwendet denselben eingegebenen Syncos-STAGING-Connection-String fuer:
 
 - `Syncos__ConnectionString` - RFID-Zuordnung
 - `PersonnelAuthentication__ConnectionString` - Passwort-Fallback
 
-Der Connection String steht nicht im Frontend und nicht im Repository.
+Der Connection String steht nicht im Frontend und nicht im Repository. Die lokale STAGING-Speicherung liegt unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml`; mit `-ResetStoredSqlConnections` kann sie geloescht werden.
