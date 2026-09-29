@@ -27,6 +27,13 @@ public sealed record TankOutRequest(
     string TargetStorageBin,
     decimal? WeighedQuantityKg = null) : ISeparatePersonnelRequest;
 
+public sealed record TankOutLabelPrintRequest(
+    string ClientOperationId,
+    string PersonnelNo,
+    string PersonnelName,
+    string TankOutOperationId,
+    int LabelCount) : ISeparatePersonnelRequest;
+
 public sealed record FillNewRequest(
     string ClientOperationId,
     string PersonnelNo,
