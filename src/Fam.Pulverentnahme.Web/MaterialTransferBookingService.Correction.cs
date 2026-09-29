@@ -454,13 +454,19 @@ public sealed partial class MaterialTransferBookingService
         // 5) Fixed FAM accounting keys are 21 / 5100, but the display description is still
         // resolved from the real Oxaion cost-center list. This validates the pair and avoids
         // hard-coding TX_KSTL.
+        // Both freshly recorded successful I1 and I2 traces return HTTP 200 with
+        // only the XML declaration for this PSKSTL GETPLAIN call. That empty XML body is an
+        // expected dialog transition; the actual 21/5100 validation and TX_KSTL text follow
+        // from the subsequent US11001R F4 list.
         OxaionSession.AssertNoFcod(await session.CallAsync("US00006J", "*GETPLAIN", Dict(
             ("MFLD", "PSKSTL"),
             ("PGMN", "LB20115J"),
             ("PSWERK", FamCorrectionBusinessArea),
             ("PFIELD", "TX_KSTL"),
             ("FIELD", "*NONE PSWERK PSKSTL"),
-            ("PSKSTL", "")), ct));
+            ("PSKSTL", "")), ct, allowXmlDeclarationOnly: true));
+        await SaveEventAsync(tx, "CORRECTION_DIALOG_COST_CENTER_PLAIN_OK",
+            "Oxaion PSKSTL GETPLAIN returned the confirmed declaration-only response; continuing with the US11001R F4 validation.", ct);
 
         state["PSWERK"] = FamCorrectionBusinessArea;
         state["PSKSTL"] = FamCorrectionCostCenter;
