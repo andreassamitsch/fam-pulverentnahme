@@ -297,6 +297,65 @@ public sealed class TankOutLabelPrintService
             ssid);
     }
 
+    internal static TankOutLabelReprintCandidate BuildReprintCandidate(
+        SeparateOperation tankOut,
+        IReadOnlyList<SeparateOperation> relatedPrints)
+    {
+        var request = tankOut.ReadRequest<TankOutRequest>();
+        var successfulLabels = 0;
+        foreach (var print in relatedPrints.Where(x => string.Equals(x.Status, TransactionStatuses.Success, StringComparison.Ordinal)))
+        {
+            try
+            {
+                successfulLabels += Math.Max(0, print.ReadRequest<TankOutLabelPrintRequest>().LabelCount);
+            }
+            catch (JsonException)
+            {
+                // Malformed historic print requests are not counted as confirmed labels.
+            }
+        }
+
+        var last = relatedPrints.OrderByDescending(x => x.UpdatedAt).FirstOrDefault();
+        var unclear = relatedPrints.FirstOrDefault(x => IsUnclearPrintStatus(x.Status));
+        var quantityKg = TankOutService.RoundKg(request.WeighedQuantityKg ?? request.QuantityKg);
+        return new TankOutLabelReprintCandidate(
+            tankOut.ClientOperationId,
+            tankOut.DocumentNo ?? "",
+            tankOut.UpdatedAt,
+            request.Article,
+            request.ArticleText,
+            request.Batch,
+            quantityKg,
+            request.TargetWarehouse,
+            request.TargetStorageBin,
+            successfulLabels,
+            last?.Status,
+            last?.UpdatedAt,
+            unclear is not null,
+            unclear is null
+                ? ""
+                : $"Unklarer Druckauftrag {unclear.ClientOperationId} ({unclear.Status}) muss zuerst geklärt werden.");
+    }
+
+    internal static bool IsUnclearPrintStatus(string status) =>
+        string.Equals(status, TransactionStatuses.Uncertain, StringComparison.Ordinal)
+        || string.Equals(status, TransactionStatuses.ManualReviewRequired, StringComparison.Ordinal);
+
+    internal static bool MatchesQuery(TankOutLabelReprintCandidate candidate, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        var values = new[]
+        {
+            candidate.DocumentNo,
+            candidate.Article,
+            candidate.ArticleText,
+            candidate.Batch,
+            candidate.TargetWarehouse,
+            candidate.TargetStorageBin
+        };
+        return values.Any(value => (value ?? "").Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
     internal static MovementRow FindUniqueLabelMovement(
         IReadOnlyList<MovementRow> rows,
         string article,
