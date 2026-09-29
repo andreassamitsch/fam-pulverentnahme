@@ -237,3 +237,5 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 ### Etikettendruck nach erfolgreichem Tank-Out
 
 Nach erfolgreicher Materialauslagerung wird der optionale Lageretikettendruck als eigene Backend-Operation ausgeführt. Das Backend prüft dazu die eindeutige LE-Zielbewegung des bereits gebuchten Lagerbelegs und verwendet anschließend ausschließlich die im JET-Mitschnitt vom 29.09.2026 bestätigten Oxaion-Druckprogramme. Materialbuchung und Druckstatus bleiben getrennt; die aktuelle Druckerwarteschlange wird aus Oxaion gelesen und nicht fest im Frontend oder Backend hinterlegt.
+
+Für spätere Nachdrucke liefert ein authentifizierter read-only Endpoint die aus dem WebApp-Transaktionsspeicher abgeleiteten erfolgreichen Tank-Out-Kandidaten samt Druckhistorien-Summe und Sperrstatus. Der Nachdruck selbst verwendet denselben schreibenden Druckservice wie der unmittelbare Druck. Ein priorer `UNCERTAIN`-/`MANUAL_REVIEW_REQUIRED`-Druck derselben Tank-Out-ID wird serverseitig als Sperre behandelt. Materialbewegungen werden dabei nicht wiederholt.
