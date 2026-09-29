@@ -114,3 +114,20 @@ Die Druckerwarteschlange wird **nicht hart codiert**. Im Referenzmitschnitt war 
 - Transport-/Antwortfehler **ab dem Versand von `MN50100J *RUN`** bedeuten `UNCERTAIN` beziehungsweise `MANUAL_REVIEW_REQUIRED`: Der Druckauftrag könnte bereits in der Warteschlange liegen.
 - In diesem Fall **kein Blind-Reprint**. Drucker/Oxaion-Druckwarteschlange prüfen.
 - Eine erfolgreiche `*RUN`-Antwort bedeutet: Druckauftrag wurde an Oxaion übergeben. Sie beweist nicht, dass das physische Etikett tatsächlich aus dem Drucker gekommen ist.
+
+
+## Nachdruck
+
+Zusätzlich zum unmittelbaren Druck nach erfolgreichem Tank-Out gibt es einen eigenständigen Nachdruckvorgang.
+
+Verbindlich:
+
+- Quelle ist immer eine bereits gespeicherte Tank-Auslagerung mit `SUCCESS` und Oxaion-Lagerbeleg.
+- Auswahl erfolgt aus einer Liste erfolgreicher Auslagerungen; Suchfelder sind Lagerbeleg, Artikel, Artikelbezeichnung, Charge, Ziel-Lagerort und Ziel-Lagerplatz.
+- Der Bediener sieht die Summe aller bisher mit `SUCCESS` an Oxaion übergebenen Etiketten dieses Tank-Outs.
+- Jeder Nachdruck erhält eine neue `clientOperationId` und einen neuen serverseitigen Druckvorgang; die Tank-Out-ID wird nur als `RelatedOperationId` referenziert.
+- Der aktuell angemeldete Mitarbeiter ist der Druckoperator. Er muss nicht mit dem ursprünglichen Auslagerungsmitarbeiter identisch sein.
+- Vor jedem Nachdruck wird die ursprüngliche `LE`-Zielbewegung erneut über den Lagerbeleg eindeutig verifiziert. Es wird niemals eine neue LF/LE-, I1- oder I2-Buchung erzeugt.
+- Besteht zu derselben Auslagerung bereits ein Druckvorgang mit `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`, ist ein neuer Druck gesperrt. Erst Drucker/Warteschlange klären.
+- Ein früherer `SUCCESS` blockiert keinen Nachdruck. Das erlaubt bewusst zusätzliche Etiketten oder einen neuen Druckauftrag nach einem physisch fehlgeschlagenen Drucker-Auswurf.
+- Ein neuer Nachdruck wird serverseitig pro Quell-Tank-Out serialisiert, damit nicht mehrere Druckläufe derselben Auslagerung gleichzeitig gestartet werden.
