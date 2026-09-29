@@ -1,10 +1,12 @@
 using System.Globalization;
-using System.Xml.Linq;
 
 namespace Fam.Pulverentnahme.Web;
 
 public sealed partial class MaterialTransferBookingService
 {
+    internal const string FamCorrectionBusinessArea = "21";
+    internal const string FamCorrectionCostCenter = "5100";
+
     internal static string ExpectedCorrectionCostCenterFcod(string bookingKey) => bookingKey switch
     {
         "I1" => "KST1260",
@@ -19,8 +21,6 @@ public sealed partial class MaterialTransferBookingService
         _ => throw new ArgumentOutOfRangeException(nameof(bookingKey), bookingKey, "Only I1/I2 correction directions are confirmed.")
     };
 
-    internal sealed record CorrectionCostCenterSelection(string BusinessArea, string CostCenter, string Description);
-
     public async Task BookInventoryCorrectionAsync(
         SeparateOperation tx,
         DateOnly bookingDate,
@@ -34,7 +34,6 @@ public sealed partial class MaterialTransferBookingService
         string warehouseText,
         string batch,
         decimal quantityKg,
-        string costCenter,
         CancellationToken ct)
     {
         if (bookingKey is not ("I1" or "I2"))
@@ -71,7 +70,7 @@ public sealed partial class MaterialTransferBookingService
             var context = await OpenExistingDocumentAsync(session, tx, ct);
             await AddFirstCorrectionPositionAsync(
                 session, tx, context.Ssid, bookingDate, op, bookingKey,
-                article, articleText, warehouse, warehouseText, batch, quantityKg, costCenter, ct);
+                article, articleText, warehouse, warehouseText, batch, quantityKg, ct);
 
             await SaveEventAsync(tx, "CORRECTION_ENDING", "Closing Oxaion correction document.", ct);
             OxaionSession.AssertNoFcod(await session.CallAsync(
@@ -232,7 +231,6 @@ public sealed partial class MaterialTransferBookingService
         string warehouseText,
         string batch,
         decimal quantityKg,
-        string costCenter,
         CancellationToken ct)
     {
         await SaveEventAsync(tx, "CORRECTION_POSITION_VALIDATING",
@@ -283,8 +281,7 @@ public sealed partial class MaterialTransferBookingService
             var firstPass = Merge(state, CorrectionFields(
                 tx, bookingDate, op, bookingKey, article, articleText,
                 warehouse, warehouseText, batch,
-                attempt == 1 ? "0,000" : amount, amount, "J",
-                enteredCostCenter ? costCenter : ""));
+                attempt == 1 ? "0,000" : amount, amount, "J"));
 
             firstPass["TX_BWKZ"] = description;
             if (!string.IsNullOrWhiteSpace(selectedPrice))
@@ -306,15 +303,13 @@ public sealed partial class MaterialTransferBookingService
 
             if (string.Equals(fcod, ExpectedCorrectionCostCenterFcod(bookingKey), StringComparison.OrdinalIgnoreCase))
             {
-                var selectedCostCenter = await ResolveCorrectionCostCenterAsync(session, state, costCenter, ct);
                 enteredCostCenter = true;
                 state["PSBMN1"] = amount;
-                state["PSWERK"] = selectedCostCenter.BusinessArea;
-                state["PSKSTL"] = selectedCostCenter.CostCenter;
-                state["TX_KSTL"] = selectedCostCenter.Description;
+                state["PSWERK"] = FamCorrectionBusinessArea;
+                state["PSKSTL"] = FamCorrectionCostCenter;
                 await SaveEventAsync(tx, "CORRECTION_COST_CENTER_REQUIRED",
                     $"{bookingKey} returned the confirmed {fcod} cost-accounting validation. " +
-                    $"Oxaion F4 resolved cost center {selectedCostCenter.CostCenter} to business area {selectedCostCenter.BusinessArea} ({selectedCostCenter.Description}).", ct);
+                    $"Continuing with the binding FAM accounting GB {FamCorrectionBusinessArea} / KST {FamCorrectionCostCenter}.", ct);
                 continue;
             }
 
@@ -334,7 +329,8 @@ public sealed partial class MaterialTransferBookingService
                 state["TX_BRPR"] = selectedPrice;
                 enteredCostCenter = true;
                 state["PSBMN1"] = amount;
-                state["PSKSTL"] = costCenter;
+                state["PSWERK"] = FamCorrectionBusinessArea;
+                state["PSKSTL"] = FamCorrectionCostCenter;
                 await SaveEventAsync(tx, "CORRECTION_PRICE_REQUIRED",
                     $"I1 returned confirmed VEP1804. Current article price TLDNPR was read from Oxaion and will be used; no price is hard-coded.", ct);
                 continue;
@@ -363,7 +359,7 @@ public sealed partial class MaterialTransferBookingService
 
         var final = Merge(state, CorrectionFields(
             tx, bookingDate, op, bookingKey, article, articleText,
-            warehouse, warehouseText, batch, amount, amount, "N", costCenter));
+            warehouse, warehouseText, batch, amount, amount, "N"));
         final["NoVPDialog"] = "true";
         final["NoWinSnnr"] = "true";
         final["NoWindow"] = "true";
@@ -391,72 +387,6 @@ public sealed partial class MaterialTransferBookingService
             $"{bookingKey} correction position confirmed exactly by Oxaion.", ct);
     }
 
-    private async Task<CorrectionCostCenterSelection> ResolveCorrectionCostCenterAsync(
-        OxaionSession session,
-        IReadOnlyDictionary<string, string> state,
-        string costCenter,
-        CancellationToken ct)
-    {
-        // Successful 2026-09-18 JET flow:
-        // first I1/I2 PUTNEW leaves PSWERK/PSKSTL to Oxaion, then KST0001/KST1260
-        // opens the PSKSTL F4 list. The selected row supplies the correct PSWERK + PSKSTL pair.
-        var lookup = await session.CallAsync("LB20115J", "*F4", Merge(state, Dict(
-            ("MFLD", "PSKSTL"),
-            ("PFIELD", "TX_KSTL"),
-            ("FIELD", "*NONE PSWERK PSKSTL"))), ct);
-        OxaionSession.AssertNoFcod(lookup);
-
-        var listSsid = Get(lookup.Dta, "SSID");
-        if (string.IsNullOrWhiteSpace(listSsid)
-            || !string.Equals(Get(lookup.Dta, "PGMN"), "US11001R", StringComparison.Ordinal))
-            throw new InvalidOperationException(
-                "LB20115J cost-center F4 did not open the confirmed US11001R list.");
-
-        const string fields = "*NONE PSWERK PSKSTL";
-        OxaionSession.AssertNoFcod(await session.CallAsync("US11001R", "*GETHDR", Dict(
-            ("FLD", fields),
-            ("CPY-FRSSID", ""),
-            ("NOHWPgm", "US11001"),
-            ("SSID", listSsid),
-            ("PFLD", "TX_KSTL")), ct));
-
-        var rows = await ReadCompleteF4RowsAsync(
-            session,
-            "US11001R",
-            listSsid,
-            Dict(
-                ("FLD", fields),
-                ("SSID", listSsid),
-                ("PFLD", "TX_KSTL"),
-                ("mode", "replace")),
-            ct);
-
-        return SelectCorrectionCostCenter(rows, costCenter);
-    }
-
-    internal static CorrectionCostCenterSelection SelectCorrectionCostCenter(
-        IEnumerable<XElement> rows,
-        string costCenter)
-    {
-        var matches = rows
-            .Select(row => row.Element("KEY"))
-            .Where(key => key is not null
-                && string.Equals(key.Element("PSKSTL")?.Value.Trim(), costCenter, StringComparison.Ordinal))
-            .Select(key => new CorrectionCostCenterSelection(
-                key!.Element("PSWERK")?.Value.Trim() ?? "",
-                key.Element("PSKSTL")?.Value.Trim() ?? "",
-                key.Element("TX_KSTL")?.Value.Trim() ?? ""))
-            .ToList();
-
-        if (matches.Count != 1
-            || string.IsNullOrWhiteSpace(matches[0].BusinessArea)
-            || string.IsNullOrWhiteSpace(matches[0].Description))
-            throw new ProcessConflictException(
-                $"Kostenstelle {costCenter} wurde in der bestätigten Oxaion-Kostenstellenliste nicht eindeutig mit Geschäftsbereich gefunden.");
-
-        return matches[0];
-    }
-
     private Dictionary<string, string> CorrectionFields(
         SeparateOperation tx,
         DateOnly bookingDate,
@@ -469,8 +399,7 @@ public sealed partial class MaterialTransferBookingService
         string batch,
         string q1,
         string q2,
-        string first,
-        string costCenter)
+        string first)
     {
         return Dict(
             ("PSANWG", "LBS"),
@@ -480,6 +409,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSBGTX", op.BookingText),
             ("TX_BGT1", op.Operator),
             ("PSFIRM", _options.Firm),
+            ("PSWERK", FamCorrectionBusinessArea),
             ("PSPOSI", "1"),
             ("PSBWKZ", bookingKey),
             ("PSIDNR", article),
@@ -493,7 +423,7 @@ public sealed partial class MaterialTransferBookingService
             ("PSPONR", batch),
             ("PSBMN1", q1),
             ("PSBMN2", q2),
-            ("PSKSTL", costCenter),
+            ("PSKSTL", FamCorrectionCostCenter),
             ("TX_FIRST", first),
             ("KEYTYPE", "C_LKOPF"),
             ("mode", "merge"));
