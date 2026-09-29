@@ -43,11 +43,11 @@ Der GitHub-Actions-Workflow `Build` erzeugt auf den freigegebenen STAGING-Branch
 1. Artefakt ZIP herunterladen und komplett entpacken.
 2. `START_STAGING.bat` starten.
 3. Oxaion-STAGING-Benutzer und -Passwort fuer die HTTP-Fachlogik eingeben.
-4. Den **SYNCOS STAGING SQL Connection String** fuer NFC/Passwortpruefung eingeben.
-5. Den **OXAION STAGING SQL Connection String** fuer die rein lesende RP.*-Lagerbestandsansicht eingeben.
+4. Beim ersten Start den **SYNCOS STAGING SQL Connection String** fuer NFC/Passwortpruefung eingeben.
+5. Beim ersten Start den **OXAION STAGING SQL Connection String** fuer die rein lesende RP.*-Lagerbestandsansicht eingeben. Danach werden beide Werte fuer denselben Windows-Benutzer auf diesem Rechner verschluesselt wiederverwendet.
 6. Am PC `http://localhost:5080` oder am Android-Geraet `http://<SERVER-IP>:5080` aufrufen.
 
-Beide SQL-Connection-Strings werden verdeckt abgefragt, nur fuer den laufenden Prozess als Umgebungsvariable gesetzt und nicht im Repository gespeichert. `Syncos__ConnectionString` und `OxaionSql__ConnectionString` sind absichtlich getrennt.
+Beide SQL-Connection-Strings werden bei der ersten Eingabe verdeckt erfasst und per Windows-DPAPI unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` gespeichert. Sie werden nicht im Repository oder Frontend gespeichert. `Syncos__ConnectionString` und `OxaionSql__ConnectionString` bleiben absichtlich getrennt. Mit `start-staging-published.ps1 -ResetStoredSqlConnections` koennen die gespeicherten Werte neu erfasst werden.
 
 Es ist weder Git noch ein lokal installiertes .NET SDK/Runtime erforderlich.
 
@@ -57,7 +57,7 @@ Es ist weder Git noch ein lokal installiertes .NET SDK/Runtime erforderlich.
 .\scripts\start-staging.ps1
 ```
 
-Das Skript fragt die Oxaion-HTTP-Zugangsdaten sowie die getrennten Syncos- und Oxaion-SQL-Verbindungen verdeckt ab und setzt sie nur fuer den laufenden Backend-Prozess.
+Das Skript fragt die Oxaion-HTTP-Zugangsdaten weiterhin bei jedem Start ab. Die getrennten Syncos- und Oxaion-SQL-Verbindungen werden nur beim ersten Start beziehungsweise nach Reset verdeckt abgefragt und danach lokal verschluesselt wiederverwendet.
 
 Alternativ koennen die Laufzeitwerte vor dem Start als Umgebungsvariablen gesetzt werden:
 
