@@ -26,7 +26,7 @@ Fuer diese **rein lesende Lagerbestandsansicht** wird ein eigener serverseitiger
 
 - `Syncos__ConnectionString` bleibt fuer Syncos-Personalwege wie RFID und Passwort-Fallback bestimmt.
 - `OxaionSql__ConnectionString` muss auf die richtige Oxaion-Datenbank zeigen und wird ausschliesslich fuer die hier dokumentierte lesende RP.*-Bestandsansicht verwendet.
-- Im STAGING-Startskript werden beide Connection Strings getrennt und verdeckt abgefragt, sofern sie nicht bereits als Umgebungsvariable gesetzt sind.
+- Im STAGING-Startskript werden beide Connection Strings getrennt behandelt. Falls keine Umgebungsvariable gesetzt ist, wird zuerst der per Windows-DPAPI lokal gespeicherte Wert verwendet; nur beim ersten Start beziehungsweise nach bewusstem Reset wird verdeckt abgefragt.
 
 Wichtig:
 
@@ -34,7 +34,7 @@ Wichtig:
 - Es gibt keine ERP-Buchung, Bestandskorrektur oder sonstige Datenmanipulation per SQL.
 - Alle produktiven Materialbuchungen laufen weiterhin ausschliesslich ueber die bestaetigte Oxaion-Fachlogik/HTTP-Schnittstelle.
 - Firma wird als SQL-Parameter `@firm` aus `Oxaion__Firm` uebergeben und nicht fuer andere Firmen frei aus dem Browser gesetzt.
-- Connection String, Benutzer und Passwort verbleiben ausschliesslich im Backend/Runtime-Environment.
+- Connection String, Benutzer und Passwort verbleiben ausschliesslich serverseitig. Die STAGING-SQL-Connection-Strings duerfen verschluesselt per Windows-DPAPI unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` persistiert werden; Klartext wird nicht in Repository, Frontend oder Logs geschrieben.
 - Der Connection String wird weder im Frontend noch in Health-Antworten oder Logs ausgegeben.
 
 ## Bestaetigte SQL-Sicht
