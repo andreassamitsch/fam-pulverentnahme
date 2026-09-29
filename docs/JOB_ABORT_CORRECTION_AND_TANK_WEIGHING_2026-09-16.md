@@ -311,6 +311,7 @@ Bestaetigt:
 - im STAGING-Mitschnitt verwendete Kostenstelle: `6000`;
 - `LBKLAS=J` bleibt die notwendige Freigabe des Buchungsschluessels als Lagerbuchung. Die zwischenzeitlich im Test gesetzte Vorbelegung `LBSKSB=0050000` war **keine fachliche Voraussetzung** fuer FAM und wurde spaeter als falsche Vorbelegung erkannt. `LBSKSB` darf fuer I2 leer sein und wird von der WebApp nicht mehr als Freigabekriterium verwendet.
 - Die FAM-Kontierung wird in der Korrekturposition explizit gesetzt: Geschaeftsbereich `PSWERK=21`; Kostenstelle I2 `PSKSTL=6000`, I1 `PSKSTL=5100`. Damit ist die Buchung nicht von einer Sachkonto-/Kostenstellen-Vorbelegung im Buchungsschluessel abhaengig.
+- Android-Live-Test vom 29.09.2026: Nach Entfernung der falschen `LBSKSB`-Sperre erreichte I2 erstmals `LB20115J *PUTNEW`, brach dort aber in `entryChkIDNR04` mit einer NullPointerException ab. Abgleich mit der vorhandenen Oxaion-Fachlogik zeigt, dass der Lagerdialog den Bewegungsmodus ueber `TX_B1SB01` unterscheidet (`1 = Zugang`, `2 = Abgang`). Die Korrekturposition setzt deshalb nun explizit `TX_B1SB01=2` fuer I2 und `TX_B1SB01=1` fuer I1. GB und Kostenstelle bleiben davon unabhaengig explizit gesetzt.
 
 ### 6.3 I1 - positiver Mehrbestand
 
