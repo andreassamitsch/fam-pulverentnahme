@@ -108,10 +108,17 @@
     if(count===null){resultModal('Auslagerung erfolgreich','✓ Auslagerung erfolgreich abgeschlossen.<br>Etikettendruck wurde übersprungen.','ok');return}
     if(!await confirmAction('Etikettendruck bestätigen',`Es werden <b>${count}</b> Etikett${count===1?'':'en'} über den aufgezeichneten Oxaion-Lageretikettendruck angefordert.<br><br>Die Auslagerung ist bereits abgeschlossen und wird durch den Druck nicht mehr verändert.`,`${count} Etikett${count===1?'':'en'} drucken`,'Abbrechen')){resultModal('Auslagerung erfolgreich','✓ Auslagerung erfolgreich abgeschlossen.<br>Etikettendruck wurde nicht gestartet.','ok');return}
     const printId=newOperationId(),printRequest={clientOperationId:printId,personnelNo:p.personnelNo,personnelName:p.fullName,tankOutOperationId,labelCount:count};
-    const r=await api(`/api/tank-out/${encodeURIComponent(tankOutOperationId)}/labels`,{method:'POST',body:JSON.stringify(printRequest)}),b=r.body||{};
+    let r=null;
+    try{r=await api(`/api/tank-out/${encodeURIComponent(tankOutOperationId)}/labels`,{method:'POST',body:JSON.stringify(printRequest)})}
+    catch(e){
+      try{const s=await api(`/api/tank-out-label-print/${encodeURIComponent(printId)}`);if(s.ok)r=s}catch{}
+      if(!r){resultModal('Druckausgang unklar','✓ Die Pulver-Auslagerung ist bereits erfolgreich abgeschlossen.<br><br>Die Verbindung zum Backend ist während des Etikettendrucks abgebrochen. Der Druckauftrag könnte bereits verarbeitet worden sein.<br><br><b>Nicht blind erneut drucken.</b> Drucker bzw. Oxaion-Druckwarteschlange prüfen.','bad');return}
+    }
+    const b=r.body||{};
     try{window.FamDiag?.log?.('LABEL_PRINT_RESULT',{status:String(b.status||''),stage:String(b.stage||''),httpStatus:Number(r.status||0),message:String(b.message||b.detail||b.error||'').slice(0,700),count})}catch{}
     if(r.ok&&b.status==='SUCCESS'){resultModal('Auslagerung und Etikettendruck erfolgreich',`✓ Auslagerung erfolgreich abgeschlossen.<br>✓ ${html(b.message||`Druckauftrag für ${count} Etiketten wurde an Oxaion übergeben.`)}`,'ok');return}
-    const unsafe=b.status==='UNCERTAIN'||b.status==='MANUAL_REVIEW_REQUIRED';
+    const safeFailure=b.status==='REJECTED'||b.status==='CONFLICT';
+    const unsafe=!safeFailure;
     const extra=unsafe?'<br><br><b>Nicht blind erneut drucken.</b> Drucker bzw. Oxaion-Druckwarteschlange prüfen.':'';
     resultModal(unsafe?'Druckausgang unklar':'Etikettendruck nicht durchgeführt',`✓ Die Pulver-Auslagerung ist bereits erfolgreich abgeschlossen und bleibt unverändert.<br><br>${operationMessage(r)}${extra}`,unsafe?'bad':'warn');
   }
