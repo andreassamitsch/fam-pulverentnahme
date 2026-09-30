@@ -17,6 +17,24 @@ public sealed class FrontendBootstrapTests
         Assert.DoesNotContain("process-mode.js", articleColors);
     }
 
+    [Fact]
+    public void LabelPrintUiIsPresentAndUsesFreshServiceWorkerVersion()
+    {
+        var root = FindRepositoryRoot();
+        var webRoot = Path.Combine(root, "src", "Fam.Pulverentnahme.Web", "wwwroot");
+        var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
+        var serviceWorker = File.ReadAllText(Path.Combine(webRoot, "sw.js"));
+        var processMode = File.ReadAllText(Path.Combine(webRoot, "process-mode.js"));
+
+        const string processModeUrl = "/process-mode.js?v=20260930-label-print-reprint-1";
+        Assert.Contains(processModeUrl, index);
+        Assert.Contains(processModeUrl, serviceWorker);
+        Assert.Contains("fam-pulver-staging-v36-label-print-reprint-20260930", serviceWorker);
+        Assert.Contains("Etiketten drucken?", processMode);
+        Assert.Contains("data-mode=\"label-reprint\"", processMode);
+        Assert.Contains("Etiketten nachdrucken", processMode);
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
