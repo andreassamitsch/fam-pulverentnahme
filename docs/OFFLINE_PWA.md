@@ -30,6 +30,16 @@ Schreibende API-Antworten und ERP-Buchungsergebnisse duerfen nicht als fachliche
 
 Lesende Daten mit fachlicher Bedeutung, insbesondere Maschinenzustaende, werden nur ueber die explizit definierte IndexedDB-Cachelogik mit Zeitstempel und Versionsinformation verwendet.
 
+### Cache-Versionierung bei Frontend-Aenderungen
+
+Ab 30.09.2026 gilt fuer die STAGING-PWA zusaetzlich verbindlich:
+
+- Wird eine vom Service Worker gecachte JavaScript-/CSS-Ressource funktional geaendert, muss ihre URL-Version in `index.html` **und** in der Service-Worker-`ASSETS`-Liste gemeinsam angehoben werden.
+- Bei einer neuen App-Shell-Funktion muss gleichzeitig die Service-Worker-`CACHE`-Generation angehoben werden, damit ein installiertes Android-PWA nicht dauerhaft eine aeltere UI aus dem Cache weiterverwendet.
+- Fuer den Etikettendruck-/Nachdruck-Stand vom 30.09.2026 ist `process-mode.js?v=20260930-label-print-reprint-1` Bestandteil der App-Shell und der Cache `fam-pulver-staging-v36-label-print-reprint-20260930`.
+- Ein Regressionstest prueft, dass `index.html` und `sw.js` dieselbe `process-mode.js`-Version referenzieren und dass Erst-/Nachdruck-UI im ausgelieferten Frontend vorhanden ist.
+
+
 ## PWA-Installierbarkeit auf Android
 
 Der STAGING-Prototyp ist technisch als installierbare PWA konfiguriert:
