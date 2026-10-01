@@ -135,6 +135,7 @@
     el('diagnosticFallback')?.appendChild(area);return area;
   }
   function openDiagnostic(){
+    if(window.FamUiConfig?.developerToolsEnabled!==true)return;
     ensureUi();const modal=el('diagnosticModal');if(!modal)return;
     log('DIAGNOSTIC_OPENED',snapshot());
     const area=el('diagnosticModalText');if(area)area.value=exportText();
@@ -145,7 +146,7 @@
     const main=document.querySelector('main');if(!main)return;
     if(!el('diagnosticFallback')){
       const card=document.createElement('section');card.id='diagnosticFallback';card.className='card diagnosticFallback hidden';
-      card.innerHTML='<h2>Anzeigeproblem erkannt</h2><div class="diagnosticText">Die App hat einen inkonsistenten UI-Zustand erkannt. Es wurde dadurch keine Buchung ausgelöst. Bitte Diagnose kopieren, falls die Anzeige nicht automatisch wiederhergestellt wird.</div><div class="actions"><button id="diagnosticRecoverBtn" class="primary" type="button">Anzeige wiederherstellen</button><button id="diagnosticCopyBtn" class="secondary" type="button">Diagnose kopieren</button></div><div id="diagnosticCopyStatus" class="status neutral">Das Diagnoseprotokoll enthält keine Passwörter oder Zugangsdaten.</div>';
+      card.innerHTML='<h2>Anzeigeproblem erkannt</h2><div class="diagnosticText">Die App hat einen inkonsistenten Anzeigezustand erkannt. Es wurde dadurch keine Buchung ausgelöst. Bitte die Anzeige wiederherstellen. Wenn das Problem bestehen bleibt, Produktionsleitung informieren.</div><div class="actions"><button id="diagnosticRecoverBtn" class="primary" type="button">Anzeige wiederherstellen</button><button id="diagnosticCopyBtn" class="secondary developerTool" type="button">Diagnose kopieren</button></div><div id="diagnosticCopyStatus" class="status neutral developerTool">Das Diagnoseprotokoll enthält keine Passwörter oder Zugangsdaten.</div>';
       main.insertBefore(card,main.firstChild);
       el('diagnosticCopyBtn').onclick=()=>copy().catch(()=>{});
       el('diagnosticRecoverBtn').onclick=()=>{
@@ -157,12 +158,12 @@
     if(!el('diagnosticHeaderBtn')){
       const header=document.querySelector('.workerHeader');
       if(header){
-        const button=document.createElement('button');button.id='diagnosticHeaderBtn';button.className='secondary compact diagnosticHeaderBtn';button.type='button';button.textContent='Diagnose';button.title='Diagnoseprotokoll anzeigen und kopieren';button.onclick=openDiagnostic;
+        const button=document.createElement('button');button.id='diagnosticHeaderBtn';button.className='secondary compact diagnosticHeaderBtn developerTool';button.type='button';button.textContent='Diagnose';button.title='Diagnoseprotokoll anzeigen und kopieren';button.onclick=openDiagnostic;
         const dev=header.querySelector('.devSwitch');if(dev)header.insertBefore(button,dev);else header.appendChild(button);
       }
     }
     if(!el('diagnosticDevCopy')){
-      const button=document.createElement('button');button.id='diagnosticDevCopy';button.className='secondary compact devOnly';button.type='button';button.textContent='Diagnose kopieren';button.onclick=()=>copy().catch(()=>{});
+      const button=document.createElement('button');button.id='diagnosticDevCopy';button.className='secondary compact devOnly developerTool';button.type='button';button.textContent='Diagnose kopieren';button.onclick=()=>copy().catch(()=>{});
       const health=el('healthBtn')?.closest('.actions');if(health)health.appendChild(button);
     }
     if(!el('diagnosticModal')){
