@@ -145,12 +145,12 @@ function refreshWorkerFlow(){
   const machineBtn=$('machineScanBtn');if(machineBtn)machineBtn.disabled=busy||!authOk;
   const sourceBtn=$('addSourceBtn');if(sourceBtn){sourceBtn.disabled=busy||!authOk||!machineReady||(cards.length>0&&!sourcesReady);sourceBtn.textContent=cards.length?'Weitere Nachfüllcharge scannen':'Nachfüllcharge scannen'}
 
-  if(!authOk){setWorkerInstruction('1. Mit Personalchip anmelden. Falls NFC nicht möglich ist: Personalnummer und Passwort verwenden.');focusWorkerElement($('nfcScanBtn'));return}
-  if(!machineReady){setWorkerInstruction('2. QR-Code am Maschinentank scannen.');focusWorkerElement(machineBtn);return}
-  if(unresolvedLocation){setWorkerInstruction('3. Die Charge liegt an mehreren Orten. Tatsächlichen Entnahmeort auswählen.');focusWorkerElement(sf(unresolvedLocation,'position'));return}
-  if(missingQty){setWorkerInstruction(`3. Menge für ${missingQty._scan?.batch||'die gescannte Charge'} eingeben.`);focusWorkerElement(sf(missingQty,'amountKg'));return}
-  if(cards.length===0){setWorkerInstruction('3. Passende Nachfüllcharge am Lagerplatz finden und deren QR-Code scannen.');focusWorkerElement(sourceBtn);return}
-  if(sourcesReady){setWorkerInstruction('4. Mengen prüfen. Bei Bedarf weitere Charge scannen – sonst Buchung starten.');focusWorkerElement($('bookBtn'))}
+  if(!authOk){setWorkerInstruction('Mit Personalchip anmelden. Falls NFC nicht möglich ist: Personalnummer und Passwort verwenden.');focusWorkerElement($('nfcScanBtn'));return}
+  if(!machineReady){setWorkerInstruction('QR-Code am Maschinentank scannen.');focusWorkerElement(machineBtn);return}
+  if(unresolvedLocation){setWorkerInstruction('Die Charge liegt an mehreren Orten. Tatsächlichen Entnahmeort auswählen.');focusWorkerElement(sf(unresolvedLocation,'position'));return}
+  if(missingQty){setWorkerInstruction(`Menge für ${missingQty._scan?.batch||'die gescannte Charge'} eingeben.`);focusWorkerElement(sf(missingQty,'amountKg'));return}
+  if(cards.length===0){setWorkerInstruction('Passende Nachfüllcharge am Lagerplatz finden und deren QR-Code scannen.');focusWorkerElement(sourceBtn);return}
+  if(sourcesReady){setWorkerInstruction('Mengen prüfen. Bei Bedarf weitere Charge scannen – sonst Buchung starten.');focusWorkerElement($('bookBtn'))}
 }
 window.refreshWorkerFlow=refreshWorkerFlow;
 
