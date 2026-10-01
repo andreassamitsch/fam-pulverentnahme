@@ -1,6 +1,6 @@
 # Separate Tankvorgaenge
 
-Stand: 16.09.2026
+Stand: 01.10.2026
 
 Diese Datei dokumentiert die verbindliche Aufteilung der Pulververwaltung in separate Bedien- und Transaktionsvorgaenge. Die allgemeinen Regeln zu Personal-Session, Oxaion-Revalidierung, eindeutiger `clientOperationId`, Idempotenz, Fehlerbehandlung und Kein-Blind-Retry bleiben unveraendert.
 
@@ -8,13 +8,13 @@ Diese Datei dokumentiert die verbindliche Aufteilung der Pulververwaltung in sep
 
 Nach erfolgreicher Mitarbeiter-Anmeldung waehlt der Bediener einen eigenstaendigen Vorgang:
 
-- `Pulver nachfuellen`
-- `Pulver aus Tank auslagern`
-- `Etiketten nachdrucken`
-- `Neues Pulver in Tank fuellen`
-- `Pulver auf Fertigungsauftrag buchen`
-- `Korrekturbuchung Fertigungsauftrag (Jobabbruch)`
-- rein lesend: `Lagerbestand ansehen`
+1. `Pulver nachfuellen`
+2. `Pulver auf Fertigungsauftrag buchen`
+3. `Pulver aus Tank auslagern`
+4. `Neues Pulver in Tank fuellen`
+5. `Korrekturbuchung Fertigungsauftrag (Jobabbruch)`
+6. rein lesend: `Lagerbestand ansehen`
+7. `Etiketten nachdrucken`
 
 Ein Pulverwechsel kann organisatorisch aus Auslagern und anschliessender Neubefuellung bestehen. Die WebApp darf diese beiden Vorgaenge nicht als eine atomare Oxaion-Transaktion vortaeuschen.
 
@@ -172,6 +172,15 @@ Fachlich verbindliche Reihenfolge:
 Der Vorgang ist eine gemeinsame WebApp-Gesamttransaktion mit mindestens zwei schreibenden Teilschritten: Storno und korrigierte neue Rueckmeldung. Ein unklarer Stornoausgang blockiert den zweiten Schreibschritt vollstaendig. Kein Teilschritt darf blind wiederholt oder automatisch durch eine erfundene Gegenbuchung kompensiert werden.
 
 Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind sowohl der konkrete Oxaion-Stornoablauf als auch die anschliessende korrigierte MK technisch bestaetigt und in der WebApp schreibend umgesetzt. Die App waehlt die Originalrueckmeldung nur bei genau einem Treffer anhand von FA, Materialposition, Artikel, urspruenglicher Menge, Tanklager und Mix-Charge aus. Nach `PW22021R *STORNO` muessen Rueckmeldeliste, FA-Materialzustand und dieselbe Tank-Mix-Charge den erwarteten Zustand beweisen, bevor die neue MK gestartet wird. Details stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
+
+## Bedienkorrekturen 01.10.2026
+
+- Ein eindeutig leerer Tank wird im Vorgang `Pulver nachfuellen` explizit als leer gemeldet. Da dort kein Tankartikel ableitbar ist, wird auf `Neues Pulver in Tank fuellen` verwiesen.
+- Beim Einstieg in `Pulver aus Tank auslagern` beginnt die Bedienung immer beim Tankscan. Die Wiegemenge kann vollstaendig eingegeben werden, ohne dass die erste Ziffer den Fokus zum Zielbereich verschiebt.
+- Technische Buchungsschluessel wie I1/I2 oder LF/LE sind in der normalen Mitarbeiterdarstellung nicht erforderlich. Der Bediener sieht die fachliche Aussage, z. B. dass der Bestand vor der Auslagerung um eine bestimmte Menge korrigiert wird. Technische Details bleiben Diagnose/Protokoll.
+- Bereits erledigte Schritte werden auf kleinen Displays kompakt zusammengefasst, damit der aktuelle Schritt ohne unnoetigen Scrollweg im Mittelpunkt bleibt.
+- Nach eindeutigem Erfolg und Bestaetigung der Erfolgsmeldung kehrt die App zur Vorgangsuebersicht am Seitenanfang zurueck. Dies wird ueber den Erfolgszustand und nicht ueber einen bestimmten Dialogtitel gesteuert.
+- Fuer Lagerbelegkoepfe gelten die in Oxaion bestaetigten Grenzen: `KOBGT1`/Belegtext maximal 40 Zeichen, `KOBGTX`/Matchcode Beleg maximal 35 Zeichen. Die WebApp formatiert und begrenzt beide Werte vor dem Senden.
 
 ## Gemeinsame Buchungsdarstellung
 
