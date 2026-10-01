@@ -18,6 +18,10 @@ public sealed class InventoryServiceTests
         Assert.Contains("FROM OXAION.LLAWEP AS LA", sql);
         Assert.DoesNotContain("INNER JOIN OXAION.ULGSTP", sql);
         Assert.Contains("LA.LAGRKZ <> N'J'", sql);
+        Assert.Contains("NOT EXISTS", sql);
+        Assert.Contains("FROM OXAION.LLPWEP AS BX", sql);
+        Assert.Contains("BX.LPPONR = LA.LAPONR", sql);
+        Assert.Contains("SELECT DISTINCT", sql);
         Assert.Contains("B.LPIDNR LIKE N'RP.%'", sql);
         Assert.Contains("LA.LAIDNR LIKE N'RP.%'", sql);
         Assert.Contains("B.LPLABE <> 0", sql);
