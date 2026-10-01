@@ -82,7 +82,7 @@
     document.querySelectorAll('.processChoice.active').forEach(button=>button.classList.remove('active'));
     el('processSelected')?.classList.add('hidden');
     applyPage();
-    setTimeout(()=>{try{(auth()?el('processChoiceStep'):el('loginStep'))?.scrollIntoView({behavior:'smooth',block:'start'})}catch{}},30);
+    setTimeout(()=>{try{window.scrollTo({top:0,behavior:'smooth'})}catch{window.scrollTo(0,0)}},30);
   }
 
   function showProcess(){
@@ -282,14 +282,12 @@
       const choice=event.target?.closest?.('.processChoice');
       if(choice&&auth())setTimeout(()=>{showProcess();syncFaActualUi()},0);
       if(event.target?.closest?.('#fillChargeScan'))fillScanContext=true;
-      if(event.target?.closest?.('#processClose')&&el('processModalTitle')?.textContent.trim()==='Buchung erfolgreich'){
-        setTimeout(()=>{clearProcessDisplay(false);showHome()},40);
-      }
       if(event.target?.closest?.('#bookingResultAcknowledge')&&el('bookingResultTitle')?.textContent.trim()==='Buchung erfolgreich'){
         setTimeout(()=>showHome(),80);
       }
     },true);
 
+    window.addEventListener('fam-process-complete',()=>{clearProcessDisplay(false);showHome()});
     el('faConsumptionAmount')?.addEventListener('input',()=>setTimeout(syncFaActualUi,0));
     const faOrder=el('faOrderData');if(faOrder)new MutationObserver(()=>setTimeout(syncFaActualUi,0)).observe(faOrder,{childList:true,subtree:true});
     const processModal=el('processModal');if(processModal)new MutationObserver(()=>normalizeFaConfirm()).observe(processModal,{childList:true,subtree:true,characterData:true});
