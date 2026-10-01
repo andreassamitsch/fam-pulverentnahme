@@ -63,8 +63,8 @@ public sealed partial class MaterialTransferBookingService
             var op = OperatorContext(tx, personnelNo, personnelName, bookingText);
             var put = await session.CallAsync("LB20100J", "*PUTNEW", Merge(header, Dict(
                 ("KOBGDT", Iso(bookingDate)),
-                ("KOBGT1", op.Operator),
-                ("KOBGTX", op.BookingText),
+                ("KOBGT1", op.DocumentText),
+                ("KOBGTX", op.MatchCode),
                 ("KOBGKZ", "MB"),
                 ("KOFIRM", _options.Firm),
                 ("KEYTYPE", "C_LKOPF"))), ct);
@@ -235,7 +235,7 @@ public sealed partial class MaterialTransferBookingService
         SeparateOperation tx,
         string ssid,
         DateOnly bookingDate,
-        (string Operator, string BookingText) op,
+        OxaionDocumentTexts op,
         string bookingKey,
         string article,
         string articleText,
@@ -587,7 +587,7 @@ public sealed partial class MaterialTransferBookingService
     private Dictionary<string, string> CorrectionFields(
         SeparateOperation tx,
         DateOnly bookingDate,
-        (string Operator, string BookingText) op,
+        OxaionDocumentTexts op,
         string bookingKey,
         string article,
         string articleText,
@@ -603,8 +603,8 @@ public sealed partial class MaterialTransferBookingService
             ("PSBGKZ", "MB"),
             ("PSBGNR", tx.DocumentNo!),
             ("PSBGDT", Iso(bookingDate)),
-            ("PSBGTX", op.BookingText),
-            ("TX_BGT1", op.Operator),
+            ("PSBGTX", op.MatchCode),
+            ("TX_BGT1", op.DocumentText),
             ("PSFIRM", _options.Firm),
             ("PSWERK", FamCorrectionBusinessArea),
             ("PSPOSI", "1"),
