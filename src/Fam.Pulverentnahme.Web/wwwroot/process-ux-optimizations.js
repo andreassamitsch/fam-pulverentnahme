@@ -16,10 +16,12 @@
   const onProcessPage=()=>document.body.classList.contains('processShellProcess');
   const shortTitles={
     replenish:'Nachfüllen',
+    'fa-consumption':'FA-Verbrauch',
     'tank-out':'Auslagern',
     'fill-new':'Tank befüllen',
-    'fa-consumption':'Fertigungsauftrag',
-    inventory:'Lagerbestand'
+    'fa-abort-correction':'Jobabbruch',
+    inventory:'Lagerbestand',
+    'label-reprint':'Etiketten'
   };
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
@@ -335,7 +337,7 @@
     if(installed)return;installed=true;
     initHistory();ensureBusyOverlay();
     const style=document.createElement('style');style.id='processUxOptimizationStyles';style.textContent=`
-.workerHeader{flex-wrap:nowrap!important;min-height:46px}.workerHeader>div:first-child{min-width:0;flex:1}.workerHeader .title{font-size:18px!important;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.workerHeader .sub{display:none!important}.workerHeader #headerPersonnelName{margin:0!important;max-width:38vw!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}.workerHeader .devSwitch{flex:0 0 auto}.shellHomeButton{display:none!important}.workerNext{top:var(--fam-header-height,58px)!important}.keyboardLookupWrap{position:relative}.keyboardLookupWrap .importantInput{padding-right:52px}.keyboardToggle{position:absolute;right:5px;top:10px;z-index:3;width:40px;min-width:40px;min-height:36px;padding:5px;border-radius:8px;background:#e7edf2;color:#314451;font-size:20px;line-height:1}.keyboardToggle.active{background:#1769aa;color:#fff}.bookingBusyOverlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(7,18,27,.82)}.bookingBusyOverlay.hidden{display:none!important}.bookingBusyCard{width:min(430px,100%);padding:26px 20px;border-radius:18px;background:#fff;text-align:center;box-shadow:0 18px 60px rgba(0,0,0,.4)}.bookingBusyCard b{display:block;margin-top:14px;font-size:20px;color:#173f5b}.bookingBusyCard span{display:block;margin-top:8px;font-size:14px;line-height:1.4;color:#526573}.bookingSpinner{width:58px;height:58px;margin:0 auto;border:6px solid #dbe8f1;border-top-color:#1769aa;border-radius:50%;animation:famSpin .85s linear infinite}@keyframes famSpin{to{transform:rotate(360deg)}}@media(max-width:680px){.workerHeader{gap:6px!important}.workerHeader .title{font-size:16px!important}.workerHeader #headerPersonnelName{max-width:33vw!important;font-size:11px!important;padding:3px 5px!important}.workerHeader .devSwitch{font-size:9px!important}.workerNext{top:var(--fam-header-height,54px)!important}}
+.workerHeader{flex-wrap:nowrap!important;min-height:46px}.workerHeader>div:first-child{min-width:0;flex:1}.workerHeader .title{font-size:18px!important;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.workerHeader .sub{display:none!important}.workerHeader #headerPersonnelName{margin:0!important;max-width:44vw!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}.workerHeader .devSwitch{flex:0 0 auto}.shellHomeButton{display:none!important}.workerNext{top:var(--fam-header-height,58px)!important}.keyboardLookupWrap{position:relative}.keyboardLookupWrap .importantInput{padding-right:52px}.keyboardToggle{position:absolute;right:5px;top:10px;z-index:3;width:40px;min-width:40px;min-height:36px;padding:5px;border-radius:8px;background:#e7edf2;color:#314451;font-size:20px;line-height:1}.keyboardToggle.active{background:#1769aa;color:#fff}.bookingBusyOverlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(7,18,27,.82)}.bookingBusyOverlay.hidden{display:none!important}.bookingBusyCard{width:min(430px,100%);padding:26px 20px;border-radius:18px;background:#fff;text-align:center;box-shadow:0 18px 60px rgba(0,0,0,.4)}.bookingBusyCard b{display:block;margin-top:14px;font-size:20px;color:#173f5b}.bookingBusyCard span{display:block;margin-top:8px;font-size:14px;line-height:1.4;color:#526573}.bookingSpinner{width:58px;height:58px;margin:0 auto;border:6px solid #dbe8f1;border-top-color:#1769aa;border-radius:50%;animation:famSpin .85s linear infinite}@keyframes famSpin{to{transform:rotate(360deg)}}@media(max-width:680px){.workerHeader{gap:6px!important}.workerHeader .title{font-size:16px!important}.workerHeader #headerPersonnelName{max-width:42vw!important;font-size:11px!important;padding:3px 5px!important}.workerHeader .devSwitch{font-size:9px!important}.workerNext{top:var(--fam-header-height,54px)!important}}
 `;
     document.head.appendChild(style);
 
