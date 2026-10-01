@@ -40,8 +40,8 @@ public sealed partial class MaterialTransferBookingService
             var op = OperatorContext(tx, personnelNo, personnelName, bookingText);
             var put = await session.CallAsync("LB20100J", "*PUTNEW", Merge(header, Dict(
                 ("KOBGDT", Iso(bookingDate)),
-                ("KOBGT1", op.Operator),
-                ("KOBGTX", op.BookingText),
+                ("KOBGT1", op.DocumentText),
+                ("KOBGTX", op.MatchCode),
                 ("KOBGKZ", "MB"),
                 ("KOFIRM", _options.Firm),
                 ("KEYTYPE", "C_LKOPF"))), ct);
