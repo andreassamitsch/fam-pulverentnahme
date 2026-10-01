@@ -21,6 +21,12 @@ Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-
 - [ ] Optional pruefen und mitschneiden, ob Bestandskorrektur (`I1`/`I2` bzw. lokal bestaetigter Schluessel) und anschliessender `LF`-Transfer in einem einzigen Oxaion-Lagerbeleg sicher moeglich sind. Bis dahin keine gemeinsame Positionsfolge erfinden.
 - [ ] Aufloesung/kleinste Anzeigestufe der produktiv eingesetzten Waage ermitteln und daraus die verbindliche Rundungs-/Abweichungstoleranz festlegen. Keine Toleranz hart codieren oder raten.
 
+## Lageruebersicht-Darstellung 01.10.2026
+
+- [x] Doppelte Lagerort-/Lagerplatzdarstellung korrigiert: Eine LLAWEP-Lagerortzeile wird unterdrueckt, wenn fuer denselben Artikel/Lagerort/dieselbe Charge konkrete LLPWEP-Lagerplatzbestaende vorhanden sind.
+- [x] Pulverlager in der PWA vereinfacht: pro Artikel nur noch flache Bestandszeilen `Lagerort / Lagerplatz` + Charge + Menge; keine zusaetzliche Lagerort-Kopfzeile mit erneut dargestellten Chargenmengen.
+- [ ] Android-STAGING: Beispiel `RP.00002 / H04PULA / Charge 88445` pruefen; die 10,000-kg-Menge darf nur einmal als konkrete Lagerplatzposition erscheinen.
+
 ## Jobabbruch-/Farbanzeige-Korrekturen 01.10.2026
 
 - [x] Code: Manueller Maschinentank-Scan aus der Jobabbruch-Korrektur entfernt. Die eindeutige Oxaion-Originalrueckmeldung liefert Tanklager und Mix-Charge.
