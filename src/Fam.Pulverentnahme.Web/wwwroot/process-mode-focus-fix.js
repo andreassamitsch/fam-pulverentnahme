@@ -16,8 +16,10 @@
   };
   const panelByMode={
     'tank-out':'tankOutProcess',
+    'label-reprint':'labelReprintProcess',
     'fill-new':'fillNewProcess',
     'fa-consumption':'faConsumptionProcess',
+    'fa-abort-correction':'faAbortProcess',
     inventory:'inventoryProcess'
   };
   const processPanels=Object.values(panelByMode);
