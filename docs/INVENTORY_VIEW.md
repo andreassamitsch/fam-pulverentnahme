@@ -59,16 +59,18 @@ Die Korrektur vom 01.10.2026 reagiert auf den Android-/Oxaion-Befund, dass `RP.0
 - nur `RP.%`
 - Charge darf nicht leer sein
 - Bestand `<> 0`
-- `LAGRKZ <> 'J'`, damit lagerplatzgefuehrte Bestaende nicht noch einmal als Lagerortsumme erscheinen.
+- `LAGRKZ <> 'J'` bleibt als vorhandenes Kennzeichen bestehen.
+- Zusaetzlich wird eine `LLAWEP`-Zeile unterdrueckt, sobald fuer **denselben Artikel, Lagerort und dieselbe Charge** ein realer `LLPWEP`-Lagerplatzbestand ungleich 0 existiert. Damit kann ein unzuverlaessiges beziehungsweise nicht passend gepflegtes `LAGRKZ` keine Lagerort-Summe neben der konkreten Lagerplatzposition duplizieren.
+- Der aeussere SELECT ist `DISTINCT`, damit identische Informationszeilen nicht mehrfach angezeigt werden.
 
-Damit bleibt die bestehende Doppelbestands-Sperre erhalten, ohne einen vorhandenen Lagerplatzbestand ueber einen separaten Stammdatenjoin zu verlieren.
+Damit zeigt die Informationsansicht fuer lagerplatzgefuehrte Bestaende die konkreten Lagerplatzpositionen und fuer echte nicht lagerplatzgefuehrte Bestaende weiterhin die Lagerortposition.
 
 ## Darstellung in der PWA ab 01.10.2026
 
 Die Informationsseite ist zweigeteilt:
 
 1. **Maschinentanks** ganz oben: alle in `MachineTanks:Warehouses` konfigurierten Tanks mit aktuellem Oxaion-Zustand. Bei eindeutigem Bestand werden Artikel, Bezeichnung, Mix-Charge, Menge und EFA01/EFA02-Erkennungsfarben angezeigt. Leere Tanks werden explizit als `Tank leer` dargestellt. Uneindeutige oder nicht lesbare Tankzustaende werden als Klaerungsfall sichtbar gemacht.
-2. **Pulverlager** darunter: die RP.*-Bestandspositionen nach Artikel, Lagerort, Lagerplatz und Charge.
+2. **Pulverlager** darunter: pro Artikel eine flache Liste der tatsaechlichen Bestandspositionen. Jede Zeile zeigt `Lagerort / Lagerplatz` (beziehungsweise nur den Lagerort, wenn kein Lagerplatz existiert), darunter die Charge und rechts die Menge. Eine zusaetzliche Lagerort-Kopfzeile mit nochmals separaten Chargen-/Mengenzeilen wird bewusst nicht dargestellt.
 
 Die bereits bestaetigte Erkennungsfarbenlogik aus `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md` wird artikelweise wiederverwendet. Der Sachmerkmalsabruf erfolgt in einem frischen, vom Tank-/Lagerlisten-Kontext getrennten Oxaion-App-Tunnel. Fuer denselben Artikel wird das aufgeloeste Farbergebnis sowohl bei Maschinentanks als auch im Pulverlager verwendet. Kann kein gueltiger HEX-Wert gelesen werden, zeigt die PWA kein leeres Farbfeld. Farben sind nur visuelle Erkennungshilfe und keine Buchungsfreigabe.
 
