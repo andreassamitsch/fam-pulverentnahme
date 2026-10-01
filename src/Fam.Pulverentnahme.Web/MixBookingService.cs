@@ -148,8 +148,8 @@ public sealed class MixBookingService
         var op = OperatorContext(tx);
         var input = Merge(header, Dict(
             ("KOBGDT", Iso(tx.Request.BookingDate)),
-            ("KOBGT1", op.Operator),
-            ("KOBGTX", op.BookingText),
+            ("KOBGT1", op.DocumentText),
+            ("KOBGTX", op.MatchCode),
             ("KOBGKZ", "MB"),
             ("KOFIRM", _oxaionOptions.Firm),
             ("KEYTYPE", "C_LKOPF")));
@@ -325,7 +325,7 @@ public sealed class MixBookingService
 
     private Dictionary<string, string> ContinuationFields(
         MixTransaction tx,
-        (string Operator, string BookingText) op,
+        OxaionDocumentTexts op,
         string position,
         AdditionalPowderSource source,
         string q1,
@@ -335,7 +335,7 @@ public sealed class MixBookingService
         var r = tx.Request;
         var fields = Dict(
             ("PSANWG", "LBS"), ("PSBGKZ", "MB"), ("PSBGNR", tx.DocumentNo!), ("PSBGDT", Iso(r.BookingDate)),
-            ("PSBGTX", op.BookingText), ("TX_BGT1", op.Operator), ("PSFIRM", _oxaionOptions.Firm),
+            ("PSBGTX", op.MatchCode), ("TX_BGT1", op.DocumentText), ("PSFIRM", _oxaionOptions.Firm),
             ("PSPOSI", position), ("PSBWKZ", "LM"), ("PSIDNR", r.Article), ("I_PSIDNR", r.Article),
             ("DEMO_IDNR", r.Article), ("POIDNR", r.Article), ("I_TX_IDN2", ""), ("I_TX_PCKMM", ""),
             ("I_TX_PCKMS", ""), ("I_TX_PCKMZ", ""), ("PSLAGO", source.Warehouse), ("PSPONR", source.Batch),
@@ -400,7 +400,7 @@ public sealed class MixBookingService
         var op = OperatorContext(tx);
         var o = Dict(
             ("PSANWG", "LBS"), ("PSBGKZ", "MB"), ("PSBGNR", tx.DocumentNo!), ("PSBGDT", Iso(tx.Request.BookingDate)),
-            ("PSBGZT", ts), ("PSBGTX", op.BookingText), ("TX_BGT1", op.Operator), ("PSFIRM", _oxaionOptions.Firm),
+            ("PSBGZT", ts), ("PSBGTX", op.MatchCode), ("TX_BGT1", op.DocumentText), ("PSFIRM", _oxaionOptions.Firm),
             ("PSPOSI", c.Position), ("PSIDNR", tx.Request.Article), ("I_PSIDNR", tx.Request.Article),
             ("DEMO_IDNR", tx.Request.Article), ("POIDNR", tx.Request.Article), ("PSLAGO", c.FromWarehouse),
             ("PSPONR", c.FromBatch), ("TX_LAG2", c.ToWarehouse), ("TX_PON2", c.ToBatch),
@@ -421,16 +421,8 @@ public sealed class MixBookingService
         return Merge(baseState, o);
     }
 
-    private (string Operator, string BookingText) OperatorContext(MixTransaction tx)
-    {
-        var r = tx.Request;
-        var operatorText = string.IsNullOrWhiteSpace(r.PersonnelName) ? $"PN {r.PersonnelNo}" : $"PN {r.PersonnelNo} | {r.PersonnelName}";
-        var prefix = $"{tx.TransactionId[..12]}|PN{r.PersonnelNo}";
-        var room = Math.Max(0, 50 - prefix.Length - 1);
-        return (operatorText, room > 0 && !string.IsNullOrWhiteSpace(r.BookingText)
-            ? prefix + "|" + r.BookingText[..Math.Min(room, r.BookingText.Length)]
-            : prefix);
-    }
+    private static OxaionDocumentTexts OperatorContext(MixTransaction tx) =>
+        OxaionDocumentTextBuilder.Build(tx.TransactionId, tx.Request.PersonnelNo, tx.Request.BookingText);
 
     private async Task SaveEventAsync(MixTransaction tx, string stage, string message, CancellationToken ct)
     {
