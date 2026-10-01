@@ -1,6 +1,6 @@
 # RP.* Lagerbestandsansicht
 
-Stand: 08.09.2026
+Stand: 01.10.2026
 
 ## Fachliches Ziel
 
@@ -37,21 +37,21 @@ Wichtig:
 - Connection String, Benutzer und Passwort verbleiben ausschliesslich serverseitig. Die STAGING-SQL-Connection-Strings duerfen verschluesselt per Windows-DPAPI unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` persistiert werden; Klartext wird nicht in Repository, Frontend oder Logs geschrieben.
 - Der Connection String wird weder im Frontend noch in Health-Antworten oder Logs ausgegeben.
 
-## Bestaetigte SQL-Sicht
+## Aktuelle SQL-Sicht
 
-Die Lagerplatzorganisation wird aus `OXAION.ULGSTP.LGKLPL` unterschieden.
+### Lagerplatzbestaende
 
-### Lagerorte mit Lagerplatzorganisation (`LGKLPL='J'`)
-
-- `OXAION.LLPLAP` liefert Lagerort, internen Lagerplatz, Artikel und Charge.
-- `OXAION.LLPWEP` liefert den Lagerplatzbestand `LPLABE`.
+- `OXAION.LLPWEP` ist die fuehrende Zeilenquelle fuer vorhandene Lagerplatzbestaende und liefert Firma, Lagerort, internen Lagerplatz, Artikel, Charge und `LPLABE`.
+- Ein zusaetzlicher INNER JOIN auf `LLPLAP` oder `ULGSTP` darf eine reale, nicht-null Bestandszeile nicht aus der Informationsansicht herausfiltern.
 - `OXAION.UTLSTP` liefert die Mengeneinheit.
-- `OXAION.UPOSTP` liefert Chargen-/Artikelbezeichnung beziehungsweise Chargendatum.
+- `OXAION.UPOSTP` ergaenzt Chargen-/Artikelbezeichnung beziehungsweise Chargendatum.
 - nur `RP.%`
 - Charge darf nicht leer sein
 - Bestand `<> 0`
 
-### Lagerorte ohne Lagerplatzorganisation (`LGKLPL='N'`)
+Die Korrektur vom 01.10.2026 reagiert auf den Android-/Oxaion-Befund, dass `RP.00010` in Oxaion auf Lagerplaetzen sichtbar war, in der bisherigen WebApp-Sicht jedoch fehlte. Die bisherige Abfrage konnte reale `LLPWEP`-Bestandszeilen ueber zusaetzliche Stammdaten-INNER-JOINs verlieren. Die Lagerplatzsicht wird deshalb direkt aus den bestaetigten `LLPWEP`-Bestandszeilen aufgebaut. Der reale `RP.00010`-Fall ist nach Bereitstellung des neuen STAGING-Builds noch live zu bestaetigen.
+
+### Lagerortbestaende ohne eigene Lagerplatzzeile
 
 - `OXAION.LLAWEP` liefert Lagerort, Artikel, Charge und Bestand `LALABE`.
 - Lagerplatz bleibt leer.
@@ -59,9 +59,18 @@ Die Lagerplatzorganisation wird aus `OXAION.ULGSTP.LGKLPL` unterschieden.
 - nur `RP.%`
 - Charge darf nicht leer sein
 - Bestand `<> 0`
-- `LAGRKZ <> 'J'`, damit lagerplatzgefuehrte Bestaende nicht doppelt als Lagerortsumme erscheinen.
+- `LAGRKZ <> 'J'`, damit lagerplatzgefuehrte Bestaende nicht noch einmal als Lagerortsumme erscheinen.
 
-Damit wird insbesondere der frueher beobachtete Doppelbestand vermieden, bei dem fuer einen lagerplatzgefuehrten Lagerort sowohl die Lagerplatzzeilen als auch eine Lagerortsumme angezeigt wurden.
+Damit bleibt die bestehende Doppelbestands-Sperre erhalten, ohne einen vorhandenen Lagerplatzbestand ueber einen separaten Stammdatenjoin zu verlieren.
+
+## Darstellung in der PWA ab 01.10.2026
+
+Die Informationsseite ist zweigeteilt:
+
+1. **Maschinentanks** ganz oben: alle in `MachineTanks:Warehouses` konfigurierten Tanks mit aktuellem Oxaion-Zustand. Bei eindeutigem Bestand werden Artikel, Bezeichnung, Mix-Charge, Menge und EFA01/EFA02-Erkennungsfarben angezeigt. Leere Tanks werden explizit als `Tank leer` dargestellt. Uneindeutige oder nicht lesbare Tankzustaende werden als Klaerungsfall sichtbar gemacht.
+2. **Pulverlager** darunter: die RP.*-Bestandspositionen nach Artikel, Lagerort, Lagerplatz und Charge.
+
+Die bereits bestaetigte Erkennungsfarbenlogik aus `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md` wird artikelweise wiederverwendet. Farben sind nur visuelle Erkennungshilfe und keine Buchungsfreigabe.
 
 ## Nicht mehr verwendeter JET-Indexweg
 
