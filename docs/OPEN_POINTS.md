@@ -21,6 +21,17 @@ Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-
 - [ ] Optional pruefen und mitschneiden, ob Bestandskorrektur (`I1`/`I2` bzw. lokal bestaetigter Schluessel) und anschliessender `LF`-Transfer in einem einzigen Oxaion-Lagerbeleg sicher moeglich sind. Bis dahin keine gemeinsame Positionsfolge erfinden.
 - [ ] Aufloesung/kleinste Anzeigestufe der produktiv eingesetzten Waage ermitteln und daraus die verbindliche Rundungs-/Abweichungstoleranz festlegen. Keine Toleranz hart codieren oder raten.
 
+## Jobabbruch-/Farbanzeige-Korrekturen 01.10.2026
+
+- [x] Code: Manueller Maschinentank-Scan aus der Jobabbruch-Korrektur entfernt. Die eindeutige Oxaion-Originalrueckmeldung liefert Tanklager und Mix-Charge.
+- [x] Code: Vor Freigabe der Mengeneingabe wird der automatisch ermittelte Lagerort gegen die FAM-Maschinentankliste geprueft und der aktuelle Tankbestand neu gelesen. Artikel und Mix-Charge muessen weiterhin exakt zur Originalrueckmeldung passen.
+- [x] Code: Bei mehreren passenden Originalrueckmeldungen wird die automatische Ableitung fail-closed gesperrt; es wird nichts storniert.
+- [x] Code: Jobabbruch-Seite startet direkt beim Fertigungsauftrag-Scan; der bisherige falsche Scroll-/Fokus auf den Tankscan entfaellt.
+- [x] Code: EFA01/EFA02-Abruf fuer Maschinentanks in einen frischen Oxaion-App-Tunnel-Kontext verschoben. Die Lageruebersicht loest fehlende/unvollstaendige Artikel-Farben ebenfalls in isolierten Kontexten nach.
+- [x] Code: Bei komplett fehlenden/ungueltigen Farben wird kein leeres Farbfeld mehr angezeigt.
+- [ ] Android-STAGING: Jobabbruch ohne Tankscan mit einem passenden realen FA testen; automatisch ermittelten Tank/Mix und anschliessenden Storno-/Neubuchungsablauf bestaetigen.
+- [ ] Android-STAGING: `RP.00010` in der Lageruebersicht pruefen; erwartet EFA01 Schwarz (`0D0D0D`) und EFA02 Violett (`7030A0`) sowohl am EOS1-Tank als auch beim Artikelblock.
+
 ## Bedien-/Lagerkorrekturen 01.10.2026
 
 - [x] Code: Nachfuellen meldet einen eindeutig leeren Tank explizit als leer und verweist auf `Neues Pulver in Tank fuellen`.
