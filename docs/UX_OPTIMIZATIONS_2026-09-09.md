@@ -19,13 +19,20 @@ Die bereits umgesetzte AJAX-Auswahl aus den rein lesenden Oxaion-SQL-Zielorten/-
 
 Android-spezifisch gilt zusaetzlich:
 
-- Nach einem erfolgreichen Maschinentank-Scan wird der Schritt `Ziel im Pulverlager` automatisch in den sichtbaren Bereich gescrollt und der Lagerort-Fokus dorthin verschoben.
+- Beim Oeffnen von `Pulver aus Tank auslagern` bleibt der Fokus beim ersten Arbeitsschritt `Maschinentank scannen`. Nach erfolgreichem Tankscan wird zuerst die Wiegung bearbeitet; Ziel-Lagerort und Lagerplatz werden erst danach freigegeben.
 - Beim Einstieg in die Zielauswahl bleibt die Bildschirmtastatur geschlossen.
 - Fokus beziehungsweise Antippen des Feldes oeffnet die AJAX-Trefferliste, aber nicht automatisch die Tastatur.
 - Wurde bereits ein Lagerort oder Lagerplatz gewaehlt und das Feld erneut angetippt, wird wieder die vollstaendige verfuegbare Trefferliste fuer den aktuellen Kontext angezeigt; der bereits eingetragene Wert darf die Liste nicht auf sich selbst einschraenken.
 - Jedes Suchfeld besitzt ein Tastatur-Symbol. Erst dessen bewusste Aktivierung schaltet die Texteingabe/Tastatur fuer eine manuelle Suchzeichenfolge frei.
 - Der Tastaturmodus bleibt nach der bewussten Aktivierung offen, bis das Feld tatsaechlich verlassen wird. Ein interner Blur/Refocus zum Oeffnen der Android-Tastatur darf den Modus nicht unmittelbar wieder sperren.
 - Die Tastaturhilfe darf die bestehende Regel nicht aufweichen, dass frei getippter Text kein kanonischer Oxaion-Buchungsschluessel ist.
+
+### Mengeneingabe und Fokus bei Tankauslagerung
+
+- Die gewogene Auslagerungsmenge darf waehrend der Eingabe **keinen** automatischen Fokus- oder Scrollwechsel ausloesen.
+- Eine erste Ziffer ist noch keine Bestaetigung der fertigen Menge.
+- Der Zielbereich wird erst freigegeben, wenn eine positive Menge vollstaendig eingegeben und durch `Enter` oder durch bewusstes Verlassen des Mengenfeldes bestaetigt wurde.
+- Bereits erledigte Prozessschritte duerfen auf kleinen Displays zu einer kompakten Erfolgszusammenfassung zusammenklappen. Der aktuelle Arbeitsschritt bleibt voll sichtbar; ein kompakter Schritt kann zur Kontrolle wieder aufgeklappt werden.
 
 ## Neue Befuellung eines leeren Tanks
 
