@@ -173,7 +173,7 @@
     body.innerHTML=`<div class="status bad">Im ${esc(warehouse)} Tank sind laut System mehr als eine Charge bzw. Bestandsposition vorhanden. Daher kann die Buchung nicht durchgeführt werden.<br><b>Bitte nichts mehr buchen und die Produktionsleitung informieren.</b></div>`;
   }
 
-  function sync(){focusDestinationAfterTankScan();clearerTankAmbiguity()}
+  function sync(){clearerTankAmbiguity()}
 
   function install(){
     document.addEventListener('pointerdown',event=>{
