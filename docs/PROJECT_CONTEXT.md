@@ -65,6 +65,13 @@ Verbindliche Grundregeln:
 
 Details stehen verbindlich in `docs/OFFLINE_PWA.md`.
 
+## Bedien- und Diagnosekonfiguration ab 01.10.2026
+
+- `Diagnose` und `Dev-Infos` sind im normalen Mitarbeiterbetrieb standardmaessig ausgeblendet.
+- Die Freigabe erfolgt ausschliesslich serverseitig ueber `Prototype:DeveloperToolsEnabled` beziehungsweise die IIS-/Umgebungsvariable `Prototype__DeveloperToolsEnabled`.
+- Der Browser darf diese Freigabe nicht eigenmaechtig ueber Session-/LocalStorage aktivieren.
+- Technische Oxaion-Buchungsschluessel werden in der normalen Bedienoberflaeche nicht als Arbeitsanweisung angezeigt; fachliche Aussagen und konkrete Bedienmassnahmen haben Vorrang.
+
 ## Hauptfunktionen fuer den Bediener
 
 Der Bediener soll moeglichst wenige, klar verstaendliche Hauptfunktionen sehen. Aktuell festgelegt sind:
