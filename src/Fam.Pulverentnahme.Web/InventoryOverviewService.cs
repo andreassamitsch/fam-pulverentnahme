@@ -68,49 +68,45 @@ public sealed class InventoryOverviewService
             }
         }
 
-        var missingArticles = stock
-            .Select(x => x.Article)
-            .Where(x => !string.IsNullOrWhiteSpace(x) && !colors.ContainsKey(x))
+        var allArticles = stock.Select(x => x.Article)
+            .Concat(tanks.SelectMany(x => x.Rows).Select(x => x.Article))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (missingArticles.Count > 0)
+        foreach (var article in allArticles)
         {
+            if (colors.TryGetValue(article, out var existing)
+                && existing.Status == ArticleRecognitionColorStatuses.Complete)
+                continue;
+
             try
             {
-                await using var session = await _oxaion.ConnectAsync(ct);
-                foreach (var article in missingArticles)
-                {
-                    try
-                    {
-                        colors[article] = await ArticleRecognitionColorLookup.ReadAsync(session, article, ct);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        colors[article] = new ArticleRecognitionColorsResult(
-                            ArticleRecognitionColorStatuses.Unavailable,
-                            article,
-                            null,
-                            null,
-                            $"Erkennungsfarben konnten nicht gelesen werden: {ex.Message}");
-                    }
-                }
+                // Use a fresh Oxaion session per article. The confirmed US17000/US21000
+                // characteristic path has its own screen context and must not inherit a previous
+                // machine-stock or another article-characteristic list context.
+                await using var colorSession = await _oxaion.ConnectAsync(ct);
+                colors[article] = await ArticleRecognitionColorLookup.ReadAsync(colorSession, article, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                foreach (var article in missingArticles)
-                {
-                    if (!colors.ContainsKey(article))
-                        colors[article] = new ArticleRecognitionColorsResult(
-                            ArticleRecognitionColorStatuses.Unavailable,
-                            article,
-                            null,
-                            null,
-                            $"Erkennungsfarben konnten nicht gelesen werden: {ex.Message}");
-                }
+                colors[article] = new ArticleRecognitionColorsResult(
+                    ArticleRecognitionColorStatuses.Unavailable,
+                    article,
+                    null,
+                    null,
+                    $"Erkennungsfarben konnten nicht gelesen werden: {ex.Message}");
             }
         }
+
+        tanks = tanks.Select(tank =>
+        {
+            var article = tank.Rows.Count == 1 ? tank.Rows[0].Article : "";
+            return !string.IsNullOrWhiteSpace(article) && colors.TryGetValue(article, out var resolved)
+                ? tank with { RecognitionColors = resolved }
+                : tank;
+        }).ToList();
 
         return new InventoryOverviewResult(stock, tanks, colors);
     }
