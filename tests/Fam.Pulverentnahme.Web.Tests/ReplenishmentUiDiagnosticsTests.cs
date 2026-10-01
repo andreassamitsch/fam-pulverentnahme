@@ -61,13 +61,14 @@ public sealed class ReplenishmentUiDiagnosticsTests
         Assert.Contains("if(expected)return state.visibleIds.includes(expected)", source);
         Assert.Contains("getClientRects().length", source);
         Assert.Contains("expectedPanelVisible", source);
-        Assert.Contains("abortTankScan", source);
+        Assert.DoesNotContain("abortTankScan", source);
         Assert.Contains("abortOrderScan", source);
         Assert.Contains("abort.id='faAbortProcess'", router);
         Assert.Contains("faAbortProcess", router);
         Assert.Contains("OPERATION_RESULT", router);
         Assert.Contains("stage:String(b.stage||'')", router);
-        Assert.Contains("/api/fa-abort-correction/validate-source", router);
+        Assert.Contains("/api/fa-abort-correction/resolve-source", router);
+        Assert.DoesNotContain("abortTankStep", router);
         Assert.Contains("Oxaion-Fall prüfen", router);
     }
 
