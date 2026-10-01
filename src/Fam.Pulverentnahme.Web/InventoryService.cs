@@ -30,7 +30,7 @@ SELECT
  X.ChargeDatum
 FROM
 (
- /* Lagerorte MIT Lagerplatzorganisation */
+ /* Reale Lagerplatzbestaende */
  SELECT
   B.LPFIRM AS Firma,
   B.LPLAGO AS Lagerort,
@@ -56,7 +56,7 @@ FROM
 
  UNION ALL
 
- /* Lagerorte OHNE Lagerplatzorganisation */
+ /* Lagerortbestaende ohne zusaetzliche Lagerplatzzeile */
  SELECT
   LA.LAFIRM AS Firma,
   LA.LALAGO AS Lagerort,
