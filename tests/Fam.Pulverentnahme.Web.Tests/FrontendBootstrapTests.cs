@@ -26,13 +26,15 @@ public sealed class FrontendBootstrapTests
         var serviceWorker = File.ReadAllText(Path.Combine(webRoot, "sw.js"));
         var processMode = File.ReadAllText(Path.Combine(webRoot, "process-mode.js"));
 
-        const string processModeUrl = "/process-mode.js?v=20260930-label-print-reprint-1";
+        const string processModeUrl = "/process-mode.js?v=20261001-operator-ui-1";
         Assert.Contains(processModeUrl, index);
         Assert.Contains(processModeUrl, serviceWorker);
-        Assert.Contains("fam-pulver-staging-v36-label-print-reprint-20260930", serviceWorker);
+        Assert.Contains("fam-pulver-staging-v37-operator-ui-20261001", serviceWorker);
         Assert.Contains("Etiketten drucken?", processMode);
         Assert.Contains("data-mode=\"label-reprint\"", processMode);
         Assert.Contains("Etiketten nachdrucken", processMode);
+        Assert.Contains("/ui-config.js?v=20261001-operator-ui-1", index);
+        Assert.Contains("/ui-config.js?v=20261001-operator-ui-1", serviceWorker);
     }
 
     private static string FindRepositoryRoot()
