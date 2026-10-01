@@ -54,6 +54,26 @@ public sealed class OperatorUiCorrectionsTests
     }
 
     [Fact]
+    public void JobAbortStartsWithFaScanAndResolvesTankFromOxaion()
+    {
+        var source = ReadWebFile("process-mode.js");
+
+        Assert.Contains("Fertigungsauftrag des abgebrochenen Jobs scannen.", source);
+        Assert.Contains("/api/fa-abort-correction/resolve-source", source);
+        Assert.Contains("Automatisch ermittelter Tank", source);
+        Assert.DoesNotContain("abortTankScan", source);
+        Assert.DoesNotContain("abortTankStep", source);
+    }
+
+    [Fact]
+    public void MissingRecognitionColorsDoNotRenderAnEmptyColorBox()
+    {
+        var source = ReadWebFile("process-mode.js");
+
+        Assert.Contains("if(!valid(a)&&!valid(b))return ''", source);
+    }
+
+    [Fact]
     public void InventoryOverviewContainsTankSectionRecognitionColorsAndDedicatedEndpoint()
     {
         var source = ReadWebFile("process-mode.js");
