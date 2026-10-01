@@ -9,7 +9,7 @@ function setStepState(id,state){const e=$(id);if(!e)return;e.classList.remove('c
 function setCurrentAction(element,on=true){if(element)element.classList.toggle('currentAction',Boolean(on))}
 function clearCurrentActions(){document.querySelectorAll('.currentAction').forEach(e=>e.classList.remove('currentAction'))}
 function setWorkerInstruction(text){const e=$('workerNextInstruction');if(e)e.textContent=text}
-function applyDevMode(on){document.body.classList.toggle('dev-mode',Boolean(on));const toggle=$('devModeToggle');if(toggle)toggle.checked=Boolean(on);try{sessionStorage.setItem(DEV_MODE_KEY,on?'1':'0')}catch{}}
+function applyDevMode(on){const allowed=window.FamUiConfig?.developerToolsEnabled===true;const enabled=allowed&&Boolean(on);document.body.classList.toggle('dev-mode',enabled);const toggle=$('devModeToggle');if(toggle){toggle.checked=enabled;toggle.disabled=!allowed}try{sessionStorage.setItem(DEV_MODE_KEY,enabled?'1':'0')}catch{}}
 function focusWorkerElement(element){if(!element)return;setCurrentAction(element,true);setTimeout(()=>{try{element.scrollIntoView({behavior:'smooth',block:'center'})}catch{}},30)}
 function workerDelay(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function workerSourceKey(p){return `${String(p?.warehouse||'').trim().toUpperCase()}\u001f${String(p?.storageBin||'').trim()}\u001f${String(p?.batch||'').trim()}`}
@@ -298,8 +298,11 @@ const workerBaseShowResult=showResult;
 showResult=function(ok,title,data){workerBaseShowResult(ok,title,data);const message=$('workerResultMessage'),action=$('workerResultAction');if(message)message.textContent=data?.message||data?.detail||friendly(data);if(action)action.textContent=workerResolutionInstruction(ok,data);const result=$('result');if(result){result.classList.toggle('workerSuccess',Boolean(ok));result.classList.toggle('workerFailure',!ok)}setTimeout(()=>result?.scrollIntoView({behavior:'smooth',block:'center'}),20)};
 
 function initWorkerUi(){
-  const toggle=$('devModeToggle');let initial=false;try{initial=sessionStorage.getItem(DEV_MODE_KEY)==='1'}catch{}
-  applyDevMode(initial);toggle?.addEventListener('change',()=>applyDevMode(toggle.checked));
+  const toggle=$('devModeToggle');
+  applyDevMode(false);
+  const applyConfiguredDevMode=()=>{let initial=false;if(window.FamUiConfig?.developerToolsEnabled===true){try{initial=sessionStorage.getItem(DEV_MODE_KEY)==='1'}catch{}}applyDevMode(initial)};
+  if(window.FamUiConfigReady?.then)window.FamUiConfigReady.then(applyConfiguredDevMode);else applyConfiguredDevMode();
+  toggle?.addEventListener('change',()=>applyDevMode(toggle.checked));
   const manual=$('manualLoginFallback');if(manual&&(!window.isSecureContext||!('NDEFReader'in window)))manual.open=true;
   const sourceButton=$('addSourceBtn');if(sourceButton)sourceButton.onclick=workerScanChargeQr;
   try{scanChargeQr=workerScanChargeQr}catch{}window.scanChargeQr=workerScanChargeQr;
