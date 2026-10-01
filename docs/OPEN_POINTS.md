@@ -16,10 +16,28 @@ Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-
 - [x] 28.09.2026 Android-Live-Test Tank-Auslagern: I2 wurde vor Beleganlage wegen der App-Pruefung `LBSKSB=0050000` blockiert. Diese Pruefung war falsch: `LBSKSB` darf leer sein; die fruehere `0050000`-Vorbelegung war nicht als FAM-Pflichtwert gedacht. Buchungsschluessel, Bezeichnung und `LBKLAS=J` bleiben die Vorpruefung. Die zwischenzeitliche Kontierungsanalyse wurde spaeter durch die verbindliche FAM-Entscheidung vom 29.09.2026 ersetzt: I1 und I2 verwenden beide `PSWERK=21` / `PSKSTL=5100`.
 - [x] 29.09.2026 Android-Live-Test Tank-Auslagern: Ursache des wiederholten `NullPointerException` in `LB20115M_EntryPoints.entryChkIDNR04`, Zeile 1913, war der fehlende interne Textstruktur-Spiegelwert zu `TX_PCKMS`; analog muessen auch `I_TX_PCKMM` und `I_TX_PCKMZ` vorhanden sein. Nach Mitgabe aller drei leeren `TX_`-/`I_TX_`-Paare (`PCKMS`, `PCKMM`, `PCKMZ`) funktioniert der zuvor blockierende I2-Korrekturpfad im Android-STAGING-Livetest. Der Fix ist damit technisch bestaetigt. Die alten fehlgeschlagenen Belege `FA26MB00088` bis `FA26MB00093` bleiben historische Fehlversuche und duerfen nicht erneut verwendet werden.
 - [ ] 29.09.2026 Etikettendruck nach Tank-Auslagern: JET-/HTTP-Mitschnitt `Ettikett Drucken Pulver aus Tank in Lager` analysiert und als separater Post-SUCCESS-Druckpfad umgesetzt. Ziel ist die eindeutige `LE`-Bewegung; Bediener-Stueckzahl wird ueber `EK99103R.MENGE` gesetzt; `MN50100J`-Druckkonfiguration wird aus Oxaion gelesen und nicht hart codiert. Android-STAGING-Livetest des Drucks steht noch aus; bei unklarem `*RUN` kein Blind-Reprint.
-- [ ] 29.09.2026 Etiketten-Nachdruck: eigenständiger Bedienvorgang umgesetzt. Er listet erfolgreiche Tank-Outs, zeigt die Summe bisher erfolgreicher Etikettenaufträge, erlaubt neue zusätzliche Stückzahlen und verwendet erneut den bestätigten LE-basierten Oxaion-Druckpfad. Ein priorer `UNCERTAIN`-/`MANUAL_REVIEW_REQUIRED`-Druck blockiert den Nachdruck. Android-STAGING-Livetest von Erst-/Nachdruck und realem Druckerfehler steht noch aus.
+- [x] 01.10.2026 Etiketten-Nachdruck: eigenstaendiger Bedienvorgang im Android-STAGING-Test vom Anwender bestaetigt (`Etiketten Nachdruck funktioniert nun auch`). Erfolgreiche Tank-Outs, zusaetzliche Stueckzahl und separate Druckoperation bleiben erhalten. Ein priorer `UNCERTAIN`-/`MANUAL_REVIEW_REQUIRED`-Druck blockiert weiterhin den Nachdruck.
 - [x] 18.09.2026: `I1 = Bestandskorrektur Zugang` in FAM-STAGING per `US50000J` und realer `LB20115J`-/`LB20110R`-Buchung bestaetigt. Referenz: 0,002 kg auf EOS1/dieselbe Mix-Charge; Tankbestand exakt +0,002 kg. Im Mitschnitt verwendete Kostenstelle 5100.
 - [ ] Optional pruefen und mitschneiden, ob Bestandskorrektur (`I1`/`I2` bzw. lokal bestaetigter Schluessel) und anschliessender `LF`-Transfer in einem einzigen Oxaion-Lagerbeleg sicher moeglich sind. Bis dahin keine gemeinsame Positionsfolge erfinden.
 - [ ] Aufloesung/kleinste Anzeigestufe der produktiv eingesetzten Waage ermitteln und daraus die verbindliche Rundungs-/Abweichungstoleranz festlegen. Keine Toleranz hart codieren oder raten.
+
+## Bedien-/Lagerkorrekturen 01.10.2026
+
+- [x] Code: Nachfuellen meldet einen eindeutig leeren Tank explizit als leer und verweist auf `Neues Pulver in Tank fuellen`.
+- [x] Code: sichtbare Schrittnummern und nummerierte Mitarbeiteranweisungen entfernt.
+- [x] Code: Prozessmenue auf die festgelegte Reihenfolge umgestellt; FA-Verbrauch steht auf Position 2, Etiketten-Nachdruck ganz unten.
+- [x] Code: `Diagnose` und `Dev-Infos` standardmaessig ausgeblendet und nur ueber `Prototype__DeveloperToolsEnabled=true` serverseitig freischaltbar.
+- [x] Code: Tankauslagerung beginnt beim Tankscan; die Wiegemenge loest waehrend der Zifferneingabe keinen automatischen Sprung mehr aus. Zielauswahl wird erst nach Enter/Blur einer gueltigen Menge freigegeben.
+- [x] Code: eindeutiger Prozess-SUCCESS steuert den Ruecksprung zur Vorgangsuebersicht; Dialogtitel ist dafuer nicht mehr die Steuerinformation. Die Uebersicht wird am Seitenanfang geoeffnet.
+- [x] Code: technische I1/I2-/LF/LE-Arbeitsanweisungen aus der normalen Tank-Out-Bedienoberflaeche entfernt; technische Details bleiben Backend/Diagnose.
+- [x] Code: Erfolgsmeldungen der separaten Prozesse werden bedienerfreundlich auf Deutsch erzeugt und geben keine rohe englische Backend-Verifikationsmeldung mehr aus.
+- [x] Code: erledigte Schritte koennen auf kleinen Displays kompakt zusammengefasst und zur Kontrolle wieder aufgeklappt werden.
+- [x] Code: Lagerbeleg-Kopftexte werden zentral vor dem Oxaion-Aufruf auf `KOBGT1 <= 40` und `KOBGTX <= 35` begrenzt.
+- [x] Code: Lageruebersicht um Maschinentanks und EFA01/EFA02-Erkennungsfarben erweitert.
+- [x] Code: RP.*-Lagerplatzabfrage liest reale nicht-null Bestandszeilen direkt aus `LLPWEP`; zusaetzliche INNER-JOIN-Filter auf `LLPLAP`/`ULGSTP`, die vorhandene Bestandszeilen ausblenden koennen, wurden aus dieser Informationssicht entfernt. `LLAWEP.LAGRKZ <> 'J'` verhindert weiterhin doppelte Lagerortsummen.
+- [ ] Android-STAGING: fehlenden Realfall `RP.00010` nach neuem Build in der Lageruebersicht bestaetigen und gegen Oxaion-Lagerplaetze vergleichen.
+- [ ] Android-STAGING: Tank-Out-Fokus/Mengeneingabe, kompakte erledigte Schritte, Ruecksprung nach Erfolg und ausgeblendete Dev-/Diagnosewerkzeuge live bestaetigen.
+- [ ] STAGING: neue KOBGT1/KOBGTX-Aufteilung an einem realen Lagerbeleg pruefen; Oxaion darf die bereits vorab auf 40/35 Zeichen begrenzten Werte nicht mehr abschneiden.
 
 ## Aktueller STAGING-Korrekturstand 10.09.2026
 
