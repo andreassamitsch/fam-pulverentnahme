@@ -70,7 +70,7 @@ Die Informationsseite ist zweigeteilt:
 1. **Maschinentanks** ganz oben: alle in `MachineTanks:Warehouses` konfigurierten Tanks mit aktuellem Oxaion-Zustand. Bei eindeutigem Bestand werden Artikel, Bezeichnung, Mix-Charge, Menge und EFA01/EFA02-Erkennungsfarben angezeigt. Leere Tanks werden explizit als `Tank leer` dargestellt. Uneindeutige oder nicht lesbare Tankzustaende werden als Klaerungsfall sichtbar gemacht.
 2. **Pulverlager** darunter: die RP.*-Bestandspositionen nach Artikel, Lagerort, Lagerplatz und Charge.
 
-Die bereits bestaetigte Erkennungsfarbenlogik aus `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md` wird artikelweise wiederverwendet. Farben sind nur visuelle Erkennungshilfe und keine Buchungsfreigabe.
+Die bereits bestaetigte Erkennungsfarbenlogik aus `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md` wird artikelweise wiederverwendet. Der Sachmerkmalsabruf erfolgt in einem frischen, vom Tank-/Lagerlisten-Kontext getrennten Oxaion-App-Tunnel. Fuer denselben Artikel wird das aufgeloeste Farbergebnis sowohl bei Maschinentanks als auch im Pulverlager verwendet. Kann kein gueltiger HEX-Wert gelesen werden, zeigt die PWA kein leeres Farbfeld. Farben sind nur visuelle Erkennungshilfe und keine Buchungsfreigabe.
 
 ## Nicht mehr verwendeter JET-Indexweg
 
