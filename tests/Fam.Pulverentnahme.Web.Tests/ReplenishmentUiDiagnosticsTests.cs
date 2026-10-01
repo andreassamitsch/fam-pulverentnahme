@@ -10,7 +10,7 @@ public sealed class ReplenishmentUiDiagnosticsTests
         var webRoot = WebRoot();
         var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
 
-        Assert.Contains("/ui-diagnostics.js?v=20261001-operator-ui-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261001-jobabort-colors-1", index);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", index);
         Assert.True(index.IndexOf("/process-mode.js", StringComparison.Ordinal) <
                     index.IndexOf("/replenish-router-guard.js", StringComparison.Ordinal));
@@ -86,11 +86,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV37RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV38RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-staging-v37-operator-ui-20261001", source);
+        Assert.Contains("fam-pulver-staging-v38-jobabort-colors-20261001", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
