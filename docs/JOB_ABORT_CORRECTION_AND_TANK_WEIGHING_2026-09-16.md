@@ -1,6 +1,6 @@
 # Korrekturbuchung Fertigungsauftrag und Tank-Wiegung
 
-Stand: 16.09.2026
+Stand: 01.10.2026
 
 Dieses Dokument beschreibt die neue verbindliche fachliche Anforderung fuer
 
@@ -67,20 +67,20 @@ Der sichtbare Vorgang heisst verbindlich:
 
 `Korrekturbuchung Fertigungsauftrag (Jobabbruch)`
 
-Geplanter Ablauf:
+Aktueller Ablauf ab 01.10.2026:
 
 1. Mitarbeiter anmelden.
-2. Maschinentank scannen.
-3. Fertigungsauftrag scannen.
-4. Pulverartikel aus FA und Tank muessen uebereinstimmen.
-5. Exakte Materialposition und aktuell gebuchten Verbrauch aus Oxaion lesen.
-6. Die urspruengliche zu stornierende Materialrueckmeldung eindeutig bestimmen.
-7. Vor dem Storno FA-Zustand, Originalrueckmeldung, Tanklager und Mix-Charge anzeigen.
-8. Bediener bestaetigt bewusst `Job abgebrochen / Buchung korrigieren`.
-9. Originalrueckmeldung stornieren.
-10. Storno ausschliesslich ueber bestaetigte Oxaion-Lesewege verifizieren.
-11. Erst wenn der Storno eindeutig erfolgreich ist, den tatsaechlichen Ist-Verbrauch erfassen.
-12. Neue korrekte Materialrueckmeldung fuer den tatsaechlichen Ist-Verbrauch ausfuehren.
+2. Fertigungsauftrag scannen.
+3. Exakte Materialposition und aktuell gebuchten Verbrauch aus Oxaion lesen.
+4. Die urspruengliche zu stornierende Materialrueckmeldung anhand von FA, Materialposition, Artikel und urspruenglicher Menge eindeutig bestimmen.
+5. Tanklager und Mix-Charge direkt aus dieser Originalrueckmeldung ableiten; **kein manueller Tankscan**.
+6. Den abgeleiteten Lagerort gegen die FAM-Maschinentankliste pruefen und den aktuellen Tankbestand aus Oxaion lesen.
+7. Aktueller Tankartikel und aktuelle Mix-Charge muessen der Originalrueckmeldung entsprechen. Bei Abweichung wird die automatische Korrektur gesperrt.
+8. Vor dem Storno FA-Zustand, Originalrueckmeldung, Tanklager, Mix-Charge und aktuellen Tankbestand anzeigen.
+9. Bediener bestaetigt bewusst `Job abgebrochen / Buchung korrigieren`.
+10. Originalrueckmeldung stornieren.
+11. Storno ausschliesslich ueber bestaetigte Oxaion-Lesewege verifizieren.
+12. Erst wenn der Storno eindeutig erfolgreich ist, den tatsaechlichen Ist-Verbrauch neu rueckmelden.
 13. Final FA-Materialposition, Tankbestand und Mix-Charge erneut lesen und exakt verifizieren.
 
 ### Transaktions- und Fehlergrenzen
@@ -289,9 +289,11 @@ Bestaetigte Sequenz fuer den Referenzfall `FA24FK00126 / Pos. 10 / RP.00010`:
 
 Verbindliche Implementierungsregel:
 
-- Die Oxaion-Standard-Stornoliste `PW22021R` liefert bereits nur gueltige/stornierbare Rueckmeldungen. Fuer die automatische Jobabbruch-Korrektur muessen jedoch FA, Materialposition, Artikel, urspruengliche Menge, **Tanklager und Mix-Charge** der Originalrueckmeldung mit dem aktuell gescannten Tank uebereinstimmen.
-- Eine Rueckbuchung einer alten FA-Rueckmeldung auf einen Tank, dessen Mix-Charge sich inzwischen geaendert hat, ist fachlich nicht zulaessig und wird technisch gesperrt.
-- Die Pruefung erfolgt bereits unmittelbar nach dem FA-Scan ueber einen rein lesenden Aufbau der Oxaion-Stornoliste. Bei Charge-/Tankabweichung wird die Mengeneingabe nicht freigegeben; Meldung an den Bediener: Fertigungsauftrag kann nicht automatisch auf diesen Tank rueckgebucht werden, da sich die Tankcharge seit der urspruenglichen FA-Buchung geaendert hat. Fall in Oxaion pruefen und gegebenenfalls manuell ueber Lagerbelege korrigieren.
+- Die Oxaion-Standard-Stornoliste `PW22021R` liefert bereits nur gueltige/stornierbare Rueckmeldungen. Fuer die automatische Jobabbruch-Korrektur muss genau **eine** Rueckmeldung zu FA, Materialposition, Artikel und urspruenglicher Menge passen.
+- Tanklager und Mix-Charge werden aus dieser eindeutigen Originalrueckmeldung gelesen; eine zusaetzliche Bedienereingabe beziehungsweise ein Tankscan ist nicht erforderlich und waere nur eine zweite, potenziell widerspruechliche Quelle.
+- Der abgeleitete Lagerort muss in der konfigurierten FAM-Maschinentankliste enthalten sein.
+- Der aktuelle Tank wird unmittelbar nach der Ableitung erneut aus Oxaion gelesen. Artikel und Mix-Charge muessen weiterhin exakt der Originalrueckmeldung entsprechen. Eine Rueckbuchung einer alten FA-Rueckmeldung auf einen Tank, dessen Mix-Charge sich inzwischen geaendert hat, ist fachlich nicht zulaessig und wird technisch gesperrt.
+- Gibt es mehrere passende Originalrueckmeldungen, fehlen Tank/Mix in der Rueckmeldung oder ist der aktuelle Tankzustand nicht eindeutig, wird nichts storniert und der Fall muss in Oxaion geklaert werden.
 - Dieselbe Quellpruefung wird unmittelbar vor dem echten `PW22021R *STORNO` nochmals serverseitig ausgefuehrt.
 - Nach dem Storno bleiben FA-Zustand und die exakte Rueckbuchung auf denselben Tank/dieselbe Mix-Charge zwingende Erfolgsnachweise.
 - Nach `*STORNO` muessen Rueckmeldeliste, FA-Materialzustand und Tank/Mix **alle** den erwarteten Zustand beweisen, bevor eine neue MK gesendet wird.
