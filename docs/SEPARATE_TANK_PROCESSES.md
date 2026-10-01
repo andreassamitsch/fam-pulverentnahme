@@ -159,24 +159,25 @@ Dieser Vorgang ist fuer den Fall vorgesehen, dass bereits beim Druckstart Pulver
 Fachlich verbindliche Reihenfolge:
 
 1. Mitarbeiter anmelden.
-2. Maschinentank scannen.
-3. Fertigungsauftrag scannen und exakte Pulver-Materialposition ermitteln.
-4. Die urspruengliche zu korrigierende Materialrueckmeldung eindeutig ermitteln.
-5. FA-Zustand, aktuell gebuchten Verbrauch, Tanklager und Mix-Charge anzeigen.
-6. Originalrueckmeldung als echten Oxaion-Storno stornieren.
-7. Storno rein lesend verifizieren; insbesondere FA-Materialposition und Rueckbuchung auf Tank/Mix-Charge pruefen.
-8. Erst nach eindeutig erfolgreichem Storno den tatsaechlichen Ist-Verbrauch erfassen.
-9. Den korrekten Ist-Verbrauch mit der bestaetigten normalen FA-Materialrueckmeldung neu buchen, sofern der nach dem Storno gelesene Oxaion-Zustand diese Rueckmeldung zulaesst.
+2. Fertigungsauftrag scannen und exakte Pulver-Materialposition ermitteln.
+3. Die urspruengliche zu korrigierende Oxaion-Materialrueckmeldung eindeutig anhand von FA, Materialposition, Artikel und urspruenglicher Menge bestimmen.
+4. Tanklager und Mix-Charge werden **nicht mehr manuell gescannt**, sondern aus genau dieser Originalrueckmeldung abgeleitet.
+5. Der automatisch ermittelte Lagerort muss ein freigegebener FAM-Maschinentank sein. Sein aktueller Oxaion-Bestand wird sofort neu gelesen und muss noch denselben Artikel und dieselbe Mix-Charge enthalten. Bei geaenderter Tankcharge wird die automatische Korrektur gesperrt.
+6. FA-Zustand, aktuell gebuchten Verbrauch, automatisch ermittelten Tank, Mix-Charge und aktuellen Tankbestand anzeigen.
+7. Originalrueckmeldung als echten Oxaion-Storno stornieren.
+8. Storno rein lesend verifizieren; insbesondere FA-Materialposition und Rueckbuchung auf genau denselben Tank/dieselbe Mix-Charge pruefen.
+9. Erst nach eindeutig erfolgreichem Storno den tatsaechlichen Ist-Verbrauch erfassen beziehungsweise neu buchen.
 10. Final FA-Materialposition, Tankbestand und Mix-Charge erneut lesen und exakt verifizieren.
 
 Der Vorgang ist eine gemeinsame WebApp-Gesamttransaktion mit mindestens zwei schreibenden Teilschritten: Storno und korrigierte neue Rueckmeldung. Ein unklarer Stornoausgang blockiert den zweiten Schreibschritt vollstaendig. Kein Teilschritt darf blind wiederholt oder automatisch durch eine erfundene Gegenbuchung kompensiert werden.
 
-Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind sowohl der konkrete Oxaion-Stornoablauf als auch die anschliessende korrigierte MK technisch bestaetigt und in der WebApp schreibend umgesetzt. Die App waehlt die Originalrueckmeldung nur bei genau einem Treffer anhand von FA, Materialposition, Artikel, urspruenglicher Menge, Tanklager und Mix-Charge aus. Nach `PW22021R *STORNO` muessen Rueckmeldeliste, FA-Materialzustand und dieselbe Tank-Mix-Charge den erwarteten Zustand beweisen, bevor die neue MK gestartet wird. Details stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
+Seit dem FAM-STAGING-JET-Mitschnitt vom 18.09.2026 sind sowohl der konkrete Oxaion-Stornoablauf als auch die anschliessende korrigierte MK technisch bestaetigt und in der WebApp schreibend umgesetzt. Seit 01.10.2026 wird der Tank nicht mehr vom Bediener vorgegeben: Die App verlangt genau einen passenden Originalrueckmeldungstreffer anhand von FA, Materialposition, Artikel und urspruenglicher Menge und uebernimmt daraus Tanklager und Mix-Charge. Diese Quelle wird anschliessend gegen die Tank-Whitelist und den aktuellen Tankbestand geprueft. Nach `PW22021R *STORNO` muessen Rueckmeldeliste, FA-Materialzustand und dieselbe Tank-Mix-Charge den erwarteten Zustand beweisen, bevor die neue MK gestartet wird. Details stehen in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-09-16.md`.
 
 ## Bedienkorrekturen 01.10.2026
 
 - Ein eindeutig leerer Tank wird im Vorgang `Pulver nachfuellen` explizit als leer gemeldet. Da dort kein Tankartikel ableitbar ist, wird auf `Neues Pulver in Tank fuellen` verwiesen.
-- Beim Einstieg in `Pulver aus Tank auslagern` beginnt die Bedienung immer beim Tankscan. Die Wiegemenge kann vollstaendig eingegeben werden, ohne dass die erste Ziffer den Fokus zum Zielbereich verschiebt.
+- Beim Einstieg in `Pulver aus Tank auslagern` beginnt die Bedienung immer beim Tankscan.
+- Beim `Jobabbruch` entfaellt dagegen der Tankscan bewusst: Die eindeutige Originalrueckmeldung ist die fachliche Quelle fuer Tanklager und Mix-Charge; der daraus ermittelte Tank wird serverseitig aktuell gegengeprueft. Die Wiegemenge kann vollstaendig eingegeben werden, ohne dass die erste Ziffer den Fokus zum Zielbereich verschiebt.
 - Technische Buchungsschluessel wie I1/I2 oder LF/LE sind in der normalen Mitarbeiterdarstellung nicht erforderlich. Der Bediener sieht die fachliche Aussage, z. B. dass der Bestand vor der Auslagerung um eine bestimmte Menge korrigiert wird. Technische Details bleiben Diagnose/Protokoll.
 - Bereits erledigte Schritte werden auf kleinen Displays kompakt zusammengefasst, damit der aktuelle Schritt ohne unnoetigen Scrollweg im Mittelpunkt bleibt.
 - Nach eindeutigem Erfolg und Bestaetigung der Erfolgsmeldung kehrt die App zur Vorgangsuebersicht am Seitenanfang zurueck. Dies wird ueber den Erfolgszustand und nicht ueber einen bestimmten Dialogtitel gesteuert.
