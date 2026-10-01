@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [int]$Port = 5080,
-    [switch]$ResetStoredSqlConnections
+    [switch]$ResetStoredSqlConnections,
+    [switch]$DeveloperTools
 )
 
 Set-StrictMode -Version 2.0
@@ -43,12 +44,14 @@ try {
     $env:Syncos__ConnectionString = $syncosConnectionString
     $env:PersonnelAuthentication__ConnectionString = $syncosConnectionString
     $env:OxaionSql__ConnectionString = $oxaionSqlConnectionString
+    $env:Prototype__DeveloperToolsEnabled = if ($DeveloperTools) { "true" } else { "false" }
 
     Write-Host ""
     Write-Host "FAM Pulverentnahme STAGING" -ForegroundColor Cyan
     Write-Host "Oxaion HTTP: http://oxapp.cnc-domain.fuchshofer:11118 / Firma 103 / User $oxaionUser" -ForegroundColor DarkGray
     Write-Host "Syncos RFID + Passwortpruefung: konfiguriert" -ForegroundColor DarkGray
     Write-Host "SQL-Verbindungen: verschluesselt gespeichert fuer diesen Windows-Benutzer (falls nicht per Umgebungsvariable vorgegeben)" -ForegroundColor DarkGray
+    Write-Host ("Developer-Tools: " + $(if ($DeveloperTools) { "AKTIV" } else { "aus" })) -ForegroundColor $(if ($DeveloperTools) { "Yellow" } else { "DarkGray" })
     Write-Host "Oxaion SQL Lagerbestandsansicht: konfiguriert (read-only)" -ForegroundColor DarkGray
     Write-Host "WebApp: http://localhost:$Port" -ForegroundColor Green
     Write-Host "Android im selben Netz: http://<IP-DIESES-PCS>:$Port" -ForegroundColor Green
@@ -65,6 +68,7 @@ finally {
     Remove-Item Env:Syncos__ConnectionString -ErrorAction SilentlyContinue
     Remove-Item Env:PersonnelAuthentication__ConnectionString -ErrorAction SilentlyContinue
     Remove-Item Env:OxaionSql__ConnectionString -ErrorAction SilentlyContinue
+    Remove-Item Env:Prototype__DeveloperToolsEnabled -ErrorAction SilentlyContinue
     $plainPassword = $null
     $syncosConnectionString = $null
     $oxaionSqlConnectionString = $null
