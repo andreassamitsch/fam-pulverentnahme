@@ -36,9 +36,13 @@ Ab 30.09.2026 gilt fuer die STAGING-PWA zusaetzlich verbindlich:
 
 - Wird eine vom Service Worker gecachte JavaScript-/CSS-Ressource funktional geaendert, muss ihre URL-Version in `index.html` **und** in der Service-Worker-`ASSETS`-Liste gemeinsam angehoben werden.
 - Bei einer neuen App-Shell-Funktion muss gleichzeitig die Service-Worker-`CACHE`-Generation angehoben werden, damit ein installiertes Android-PWA nicht dauerhaft eine aeltere UI aus dem Cache weiterverwendet.
-- Fuer den Etikettendruck-/Nachdruck-Stand vom 30.09.2026 ist `process-mode.js?v=20260930-label-print-reprint-1` Bestandteil der App-Shell und der Cache `fam-pulver-staging-v36-label-print-reprint-20260930`.
+- Fuer den Etikettendruck-/Nachdruck-Stand vom 30.09.2026 ist `process-mode.js?v=20261001-operator-ui-1` Bestandteil der App-Shell und der Cache `fam-pulver-staging-v37-operator-ui-20261001`.
 - Ein Regressionstest prueft, dass `index.html` und `sw.js` dieselbe `process-mode.js`-Version referenzieren und dass Erst-/Nachdruck-UI im ausgelieferten Frontend vorhanden ist.
 
+
+### Operator-UI-Cachegeneration 01.10.2026
+
+Die Korrekturen fuer Prozessnavigation, Tankauslagerungs-Fokus, Lageruebersicht, serverseitig freigeschaltete Diagnosewerkzeuge und kompakte erledigte Schritte sind gemeinsam als neue App-Shell-Generation versioniert. Alle dabei geaenderten Frontendressourcen werden mit `?v=20261001-operator-ui-1` referenziert; `ui-config.js` ist Bestandteil der App-Shell.
 
 ## PWA-Installierbarkeit auf Android
 
