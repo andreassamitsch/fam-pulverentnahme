@@ -10,7 +10,7 @@ public sealed class ReplenishmentUiDiagnosticsTests
         var webRoot = WebRoot();
         var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
 
-        Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261001-operator-ui-1", index);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", index);
         Assert.True(index.IndexOf("/process-mode.js", StringComparison.Ordinal) <
                     index.IndexOf("/replenish-router-guard.js", StringComparison.Ordinal));
@@ -29,12 +29,14 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void DiagnosticLoggerIsAlwaysReachableAndOmitsCredentialFields()
+    public void DiagnosticLoggerIsServerGatedAndOmitsCredentialFields()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "ui-diagnostics.js"));
 
         Assert.Contains("diagnosticHeaderBtn", source);
         Assert.Contains("button.textContent='Diagnose'", source);
+        Assert.Contains("window.FamUiConfig?.developerToolsEnabled!==true", source);
+        Assert.Contains("developerTool", source);
         Assert.Contains("Diagnose kopieren", source);
         Assert.Contains("serviceWorkerControlled", source);
         Assert.Contains("FIRST_CONTROLLED_START_AFTER_INSTALL", source);
@@ -83,11 +85,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV36RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV37RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-staging-v36-label-print-reprint-20260930", source);
+        Assert.Contains("fam-pulver-staging-v37-operator-ui-20261001", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
