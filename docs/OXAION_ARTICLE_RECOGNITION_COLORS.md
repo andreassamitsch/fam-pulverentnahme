@@ -1,6 +1,6 @@
 # Oxaion-Sachmerkmale fuer Artikel-Erkennungsfarben
 
-Stand: 03.09.2026
+Stand: 01.10.2026
 
 ## Zweck
 
@@ -143,6 +143,12 @@ Der Backend-Parser normalisiert gueltige Werte auf Grossbuchstaben und liefert z
 #7030A0 -> 7030A0
 ```
 
+## Laufzeitkontext ab 01.10.2026
+
+Der bestaetigte US17000/US21000-Ablauf wird fuer die WebApp in einem **eigenen frischen Oxaion-App-Tunnel-Kontext** ausgefuehrt. Ein zuvor fuer `LB30230R` oder eine andere Listenmaske verwendeter Sessionkontext wird nicht fuer den Sachmerkmalsabruf weiterverwendet.
+
+Hintergrund der Korrektur: In der Lageruebersicht wurde fuer den bestaetigten Referenzartikel `RP.00010` trotz gepflegter Werte `0D0D0D / 7030A0` ein leeres Farbfeld angezeigt. Der Backend-Code verwendete den bereits fuer die Tankliste benutzten Oxaion-Sessionkontext. Ab 01.10.2026 wird der Farbleseweg davon isoliert. Die praktische Android-STAGING-Bestaetigung dieses Fixes steht noch aus.
+
 ## Darstellung in der PWA
 
 Nach einem eindeutigen Maschinentankbestand:
@@ -166,5 +172,5 @@ EFA01 Schwarz (#0D0D0D) · EFA02 Violett (#7030A0)
 - Fehlt `EFA01` oder `EFA02`, wird der fehlende Teil nicht als frei angenommene Farbe dargestellt.
 - Ist ein HEX-Wert ungueltig, wird er nicht als CSS-Farbe verwendet.
 - Scheitert der rein lesende Oxaion-Sachmerkmalsabruf, bleibt der eindeutige Maschinenbestand davon fachlich getrennt.
-- Die PWA zeigt die fehlende Farbinformation sichtbar an, darf daraus aber weder eine Materialfreigabe noch eine Buchungsablehnung ableiten.
+- Wenn weder EFA01 noch EFA02 als gueltiger HEX-Wert vorliegt, wird **kein leeres Farbfeld** gerendert. Die fehlende Farbinformation darf weder eine Materialfreigabe noch eine Buchungsablehnung ausloesen.
 - Vor der Materialbuchung gelten unveraendert die bestehenden serverseitigen Maschinen-, Personal- und Quellenbestandspruefungen.
