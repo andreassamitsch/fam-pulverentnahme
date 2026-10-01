@@ -213,7 +213,7 @@
   document.addEventListener('click',event=>{
     const choice=event.target?.closest?.('.processChoice');
     const action=choice?`process:${choice.dataset?.mode||''}`:event.target?.closest?.('button')?.id||'';
-    if((action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan','abortTankScan','abortOrderScan','diagnosticHeaderBtn'].some(x=>action===x))||action.startsWith('process:'))log('CLICK',{action});
+    if((action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan','abortOrderScan','diagnosticHeaderBtn'].some(x=>action===x))||action.startsWith('process:'))log('CLICK',{action});
   },true);
   log('DIAGNOSTICS_LOADED',{version:VERSION,firstControlledReload:firstControlledReload(),serviceWorkerControlled:Boolean(navigator.serviceWorker?.controller)});
   if(firstControlledReload())log('FIRST_CONTROLLED_START_AFTER_INSTALL',snapshot());
