@@ -34,7 +34,7 @@ Syncos SQL und Oxaion SQL sind getrennte serverseitige Laufzeitverbindungen. `Sy
 
 - mobile Bedienoberflaeche fuer Produktionsmitarbeiter
 - schrittgefuehrter Mitarbeitermodus mit deutlicher Hervorhebung der aktuell erwarteten Aktion
-- optionaler Schalter `Dev-Infos`, der ausschliesslich technische Informationen ein-/ausblendet und keine fachliche Freigabe veraendert
+- Diagnose- und `Dev-Infos`-Werkzeuge sind im normalen Betrieb ausgeblendet; sie werden ausschliesslich durch die serverseitige Konfiguration `Prototype:DeveloperToolsEnabled` freigegeben und veraendern keine fachliche Berechtigung
 - bevorzugte Mitarbeiter-Anmeldung ueber NFC; Fallback Personalnummer + SYNCOS-Passwort
 - Scan von Fertigungsauftrags-, Maschinentank- und Rohmaterial-/Chargencodes ueber die Kamera
 - Kamera wird zuerst nur geoeffnet; Barcode-Erkennung startet erst nach bewusstem Druck auf `Scannen`
@@ -69,6 +69,10 @@ Die Session enthaelt nur die benoetigte Mitarbeiteridentitaet. Das Klartextpassw
 Vor `/api/mix` prueft ein Endpoint-Filter, dass Session-Personalnummer und -Name exakt zum Request passen. Innerhalb des Buchungsablaufs wird die Person direkt vor den ersten schreibenden Oxaion-Aufrufen nochmals ueber den bestaetigten Oxaion-Personalweg gelesen. Die Session ersetzt diese fachliche Revalidierung nicht.
 
 Details siehe `docs/PERSONNEL_AUTHENTICATION.md`.
+
+### Serverseitige UI-Freigabe
+
+Der Endpoint `/api/ui-config` liefert ausschliesslich nicht-sensitive UI-Freigaben. Aktuell wird damit `developerToolsEnabled` an die PWA uebergeben. Standard ist `false`. Der Schalter dient nur zur Sichtbarkeit von Diagnose-/Entwicklerwerkzeugen; Authentifizierung, Buchungsfreigaben und Oxaion-Revalidierung werden davon nicht beeinflusst.
 
 ### Service Worker
 
