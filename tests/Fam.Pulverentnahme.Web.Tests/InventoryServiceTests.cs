@@ -13,17 +13,16 @@ public sealed class InventoryServiceTests
     {
         var sql = InventoryService.QueryText;
 
-        Assert.Contains("FROM OXAION.LLPLAP AS LP", sql);
-        Assert.Contains("INNER JOIN OXAION.LLPWEP AS B", sql);
-        Assert.Contains("L.LGKLPL = N'J'", sql);
+        Assert.Contains("FROM OXAION.LLPWEP AS B", sql);
+        Assert.DoesNotContain("FROM OXAION.LLPLAP AS LP", sql);
         Assert.Contains("FROM OXAION.LLAWEP AS LA", sql);
-        Assert.Contains("L.LGKLPL = N'N'", sql);
+        Assert.DoesNotContain("INNER JOIN OXAION.ULGSTP", sql);
         Assert.Contains("LA.LAGRKZ <> N'J'", sql);
-        Assert.Contains("LP.LPIDNR LIKE N'RP.%'", sql);
+        Assert.Contains("B.LPIDNR LIKE N'RP.%'", sql);
         Assert.Contains("LA.LAIDNR LIKE N'RP.%'", sql);
         Assert.Contains("B.LPLABE <> 0", sql);
         Assert.Contains("LA.LALABE <> 0", sql);
-        Assert.Contains("LP.LPFIRM = @firm", sql);
+        Assert.Contains("B.LPFIRM = @firm", sql);
         Assert.Contains("LA.LAFIRM = @firm", sql);
 
         Assert.DoesNotContain("INSERT ", sql, StringComparison.OrdinalIgnoreCase);
