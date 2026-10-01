@@ -40,6 +40,11 @@ app.MapGet("/api/health", (
     personnelAuthenticationConfigured = auth.IsConfigured
 }));
 
+app.MapGet("/api/ui-config", (IOptions<PrototypeOptions> prototype) => Results.Ok(new
+{
+    developerToolsEnabled = prototype.Value.DeveloperToolsEnabled
+}));
+
 app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
 {
     try
