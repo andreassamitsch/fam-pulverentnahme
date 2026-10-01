@@ -29,7 +29,7 @@ Nach erfolgreicher Anmeldung soll die Vorgangsuebersicht nicht weiterhin den kom
 
 Im normalen Produktionsbetrieb werden `Diagnose` und `Dev-Infos` in der Kopfzeile nicht angezeigt und koennen clientseitig nicht freigeschaltet werden.
 
-Die Freigabe erfolgt ausschliesslich serverseitig ueber die ASP.NET-Core-Konfiguration `Prototype:DeveloperToolsEnabled`. Fuer IIS kann sie beispielsweise als Umgebungsvariable `Prototype__DeveloperToolsEnabled=true` gesetzt werden. Nach einer Aenderung ist der Anwendungsprozess/AppPool neu zu starten. Ohne explizite Freigabe ist der Wert `false`.
+Die Freigabe erfolgt ausschliesslich serverseitig ueber die ASP.NET-Core-Konfiguration `Prototype:DeveloperToolsEnabled`. Beim mitgelieferten STAGING-Start erfolgt die bewusste Freigabe per `START_STAGING.bat -DeveloperTools` beziehungsweise `./start-staging-published.ps1 -DeveloperTools`; ohne diesen Parameter setzt das Skript den Wert explizit auf `false`. Bei anderem IIS-/Diensthosting kann entsprechend die Umgebungsvariable `Prototype__DeveloperToolsEnabled=true` gesetzt werden; nach einer Aenderung ist der Anwendungsprozess/AppPool neu zu starten.
 
 Der Browser erhaelt nur den booleschen Freigabestatus ueber `/api/ui-config`. Die Freigabe ist eine Bedien-/Diagnosefunktion und veraendert keine fachliche Buchungsberechtigung.
 
