@@ -1,6 +1,6 @@
 # Übergeordnete Anmeldung, Vorgangsauswahl und separate Prozess-UI
 
-Stand: 08.09.2026
+Stand: 01.10.2026
 
 Diese Datei dokumentiert die verbindlichen UI-Entscheidungen fuer die aktuelle mobile STAGING-PWA. Die fachlichen Buchungs-, Idempotenz-, Recovery- und Oxaion-Pruefregeln aus den spezialisierten Prozessdokumenten bleiben unveraendert.
 
@@ -16,7 +16,7 @@ Verbindlicher Ablauf:
 4. Erst danach wird die Bedienoberflaeche des gewaehlten Vorgangs angezeigt.
 5. Innerhalb des einzelnen Vorgangs werden Anmeldeformular und gesamte Vorgangsauswahl nicht erneut als normale Arbeitsschritte angezeigt.
 
-Die Auswahl eines Vorgangs bleibt bei normalen UI-/Status-Refreshes stabil. Ein Refresh darf den Mitarbeiter nicht auf die Vorgangsauswahl zurueckwerfen. Ein bewusster Wechsel ueber die Aktion `Vorgänge` ist davon getrennt.
+Die Auswahl eines Vorgangs bleibt bei normalen UI-/Status-Refreshes stabil. Ein Refresh darf den Mitarbeiter nicht auf die Vorgangsauswahl zurueckwerfen. Der bewusste Wechsel erfolgt ueber Android-/Browser-Zurueck beziehungsweise nach eindeutig abgeschlossenem Erfolg.
 
 Ein laufender oder unklarer serverseitiger Buchungsvorgang darf durch die UI-Navigation nicht stillschweigend verworfen oder als neu buchbar dargestellt werden. Die Recovery-/Kein-Blind-Retry-Regeln bleiben vorrangig.
 
@@ -36,7 +36,7 @@ Erst nachdem der Mitarbeiter die Erfolgsmeldung mit `Verstanden` bestaetigt hat:
 
 - werden sichtbare Eingaben, Scans, Prozesszusammenfassungen und Ergebnisanzeige des abgeschlossenen Vorgangs geleert;
 - bleibt die Mitarbeiter-Session bestehen;
-- kehrt die App auf die übergeordnete Vorgangsauswahl zurueck.
+- kehrt die App auf die übergeordnete Vorgangsauswahl zurueck und positioniert diese am Seitenanfang.
 
 Bei `UNCERTAIN`, `MANUAL_REVIEW_REQUIRED`, `REJECTED` oder anderen nicht eindeutig erfolgreichen Ergebnissen darf dieser automatische Erfolgs-Reset nicht die erforderliche Recovery-Information beseitigen. Diese Faelle folgen `docs/ERROR_HANDLING.md`.
 
