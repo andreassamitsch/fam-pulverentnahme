@@ -1,6 +1,6 @@
 # Angemeldeter Mitarbeiter und Navigation in der App-Kopfzeile
 
-Stand: 09.09.2026
+Stand: 01.10.2026
 
 Diese Datei dokumentiert die verbindliche Bedienentscheidung fuer die kompakte Kopfzeile und die Darstellung einer bereits angemeldeten Person.
 
@@ -16,7 +16,7 @@ Nach erfolgreicher Anmeldung soll die Vorgangsuebersicht nicht weiterhin den kom
 - Der Name in der Kopfzeile ist bedienbar. Antippen beziehungsweise Aktivieren oeffnet ein kompaktes Popup mit Benutzer-Symbol, vollstaendigem Namen und Aktion `Abmelden`.
 - Auf der Vorgangsuebersicht lautet der App-Titel nur `Pulververwaltung`.
 - Auf einer geoeffneten einzelnen Vorgangsseite wird statt `Pulververwaltung` eine kurze, einzeilige Vorgangsbezeichnung angezeigt, z. B. `Nachfuellen`, `Auslagern`, `Tank befuellen`, `Fertigungsauftrag` oder `Lagerbestand`.
-- Titel, Benutzeranzeige und Dev-Schalter bleiben in einer Zeile; die Textgroesse darf fuer kleine Displays moderat reduziert werden, muss aber lesbar bleiben.
+- Titel, Verbindungsstatus und Benutzeranzeige bleiben in einer Zeile; die Textgroesse darf fuer kleine Displays moderat reduziert werden, muss aber lesbar bleiben.
 - Der bisherige sichtbare Kopfzeilenbutton `Vorgaenge` entfaellt.
 - Von einer einzelnen Vorgangsseite wechselt die Android-/Browser-Zurueck-Funktion zur Vorgangsuebersicht. Ein noch nicht gebuchter UI-Zustand dieser Seite wird dabei verworfen.
 - Waehrend eine Buchung aktiv verarbeitet wird oder ein blockierender Scan-/Buchungsdialog offen ist, darf Zurueck nicht stillschweigend einen laufenden beziehungsweise unklaren Buchungsvorgang verlassen.
@@ -24,6 +24,14 @@ Nach erfolgreicher Anmeldung soll die Vorgangsuebersicht nicht weiterhin den kom
 - Ein bereits serverseitig offener beziehungsweise unklarer Buchungsvorgang darf durch die Abmeldung nicht umgangen werden. Besteht ein solcher Vorgang, bleibt die Abmeldung gesperrt und der Buchungsstatus ist zuerst zu klaeren.
 - Nach erfolgreicher serverseitiger Abmeldung wird die Seite neu geladen. Dadurch bleiben keine nur im DOM vorhandenen, noch nicht gebuchten Eingaben der vorherigen Person fuer eine nachfolgende Anmeldung erhalten.
 - Nach der Abmeldung wird wieder der vollstaendige Anmeldebereich angezeigt.
+
+## Diagnose und Dev-Infos
+
+Im normalen Produktionsbetrieb werden `Diagnose` und `Dev-Infos` in der Kopfzeile nicht angezeigt und koennen clientseitig nicht freigeschaltet werden.
+
+Die Freigabe erfolgt ausschliesslich serverseitig ueber die ASP.NET-Core-Konfiguration `Prototype:DeveloperToolsEnabled`. Fuer IIS kann sie beispielsweise als Umgebungsvariable `Prototype__DeveloperToolsEnabled=true` gesetzt werden. Nach einer Aenderung ist der Anwendungsprozess/AppPool neu zu starten. Ohne explizite Freigabe ist der Wert `false`.
+
+Der Browser erhaelt nur den booleschen Freigabestatus ueber `/api/ui-config`. Die Freigabe ist eine Bedien-/Diagnosefunktion und veraendert keine fachliche Buchungsberechtigung.
 
 ## Sticky aktuelle Schrittinformation
 
