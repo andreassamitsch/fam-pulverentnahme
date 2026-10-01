@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-staging-v37-operator-ui-20261001';
+const CACHE='fam-pulver-staging-v38-jobabort-colors-20261001';
 const ASSETS=[
   '/',
   '/index.html',
@@ -16,11 +16,11 @@ const ASSETS=[
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20260904-worker-flow-3',
-  '/process-mode.js?v=20261001-operator-ui-1',
+  '/process-mode.js?v=20261001-jobabort-colors-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
-  '/process-shell.js?v=20261001-operator-ui-1',
+  '/process-shell.js?v=20261001-jobabort-colors-1',
   '/header-user-menu.js?v=20260909-header-user-2',
   '/process-ux-optimizations.js?v=20261001-operator-ui-1',
   '/process-hotfix-20260909.js?v=20261001-operator-ui-1',
