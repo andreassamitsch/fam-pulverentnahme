@@ -18,7 +18,7 @@ public sealed class InventoryService
     }
 
     internal const string QueryText = """
-SELECT
+SELECT DISTINCT
  X.Firma,
  X.Lagerort,
  X.Lagerplatz,
@@ -80,6 +80,16 @@ FROM
  AND LA.LAIDNR LIKE N'RP.%'
  AND LA.LALABE <> 0
  AND LA.LAGRKZ <> N'J'
+ AND NOT EXISTS
+ (
+  SELECT 1
+  FROM OXAION.LLPWEP AS BX
+  WHERE BX.LPFIRM = LA.LAFIRM
+  AND BX.LPLAGO = LA.LALAGO
+  AND BX.LPIDNR = LA.LAIDNR
+  AND BX.LPPONR = LA.LAPONR
+  AND BX.LPLABE <> 0
+ )
 ) AS X
 ORDER BY
  X.Firma,
