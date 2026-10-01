@@ -113,25 +113,30 @@
   }
 
   function clearProcessDisplay(clearLegacy=false){
-    for(const id of ['outWarehouse','outStorageBin','outWarehouseLookup','outStorageBinLookup','faConsumptionAmount'])if(el(id))el(id).value='';
-    for(const id of ['outTankData','fillTankData','fillArticlePanel','faTankData','faOrderData']){
+    for(const id of ['outWarehouse','outStorageBin','outWarehouseLookup','outStorageBinLookup','faConsumptionAmount','abortActualAmount'])if(el(id))el(id).value='';
+    for(const id of ['outTankData','fillTankData','fillArticlePanel','faTankData','faOrderData','abortOrderData']){
       const node=el(id);if(node){node.innerHTML='';node.classList.add('hidden')}
     }
     if(el('fillSources'))el('fillSources').innerHTML='';
     if(el('outSummary'))el('outSummary').innerHTML='';
     if(el('fillSummary'))el('fillSummary').innerHTML='';
     if(el('faSummary'))el('faSummary').innerHTML='';
-    for(const id of ['outDestinationStep','outBookStep','fillSourcesStep','fillBookStep','faOrderStep','faAmountStep','faBookStep'])el(id)?.classList.add('lockedStep');
+    if(el('abortSummary'))el('abortSummary').innerHTML='';
+    for(const id of ['outDestinationStep','outBookStep','fillSourcesStep','fillBookStep','faOrderStep','faAmountStep','faBookStep','abortAmountStep','abortBookStep'])el(id)?.classList.add('lockedStep');
     if(el('outBookBtn'))el('outBookBtn').disabled=true;
     if(el('fillChargeScan'))el('fillChargeScan').disabled=true;
     if(el('fillBookBtn'))el('fillBookBtn').disabled=true;
     if(el('faOrderScan'))el('faOrderScan').disabled=true;
     if(el('faBookBtn'))el('faBookBtn').disabled=true;
+    if(el('abortOrderScan'))el('abortOrderScan').disabled=false;
+    if(el('abortBookBtn'))el('abortBookBtn').disabled=true;
     setNeutral('outTankStatus','Tank-QR enthält nur den Tanklagerort.');
     setNeutral('fillTankStatus','Tank muss laut Oxaion eindeutig leer sein.');
     setNeutral('fillSourceStatus','Zuerst leeren Tank scannen.');
     setNeutral('faTankStatus','Tank-QR enthält nur den Tanklagerort.');
     setNeutral('faOrderStatus','');setNeutral('faAmountStatus','');
+    setNeutral('abortOrderStatus','Tank und Mix-Charge werden automatisch aus der ursprünglichen Oxaion-Rückmeldung ermittelt und vor der Korrektur geprüft.');
+    setNeutral('abortAmountStatus','Der ursprüngliche Verbrauch wird zuerst vollständig storniert und danach nur der tatsächliche Ist-Wert neu gebucht.');
     if(clearLegacy&&typeof clearMachineInfo==='function'){
       if(el('oldMixWarehouse'))el('oldMixWarehouse').value='';
       clearMachineInfo();
