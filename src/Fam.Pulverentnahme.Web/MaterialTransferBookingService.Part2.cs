@@ -126,7 +126,7 @@ public sealed partial class MaterialTransferBookingService
         string ssid,
         Dictionary<string, string> previous,
         DateOnly bookingDate,
-        (string Operator, string BookingText) op,
+        OxaionDocumentTexts op,
         TransferSpec spec,
         CancellationToken ct)
     {
@@ -196,7 +196,7 @@ public sealed partial class MaterialTransferBookingService
     private Dictionary<string, string> PositionFields(
         SeparateOperation tx,
         DateOnly bookingDate,
-        (string Operator, string BookingText) op,
+        OxaionDocumentTexts op,
         TransferSpec spec,
         string q1,
         string q2,
@@ -204,7 +204,7 @@ public sealed partial class MaterialTransferBookingService
     {
         var fields = Dict(
             ("PSANWG", "LBS"), ("PSBGKZ", "MB"), ("PSBGNR", tx.DocumentNo!), ("PSBGDT", Iso(bookingDate)),
-            ("PSBGTX", op.BookingText), ("TX_BGT1", op.Operator), ("PSFIRM", _options.Firm),
+            ("PSBGTX", op.MatchCode), ("TX_BGT1", op.DocumentText), ("PSFIRM", _options.Firm),
             ("PSPOSI", spec.Position.ToString(CultureInfo.InvariantCulture)), ("PSBWKZ", spec.BookingKey),
             ("PSIDNR", spec.Article), ("I_PSIDNR", spec.Article), ("DEMO_IDNR", spec.Article), ("POIDNR", spec.Article),
             ("I_TX_IDN2", ""), ("I_TX_PCKMM", ""), ("I_TX_PCKMS", ""), ("I_TX_PCKMZ", ""),
@@ -287,17 +287,9 @@ public sealed partial class MaterialTransferBookingService
         return list;
     }
 
-    private static (string Operator, string BookingText) OperatorContext(
-        SeparateOperation tx, string personnelNo, string personnelName, string bookingText)
-    {
-        var operatorText = string.IsNullOrWhiteSpace(personnelName) ? $"PN {personnelNo}" : $"PN {personnelNo} | {personnelName}";
-        var prefix = $"{tx.TransactionId[..12]}|PN{personnelNo}";
-        var room = Math.Max(0, 50 - prefix.Length - 1);
-        var text = room > 0 && !string.IsNullOrWhiteSpace(bookingText)
-            ? prefix + "|" + bookingText[..Math.Min(room, bookingText.Length)]
-            : prefix;
-        return (operatorText, text);
-    }
+    private static OxaionDocumentTexts OperatorContext(
+        SeparateOperation tx, string personnelNo, string personnelName, string bookingText) =>
+        OxaionDocumentTextBuilder.Build(tx.TransactionId, personnelNo, bookingText);
 
     private async Task SaveEventAsync(SeparateOperation tx, string stage, string message, CancellationToken ct)
     {
