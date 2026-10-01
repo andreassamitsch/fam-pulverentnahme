@@ -20,6 +20,7 @@ public static class SeparateProcessFeatureExtensions
         services.AddSingleton<FaAbortCorrectionService>();
         services.AddSingleton<InventoryCorrectionService>();
         services.AddSingleton<InventoryService>();
+        services.AddSingleton<InventoryOverviewService>();
         services.AddSingleton<TargetLocationLookupService>();
         return services;
     }
@@ -67,6 +68,13 @@ public static class SeparateProcessFeatureExtensions
         {
             if (!SessionAuthenticated(http, out var auth)) return auth!;
             try { return Results.Ok(await service.ReadRpStockAsync(ct)); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/inventory/overview", async (HttpContext http, InventoryOverviewService service, CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.ReadAsync(ct)); }
             catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
         });
 
