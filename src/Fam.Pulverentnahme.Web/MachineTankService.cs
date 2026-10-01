@@ -106,7 +106,11 @@ public sealed class MachineTankService
         ArticleRecognitionColorsResult recognitionColors;
         try
         {
-            recognitionColors = await ArticleRecognitionColorLookup.ReadAsync(session, current.Article, ct);
+            // The confirmed characteristic lookup has its own Oxaion screen/session context.
+            // Do not reuse the LB30230R tank-list context here: that can leave US17000/US21000
+            // without the expected parent state and resulted in an empty recognition swatch.
+            await using var colorSession = await _oxaion.ConnectAsync(ct);
+            recognitionColors = await ArticleRecognitionColorLookup.ReadAsync(colorSession, current.Article, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
