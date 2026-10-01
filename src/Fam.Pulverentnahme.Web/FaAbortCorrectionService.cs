@@ -42,6 +42,28 @@ public sealed record FaAbortSourceCheckResponse(
     string ReportDate,
     string ReportTime);
 
+public sealed record FaAbortResolveSourceRequest(
+    string PersonnelNo,
+    string PersonnelName,
+    string Article,
+    string OrderNo,
+    int MaterialPosition,
+    decimal ExpectedConsumedKg);
+
+public sealed record FaAbortResolveSourceResponse(
+    bool Allowed,
+    string Message,
+    string SourceWarehouse,
+    string SourceWarehouseText,
+    string SourceBatch,
+    decimal TankQuantityKg,
+    string Article,
+    string ArticleText,
+    ArticleRecognitionColorsResult? RecognitionColors,
+    string ReportNo,
+    string ReportDate,
+    string ReportTime);
+
 internal sealed record FaFeedbackReference(
     string Firm,
     string ReportNo,
@@ -88,6 +110,82 @@ public sealed class FaAbortCorrectionService
     }
 
     public Task<SeparateOperation?> GetAsync(string id, CancellationToken ct) => _store.GetAsync(Kind, id, ct);
+
+    public async Task<FaAbortResolveSourceResponse> ResolveSourceAsync(
+        FaAbortResolveSourceRequest request,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.PersonnelNo)
+            || string.IsNullOrWhiteSpace(request.Article)
+            || string.IsNullOrWhiteSpace(request.OrderNo)
+            || request.MaterialPosition <= 0
+            || request.ExpectedConsumedKg <= 0m)
+            throw new ArgumentException("Mitarbeiter, Artikel, FA, Materialposition und ursprüngliche Verbrauchsmenge sind erforderlich.");
+
+        await using var session = await _oxaion.ConnectAsync(ct);
+        try
+        {
+            var storno = await OpenStornoListAsync(
+                session,
+                request.PersonnelNo,
+                request.OrderNo,
+                request.Article,
+                request.MaterialPosition,
+                ct);
+
+            var feedback = FindUniqueFeedbackByCore(
+                storno.List.Xml,
+                request.OrderNo,
+                request.MaterialPosition,
+                request.Article,
+                request.ExpectedConsumedKg);
+
+            if (!_tanks.IsAllowed(feedback.Warehouse))
+                throw new ProcessConflictException(
+                    $"Die ursprüngliche Oxaion-Rückmeldung verweist auf Lagerort {feedback.Warehouse}. " +
+                    "Dieser Lagerort ist nicht als FAM-Maschinentank freigegeben. Es wurde nichts storniert.");
+
+            var tank = await _tanks.ReadStockAsync(feedback.Warehouse, ct);
+            if (tank.Status != MachineStockStatuses.Unique || tank.Rows.Count != 1)
+                throw new ProcessConflictException(
+                    $"Der aus der ursprünglichen Oxaion-Rückmeldung ermittelte Tank {feedback.Warehouse} ist aktuell nicht eindeutig: {tank.Message} " +
+                    "Es wurde nichts storniert.");
+
+            var row = tank.Rows[0];
+            if (!row.Article.Equals(request.Article, StringComparison.OrdinalIgnoreCase)
+                || row.Batch != feedback.Batch)
+                throw new ProcessConflictException(
+                    $"Die Tankcharge hat sich seit der ursprünglichen FA-Buchung geändert. " +
+                    $"Ursprüngliche Rückmeldung: Tank {feedback.Warehouse} / Mix-Charge {feedback.Batch}. " +
+                    $"Aktueller Tankbestand: {row.Article} / Mix-Charge {row.Batch}. " +
+                    "Automatische Rückbuchung ist gesperrt. Bitte den Fall in Oxaion prüfen. Es wurde nichts storniert.");
+
+            return new FaAbortResolveSourceResponse(
+                true,
+                $"Oxaion-Rückmeldung eindeutig zugeordnet: Tank {feedback.Warehouse} / Mix-Charge {feedback.Batch}.",
+                feedback.Warehouse,
+                feedback.Warehouse,
+                feedback.Batch,
+                row.QuantityKg,
+                row.Article,
+                row.ArticleText,
+                tank.RecognitionColors,
+                feedback.ReportNo,
+                feedback.ReportDate,
+                feedback.ReportTime);
+        }
+        finally
+        {
+            try
+            {
+                await session.CallAsync("PW22000J", "*CLOSE", new Dictionary<string, string>(), CancellationToken.None);
+            }
+            catch
+            {
+                // Read-only preparation cleanup only.
+            }
+        }
+    }
 
     public async Task<FaAbortSourceCheckResponse> ValidateSourceAsync(
         FaAbortSourceCheckRequest request,
@@ -418,6 +516,44 @@ public sealed class FaAbortCorrectionService
             || !string.Equals(headerOrder, feedback.OrderNo, StringComparison.Ordinal))
             throw new ProcessConflictException("Oxaion-Storno-Header und Rückmeldeschlüssel sind nicht eindeutig kompatibel. Kein Storno ausgeführt.");
         return result;
+    }
+
+    internal static FaFeedbackReference FindUniqueFeedbackByCore(
+        XDocument xml,
+        string orderNo,
+        int materialPosition,
+        string article,
+        decimal quantityKg)
+    {
+        var eligible = ParseFeedbacks(xml);
+        var coreMatches = eligible
+            .Where(x => x.OrderNo == orderNo
+                && x.MaterialPosition == materialPosition
+                && x.Article.Equals(article, StringComparison.OrdinalIgnoreCase)
+                && Math.Abs(x.QuantityKg - quantityKg) < 0.0005m)
+            .ToList();
+
+        if (coreMatches.Count == 0)
+        {
+            var candidateSummary = eligible.Count == 1
+                ? $" Oxaion-Kandidat: FA={eligible[0].OrderNo}, Pos={eligible[0].MaterialPosition}, Artikel={eligible[0].Article}, Menge={eligible[0].QuantityKg:0.###} kg."
+                : "";
+            throw new ProcessConflictException(
+                $"Keine passende gültige Oxaion-Materialrückmeldung gefunden. Erwartet: FA={orderNo}, Pos={materialPosition}, Artikel={article}, Menge={quantityKg:0.###} kg.{candidateSummary} Es wurde nichts storniert.");
+        }
+
+        if (coreMatches.Count != 1)
+            throw new ProcessConflictException(
+                $"Mehrere ({coreMatches.Count}) gültige Oxaion-Materialrückmeldungen passen zu FA, Position, Artikel und Menge. " +
+                "Tank und Mix-Charge können deshalb nicht automatisch eindeutig abgeleitet werden. Es wurde nichts storniert.");
+
+        var feedback = coreMatches[0];
+        if (string.IsNullOrWhiteSpace(feedback.Warehouse) || string.IsNullOrWhiteSpace(feedback.Batch))
+            throw new ProcessConflictException(
+                "Tank/Mix-Charge der ursprünglichen Oxaion-Rückmeldung sind nicht eindeutig lesbar. " +
+                "Bitte den Fall in Oxaion prüfen. Es wurde nichts storniert.");
+
+        return feedback;
     }
 
     internal static FaFeedbackReference FindUniqueFeedback(
