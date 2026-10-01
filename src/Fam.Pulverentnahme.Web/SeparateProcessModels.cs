@@ -105,6 +105,19 @@ public sealed record InventoryPosition(
     string Unit,
     bool NegativeStock);
 
+public sealed record InventoryTankOverview(
+    string Warehouse,
+    string WarehouseText,
+    string Status,
+    string Message,
+    IReadOnlyList<MachineStockRow> Rows,
+    ArticleRecognitionColorsResult? RecognitionColors);
+
+public sealed record InventoryOverviewResult(
+    IReadOnlyList<InventoryPosition> Stock,
+    IReadOnlyList<InventoryTankOverview> Tanks,
+    IReadOnlyDictionary<string, ArticleRecognitionColorsResult> RecognitionColors);
+
 public sealed class SeparateOperation
 {
     public string Kind { get; set; } = "";
