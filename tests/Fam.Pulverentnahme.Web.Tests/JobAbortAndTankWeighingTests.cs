@@ -178,6 +178,49 @@ public sealed class JobAbortAndTankWeighingTests
     }
 
     [Fact]
+    public void StornoSourceCanBeDerivedFromOneUniqueCoreMatchWithoutTankScan()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW>
+  <KEY><ARFIRM>103</ARFIRM><ARRMNR>44001</ARRMNR><ARRMZT>15.02.06</ARRMZT><ARFAUN>FA24FI00118</ARFAUN><ARYRML>2026-09-08</ARYRML></KEY>
+  <PWARMP.ARAKKZ>MK</PWARMP.ARAKKZ>
+  <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
+  <_INTERN.WW_TX50>RP.00010 2.815 kg</_INTERN.WW_TX50>
+  <_INTERN.WW_TX70B>RP.00010 EOS1 RP00010MIX_20260909_140218</_INTERN.WW_TX70B>
+</ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var row = FaAbortCorrectionService.FindUniqueFeedbackByCore(
+            xml, "FA24FI00118", 10, "RP.00010", 2.815m);
+
+        Assert.Equal("EOS1", row.Warehouse);
+        Assert.Equal("RP00010MIX_20260909_140218", row.Batch);
+        Assert.Equal("44001", row.ReportNo);
+    }
+
+    [Fact]
+    public void StornoSourceDerivationFailsClosedWhenCoreMatchIsAmbiguous()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW><KEY><ARFIRM>103</ARFIRM><ARRMNR>1</ARRMNR><ARRMZT>10.00.00</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY><PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ><PWARMP.ARPOSN>10</PWARMP.ARPOSN><_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50><_INTERN.WW_TX70B>RP.00010 EOS1 MIX1</_INTERN.WW_TX70B></ROW>
+<ROW><KEY><ARFIRM>103</ARFIRM><ARRMNR>2</ARRMNR><ARRMZT>10.01.00</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY><PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ><PWARMP.ARPOSN>10</PWARMP.ARPOSN><_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50><_INTERN.WW_TX70B>RP.00010 EOS2 MIX2</_INTERN.WW_TX70B></ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var ex = Assert.Throws<ProcessConflictException>(() =>
+            FaAbortCorrectionService.FindUniqueFeedbackByCore(
+                xml, "FA24FK00126", 10, "RP.00010", 20.160m));
+
+        Assert.Contains("Mehrere (2)", ex.Message);
+        Assert.Contains("nicht automatisch eindeutig abgeleitet", ex.Message);
+    }
+
+    [Fact]
     public void StornoCandidateFailsClosedWhenMultipleCoreMatchesCannotBeResolvedByTankAndMix()
     {
         var xml = XDocument.Parse("""
