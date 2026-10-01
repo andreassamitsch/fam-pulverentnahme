@@ -74,6 +74,17 @@ public sealed class OperatorUiCorrectionsTests
     }
 
     [Fact]
+    public void InventoryRowsShowOneFlatLocationBatchQuantityLine()
+    {
+        var source = ReadWebFile("process-mode.js");
+
+        Assert.Contains("inventoryLocation", source);
+        Assert.Contains("r.storageBin?`${html(r.warehouse)} / ${html(r.storageBin)}`:html(r.warehouse)", source);
+        Assert.DoesNotContain("inventoryWarehouse", source);
+        Assert.DoesNotContain("warehouses:new Map()", source);
+    }
+
+    [Fact]
     public void InventoryOverviewContainsTankSectionRecognitionColorsAndDedicatedEndpoint()
     {
         var source = ReadWebFile("process-mode.js");
