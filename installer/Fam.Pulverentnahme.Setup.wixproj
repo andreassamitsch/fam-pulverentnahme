@@ -1,4 +1,4 @@
-<Project Sdk="WixToolset.Sdk/7.0.0">
+<Project Sdk="WixToolset.Sdk/5.0.2">
   <PropertyGroup>
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
@@ -7,6 +7,6 @@
     <DefineConstants>PublishDir=$(PublishDir);ProductVersion=0.1.0</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="WixToolset.Util.wixext" Version="7.0.0" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
   </ItemGroup>
 </Project>
