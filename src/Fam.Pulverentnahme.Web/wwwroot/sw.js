@@ -1,11 +1,11 @@
-const CACHE='fam-pulver-staging-v39-inventory-flat-20261001';
+const CACHE='fam-pulver-v40-service-config-20261002';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css?v=20260909-connectivity-1',
-  '/worker-ui.css?v=20261001-operator-ui-1',
+  '/worker-ui.css?v=20261002-service-config-1',
   '/qr-scanner.css?v=20260904-persistent-zoom',
-  '/ui-config.js?v=20261001-operator-ui-1',
+  '/ui-config.js?v=20261002-service-config-1',
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20261001-operator-ui-1',
