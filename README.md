@@ -34,6 +34,16 @@ Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten
 - SQL: gemeinsame native Anmeldung; Syncos-Personalwege und freigegebene rein lesende Oxaion-Informationsabfragen mit umgebungsabhaengigen Datenbankzielen
 - Prototyp-Persistenz: JSON-Transaktionsdateien unter `App_Data/transactions`; spaeter eigene Transaktionsdatenbank vorgesehen
 
+## Systemdokumentation
+
+Zentrale aktuelle Dokumentation:
+
+- [Systemdokumentation](docs/SYSTEM_DOCUMENTATION.md) - Aufbau und Funktionsweise des Gesamtsystems
+- [Administratorhandbuch](docs/ADMIN_GUIDE.md) - Installation, Dienst, IIS, Konfiguration, Update und Stoerungsbehebung
+- [Bedienerhandbuch](docs/OPERATOR_GUIDE.md) - Bedienung der PWA in der Produktion
+
+Diese drei Dokumente sind Teil des verbindlichen Projektstands und werden bei relevanten Aenderungen zusammen mit Code und Tests aktualisiert.
+
 ## Serverinstallation per MSI
 
 Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
