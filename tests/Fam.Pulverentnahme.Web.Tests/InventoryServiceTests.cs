@@ -1,6 +1,5 @@
 using System.Data;
 using Fam.Pulverentnahme.Web;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -63,7 +62,7 @@ public sealed class InventoryServiceTests
         var ctor = Assert.Single(typeof(InventoryService).GetConstructors());
         var parameters = ctor.GetParameters().Select(p => p.ParameterType).ToArray();
 
-        Assert.Contains(typeof(IConfiguration), parameters);
+        Assert.Contains(typeof(IOptions<OxaionSqlOptions>), parameters);
         Assert.Contains(typeof(IOptions<OxaionOptions>), parameters);
         Assert.DoesNotContain(typeof(IOptions<SyncosOptions>), parameters);
     }
