@@ -75,20 +75,15 @@ public static class SyncosLegacyPasswordCodec
 
 public sealed class PersonnelCredentialStore
 {
-    private const string PasswordLookupSql = """
-        SELECT t0.PASSWORD
-          FROM syncos_stg_102.ITSDEV.ITSUSER t0
-         WHERE t0.ClassID = 47
-           AND t0.IsEnabled = -1
-           AND t0.IsVisible = -1
-           AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
-        """;
-
     private readonly PersonnelAuthenticationOptions _options;
+    private readonly RuntimeConfigurationService _runtime;
 
-    public PersonnelCredentialStore(IOptions<PersonnelAuthenticationOptions> options)
+    public PersonnelCredentialStore(
+        IOptions<PersonnelAuthenticationOptions> options,
+        RuntimeConfigurationService runtime)
     {
         _options = options.Value;
+        _runtime = runtime;
     }
 
     public bool IsConfigured =>
@@ -104,7 +99,15 @@ public sealed class PersonnelCredentialStore
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandType = CommandType.Text;
-        command.CommandText = PasswordLookupSql;
+        var schema = _runtime.SyncosSchema;
+        command.CommandText = $"""
+            SELECT t0.PASSWORD
+              FROM [{schema}].[ITSUSER] t0
+             WHERE t0.ClassID = 47
+               AND t0.IsEnabled = -1
+               AND t0.IsVisible = -1
+               AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
+            """;
         command.Parameters.Add(new SqlParameter("@PersonnelNo", SqlDbType.NVarChar, 10) { Value = normalized });
 
         await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleResult, ct);
@@ -121,7 +124,7 @@ public sealed class PersonnelCredentialStore
     {
         if (!IsConfigured)
             throw new InvalidOperationException(
-                "Personnel authentication is not configured. Configure PersonnelAuthentication__ConnectionString at runtime.");
+                "Mitarbeiter-Anmeldung ist nicht konfiguriert. Bitte die lokale FAM-Konfigurationsoberfläche verwenden.");
     }
 }
 
