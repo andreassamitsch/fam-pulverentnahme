@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der aktuelle Stand 02.10.2026 ist `0.1.1`.
+Der aktuelle Stand 02.10.2026 ist `0.1.2`.
 
 ### Erstinstallation
 
