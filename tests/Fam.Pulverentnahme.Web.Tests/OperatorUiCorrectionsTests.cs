@@ -105,6 +105,8 @@ public sealed class OperatorUiCorrectionsTests
         Assert.Contains("developerTool", index);
         Assert.Contains("/api/ui-config", uiConfig);
         Assert.Contains("developerToolsEnabled:false", uiConfig);
+        Assert.Contains("environment:'STAGING'", uiConfig);
+        Assert.Contains("environmentBadge", index);
         Assert.Contains("html:not(.developer-tools-enabled) .developerTool", css);
     }
 
