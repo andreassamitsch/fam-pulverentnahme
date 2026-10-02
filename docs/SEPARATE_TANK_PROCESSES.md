@@ -197,7 +197,7 @@ Ohne fachliche Aenderung werden wiederverwendet:
 
 - NFC-Login beziehungsweise Personalnummer + SYNCOS-Passwort;
 - serverseitige Personal-Session und erneute Oxaion-Personalpruefung vor Writes;
-- Maschinentank-QR und Tank-Whitelist;
+- Maschinentank-QR und dynamische Oxaion-Tankdefinition aus `ULGSTP` mit `LGLGART = '02'`; keine statische Tank-Whitelist;
 - `LB30230R`-basierter Tankbestand;
 - EFA01/EFA02 als visuelle Such-/Erkennungshilfe;
 - Chargen-QR `Artikel+++Charge`;
