@@ -42,7 +42,7 @@ Die self-contained STAGING-ZIP kann weiterhin als Diagnose-/Entwicklungsartefakt
 
 Das CI-Artefakt lautet:
 
-`FAM-Pulverentnahme-Setup-0.1.1-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.2-x64.msi`
 
 Die MSI ist eine per-machine Installation und benoetigt Administratorrechte.
 
