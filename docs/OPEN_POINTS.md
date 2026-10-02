@@ -21,6 +21,14 @@ Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-
 - [ ] Optional pruefen und mitschneiden, ob Bestandskorrektur (`I1`/`I2` bzw. lokal bestaetigter Schluessel) und anschliessender `LF`-Transfer in einem einzigen Oxaion-Lagerbeleg sicher moeglich sind. Bis dahin keine gemeinsame Positionsfolge erfinden.
 - [ ] Aufloesung/kleinste Anzeigestufe der produktiv eingesetzten Waage ermitteln und daraus die verbindliche Rundungs-/Abweichungstoleranz festlegen. Keine Toleranz hart codieren oder raten.
 
+## Systemdokumentation 02.10.2026
+
+- [x] Zentrale Systemdokumentation `docs/SYSTEM_DOCUMENTATION.md` erstellt.
+- [x] Administratorhandbuch `docs/ADMIN_GUIDE.md` erstellt.
+- [x] Bedienerhandbuch `docs/OPERATOR_GUIDE.md` erstellt.
+- [x] `AGENTS.md` und `PROJECT_PROMPT.md` verpflichten kuenftige Aenderungen zur gleichzeitigen Pflege der betroffenen System-/Admin-/Bedienerdokumentation.
+- [ ] Vor der ersten produktiven Freigabe die Bedienertexte mit Produktionsleitung/Key-Usern gegen den realen Ablauf pruefen und gegebenenfalls um Firmenvorgaben/Eskalationskontakte ergaenzen.
+
 ## Dynamische Maschinentanks 02.10.2026
 
 - [x] Fachliche Tankdefinition bestaetigt: Oxaion `ULGSTP`, aktive Firma (`LGFIRM`), Lagerortart `LGLGART = '02'`.
