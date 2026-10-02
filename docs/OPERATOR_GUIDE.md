@@ -244,7 +244,7 @@ Bei Artikeln mit gepflegten Oxaion-Sachmerkmalen kann die App ein zweigeteiltes 
 
 Die Farbe dient nur der schnellen visuellen Gegenkontrolle.
 
-Fehlt ein Farbfeld, bedeutet das nicht automatisch, dass der Artikel falsch ist. Die eigentliche Buchungspruefung erfolgt ueber Artikel, Charge und Oxaion-Bestand.
+Fehlt ein Farbfeld, bedeutet das nicht automatisch, dass der Artikel falsch ist. Wenn fuer einen Artikel keine gueltigen EFA01/EFA02-Werte gepflegt sind, wird bewusst kein leeres Farbfeld angezeigt. Sind Farben gepflegt, muessen dieselben Farben in der Tankkarte und in der Pulverlagerkarte erscheinen. Referenz in PRODUCTION: `RP.00024` = Rot/Braun. Die eigentliche Buchungspruefung erfolgt weiterhin ueber Artikel, Charge und Oxaion-Bestand.
 
 ## 13. Etiketten nachdrucken
 
