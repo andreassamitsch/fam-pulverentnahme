@@ -67,6 +67,17 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UsePersonnelAuthentication();
+app.Use(async (context, next) =>
+{
+    var sessionEnvironment = context.Session.GetString(PersonnelAuthenticationSession.Environment);
+    var runtime = context.RequestServices.GetRequiredService<RuntimeConfigurationService>();
+    if (!string.IsNullOrWhiteSpace(sessionEnvironment)
+        && !string.Equals(sessionEnvironment, runtime.EnvironmentName, StringComparison.Ordinal))
+    {
+        context.Session.Clear();
+    }
+    await next();
+});
 app.MapAdminConfiguration();
 
 app.MapGet("/api/health", (
