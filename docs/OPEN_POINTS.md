@@ -182,6 +182,14 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
 
+## Erkennungsfarben Tankkarten 02.10.2026
+
+- [x] PRODUCTION-API fuer `RP.00024` bestaetigt: EFA01 `FF0000 / Rot`, EFA02 `833C0C / Braun`, Status `COMPLETE`, identisch fuer `M400-02` und `M650`.
+- [x] Ursache des leeren Tank-Farbfelds gefunden: CSS-Spezifitaet setzte `.processSwatch` innerhalb `.inventoryTank` auf `display:block`, waehrend dieselbe Farbe in der Pulverlagerkarte korrekt war.
+- [x] Tankkarten-Swatch auf explizites Flex-Layout korrigiert; innere Farbhaelften erhalten volle Hoehe.
+- [x] PWA-Cache auf neue Generation angehoben und alte `fam-pulver-*` Cache-Generationen werden bei Aktivierung entfernt.
+- [ ] Android/PRODUCTION nach MSI-Update bestaetigen: `RP.00024` muss auf `M400-02` und `M650` Rot/Braun anzeigen; `RP.00026` muss ohne Farbfeld bleiben.
+
 ## Anwendung und Betrieb
 
 - [x] Mitarbeiter-Authentifizierung fuer den aktuellen PWA-Ablauf festgelegt: bevorzugt NFC, alternativ Personalnummer + SYNCOS-Passwort, serverseitige Session und zusaetzliche exakte Oxaion-Personalrevalidierung vor der Materialbuchung. Produktive HTTPS-/Rolloutdetails bleiben separat offen.
