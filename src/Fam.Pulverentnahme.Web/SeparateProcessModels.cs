@@ -175,17 +175,20 @@ public static class SeparateOperationMapping
 public sealed class SeparateOperationStore
 {
     internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
-    private readonly string _directory;
+    private readonly string _baseDirectory;
+    private readonly RuntimeConfigurationService _runtime;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new(StringComparer.Ordinal);
 
-    public SeparateOperationStore(IWebHostEnvironment env)
+    public SeparateOperationStore(IWebHostEnvironment env, RuntimeConfigurationService runtime)
     {
-        _directory = Path.Combine(env.ContentRootPath, "App_Data", "process-transactions");
-        Directory.CreateDirectory(_directory);
+        _baseDirectory = Path.Combine(env.ContentRootPath, "App_Data", "process-transactions");
+        _runtime = runtime;
+        Directory.CreateDirectory(_baseDirectory);
+        MigrateLegacyFilesToStaging(_baseDirectory);
     }
 
     public SemaphoreSlim GetLock(string kind, string id) =>
-        _locks.GetOrAdd(kind + ":" + id, _ => new SemaphoreSlim(1, 1));
+        _locks.GetOrAdd(_runtime.EnvironmentName + ":" + kind + ":" + id, _ => new SemaphoreSlim(1, 1));
 
     public async Task<SeparateOperation?> GetAsync(string kind, string id, CancellationToken ct)
     {
@@ -210,7 +213,7 @@ public sealed class SeparateOperationStore
         var safeKind = Safe(kind);
         if (safeKind.Length == 0) throw new ArgumentException("Invalid transaction kind.");
 
-        var files = Directory.EnumerateFiles(_directory, safeKind + "_*.json", SearchOption.TopDirectoryOnly)
+        var files = Directory.EnumerateFiles(EnvironmentDirectory(), safeKind + "_*.json", SearchOption.TopDirectoryOnly)
             .OrderByDescending(File.GetLastWriteTimeUtc)
             .ToArray();
         var result = new List<SeparateOperation>(files.Length);
@@ -236,7 +239,25 @@ public sealed class SeparateOperationStore
         var k = Safe(kind);
         var i = Safe(id);
         if (k.Length == 0 || i.Length == 0) throw new ArgumentException("Invalid transaction key.");
-        return Path.Combine(_directory, k + "_" + i + ".json");
+        return Path.Combine(EnvironmentDirectory(), k + "_" + i + ".json");
+    }
+
+    private string EnvironmentDirectory()
+    {
+        var directory = Path.Combine(_baseDirectory, _runtime.EnvironmentName);
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    private static void MigrateLegacyFilesToStaging(string baseDirectory)
+    {
+        var staging = Path.Combine(baseDirectory, RuntimeEnvironmentNames.Staging);
+        Directory.CreateDirectory(staging);
+        foreach (var file in Directory.EnumerateFiles(baseDirectory, "*.json", SearchOption.TopDirectoryOnly))
+        {
+            var target = Path.Combine(staging, Path.GetFileName(file));
+            if (!File.Exists(target)) File.Move(file, target);
+        }
     }
 
     private static string Safe(string value) =>
