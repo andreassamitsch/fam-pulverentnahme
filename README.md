@@ -38,7 +38,7 @@ Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten
 
 Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
 
-`FAM-Pulverentnahme-Setup-0.1.0-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.1-x64.msi`
 
 Die MSI installiert den Dienst `FAMPulverentnahme`, stoppt ihn bei einem Upgrade kontrolliert und startet ihn nach der Installation wieder. Die Anwendung lauscht im Dienstbetrieb nur lokal:
 
@@ -53,6 +53,8 @@ Syncos ist vorbelegt mit:
 - PRODUCTION: `syncos_prd_102`
 
 Die exakten Oxaion-SQL-Katalognamen fuer STAGING und PRODUCTION muessen passend zur vorhandenen Installation eingetragen werden und werden nicht im Repository angenommen.
+
+Maschinentanks werden nicht in der WebApp gepflegt. Sie werden dynamisch aus der aktiven Oxaion-SQL-Datenbank über `OXAION.ULGSTP` mit `LGFIRM = aktive Firma` und `LGLGART = '02'` gelesen. Dadurch können STAGING und PRODUCTION unterschiedliche Tanklagerorte haben. Details: [`docs/MACHINE_TANK_DEFINITION.md`](docs/MACHINE_TANK_DEFINITION.md).
 
 Die bestaetigten Oxaion-HTTP-Ziele sind:
 
