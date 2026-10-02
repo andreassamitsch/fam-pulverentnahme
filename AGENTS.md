@@ -29,7 +29,8 @@ Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gel
 4. bei Buchungslogik zusaetzlich `docs/BOOKING_SCENARIOS.md`
 5. bei Fehlerbehandlung zusaetzlich `docs/ERROR_HANDLING.md`
 6. bei PWA, Offline-Betrieb, lokalem Cache, Outbox, Synchronisation oder App-Updates zusaetzlich `docs/OFFLINE_PWA.md`
-7. `docs/OPEN_POINTS.md`
+7. bei Serverbetrieb, IIS, Windows-Dienst, Laufzeitkonfiguration, STAGING/PRODUCTION-Umschaltung, Deployment, Installer oder MSI zusaetzlich `docs/SERVICE_DEPLOYMENT.md`
+8. `docs/OPEN_POINTS.md`
 
 ## Quellenprioritaet
 
@@ -86,7 +87,22 @@ Geplanter Stack:
 - ASP.NET Core
 - C#
 - REST API
-- Hosting ueber IIS
+- Windows-Dienst `FAMPulverentnahme` hinter IIS
+- Dienst-Backend auf `127.0.0.1:5080`
+- lokale Serverkonfiguration ausschliesslich auf `127.0.0.1:5081/admin`
+
+### Verbindliche Deployment-Regeln
+
+- Der dauerhafte APP-01-/IIS-Betrieb erfolgt ueber den Windows-Dienst `FAMPulverentnahme`. Nicht wieder auf interaktiven PowerShell-/BAT-Start als regulaeren Serverbetrieb zurueckwechseln.
+- Fuer auslieferbare Serverstaende ist eine MSI zu erzeugen. Der Dateiname folgt `FAM-Pulverentnahme-Setup-<Version>-x64.msi`.
+- Die MSI muss einen bereits vorhandenen Dienst vor dem Austausch der Programmdateien kontrolliert stoppen und nach erfolgreicher Installation beziehungsweise Upgrade wieder starten.
+- Der Dienst ist auf automatischen Start konfiguriert. Service-Name, UpgradeCode und Installationspfad duerfen nicht ohne explizite Migrationsentscheidung geaendert werden.
+- IIS bleibt Reverse Proxy/HTTPS-Endpunkt und zeigt auf `http://127.0.0.1:5080`. Die lokale Admin-Oberflaeche auf Port `5081` darf nicht ueber IIS extern veroeffentlicht werden.
+- STAGING/PRODUCTION wird serverseitig konfiguriert. Syncos verwendet `syncos_stg_102` beziehungsweise `syncos_prd_102`; Oxaion-SQL-Katalognamen werden explizit konfiguriert und niemals erfunden.
+- Syncos und freigegebene Oxaion-SQL-Lesewege verwenden eine gemeinsame native SQL-Anmeldung. Oxaion-SQL bleibt rein lesend.
+- SQL-Passwort sowie Oxaion-Benutzer/-Passwort werden maschinenweit DPAPI-verschluesselt gespeichert; keine Klartext-Secrets im Repository, Frontend, Installer oder Build-Log.
+- Ein Wechsel STAGING/PRODUCTION invalidiert bestehende Bedienersessions und serverseitige Transaktions-/Auditdaten bleiben zwischen den Umgebungen getrennt.
+- Legacy-ZIP-/PowerShell-Starter duerfen fuer Entwicklung/Diagnose erhalten bleiben, sind aber nicht der verbindliche Deploymentweg.
 
 ### ERP
 
