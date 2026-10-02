@@ -29,12 +29,12 @@ public sealed class FrontendBootstrapTests
         const string processModeUrl = "/process-mode.js?v=20261001-inventory-flat-1";
         Assert.Contains(processModeUrl, index);
         Assert.Contains(processModeUrl, serviceWorker);
-        Assert.Contains("fam-pulver-staging-v39-inventory-flat-20261001", serviceWorker);
+        Assert.Contains("fam-pulver-v40-service-config-20261002", serviceWorker);
         Assert.Contains("Etiketten drucken?", processMode);
         Assert.Contains("data-mode=\"label-reprint\"", processMode);
         Assert.Contains("Etiketten nachdrucken", processMode);
-        Assert.Contains("/ui-config.js?v=20261001-operator-ui-1", index);
-        Assert.Contains("/ui-config.js?v=20261001-operator-ui-1", serviceWorker);
+        Assert.Contains("/ui-config.js?v=20261002-service-config-1", index);
+        Assert.Contains("/ui-config.js?v=20261002-service-config-1", serviceWorker);
     }
 
     private static string FindRepositoryRoot()
