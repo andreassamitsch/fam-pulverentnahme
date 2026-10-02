@@ -49,7 +49,7 @@ Wichtig:
 - Charge darf nicht leer sein
 - Bestand `<> 0`
 
-Die Korrektur vom 01.10.2026 reagiert auf den Android-/Oxaion-Befund, dass `RP.00010` in Oxaion auf Lagerplaetzen sichtbar war, in der bisherigen WebApp-Sicht jedoch fehlte. Die bisherige Abfrage konnte reale `LLPWEP`-Bestandszeilen ueber zusaetzliche Stammdaten-INNER-JOINs verlieren. Die Lagerplatzsicht wird deshalb direkt aus den bestaetigten `LLPWEP`-Bestandszeilen aufgebaut. Der reale `RP.00010`-Fall ist nach Bereitstellung des neuen STAGING-Builds noch live zu bestaetigen.
+Die Korrektur vom 01.10.2026 reagiert auf den Android-/Oxaion-Befund, dass `RP.00010` in Oxaion auf Lagerplaetzen sichtbar war, in der bisherigen WebApp-Sicht jedoch fehlte. Die bisherige Abfrage konnte reale `LLPWEP`-Bestandszeilen ueber zusaetzliche Stammdaten-INNER-JOINs verlieren. Die Lagerplatzsicht wird deshalb direkt aus den bestaetigten `LLPWEP`-Bestandszeilen aufgebaut. Am 02.10.2026 wurde die aktuelle SQL-Abfrage direkt gegen Oxaion geprueft; `RP.00010` ist im Ergebnis enthalten. Der Android-STAGING-Test der Anzeige bleibt separat offen.
 
 ### Lagerortbestaende ohne eigene Lagerplatzzeile
 
@@ -62,6 +62,7 @@ Die Korrektur vom 01.10.2026 reagiert auf den Android-/Oxaion-Befund, dass `RP.0
 - `LAGRKZ <> 'J'` bleibt als vorhandenes Kennzeichen bestehen.
 - Zusaetzlich wird eine `LLAWEP`-Zeile unterdrueckt, sobald fuer **denselben Artikel, Lagerort und dieselbe Charge** ein realer `LLPWEP`-Lagerplatzbestand ungleich 0 existiert. Damit kann ein unzuverlaessiges beziehungsweise nicht passend gepflegtes `LAGRKZ` keine Lagerort-Summe neben der konkreten Lagerplatzposition duplizieren.
 - Der aeussere SELECT ist `DISTINCT`, damit identische Informationszeilen nicht mehrfach angezeigt werden.
+- Wegen `SELECT DISTINCT` verwendet die Sortierung dieselben projizierten Ausdruecke fuer Artikel, Artikelbezeichnung und Charge: `CAST(X.Artikel as nvarchar(12))`, `CAST(X.Artikelbezeichnung as nvarchar(20))` und `TRIM(X.Charge)`. Damit ist die Abfrage SQL-Server-kompatibel und bleibt nach Lagerort/Lagerplatz/Artikel/Bezeichnung/Charge deterministisch sortiert.
 
 Damit zeigt die Informationsansicht fuer lagerplatzgefuehrte Bestaende die konkreten Lagerplatzpositionen und fuer echte nicht lagerplatzgefuehrte Bestaende weiterhin die Lagerortposition.
 
