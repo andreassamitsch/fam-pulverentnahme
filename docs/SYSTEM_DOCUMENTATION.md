@@ -69,6 +69,8 @@ Regulaere APP-01-Updates werden als MSI ausgeliefert:
 
 Der Installer stoppt einen vorhandenen Dienst vor dem Austausch der Programmdateien und startet ihn nach erfolgreichem Upgrade wieder. IIS-Site, HTTPS-Binding und Zertifikat werden von der MSI nicht ungefragt veraendert.
 
+Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach einem erfolgreichen MSI-Build werden repositoryweit alle aelteren Build-Artefakte geloescht. Erhalten bleiben nur die Artefakte des aktuellsten erfolgreichen Builds.
+
 ## STAGING und PRODUCTION
 
 Die aktive Umgebung wird ausschliesslich serverseitig in der lokalen Administrationsoberflaeche gewaehlt.

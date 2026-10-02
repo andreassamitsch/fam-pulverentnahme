@@ -38,6 +38,17 @@ Fuer jede zukuenftig auszuliefernde Serverversion gilt:
 
 Die self-contained STAGING-ZIP kann weiterhin als Diagnose-/Entwicklungsartefakt erzeugt werden, ist aber nicht der regulaere APP-01-Updateweg.
 
+### GitHub-Actions-Artefaktspeicher
+
+Der Build-Workflow bereinigt den GitHub-Actions-Artefaktspeicher nach einem erfolgreichen MSI-Build automatisch repositoryweit:
+
+- erhalten bleiben nur die Artefakte des aktuell erfolgreich abgeschlossenen Builds;
+- damit bleiben die aktuelle MSI und das aktuelle self-contained STAGING-Diagnosepaket verfuegbar;
+- alle Artefakte aelterer Builds werden geloescht;
+- Workflow-Runs und deren Historie werden dadurch nicht geloescht.
+
+Diese Regel verhindert, dass alte MSI-/ZIP-Artefakte den Actions-Speicher dauerhaft belegen.
+
 ## Installation und Upgrade
 
 Das CI-Artefakt lautet:

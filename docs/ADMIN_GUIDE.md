@@ -45,6 +45,12 @@ Die maschinenweite Konfiguration unter `%ProgramData%\FAM-Pulverentnahme` liegt 
 
 Die MSI veraendert keine bestehende IIS-Site, HTTPS-Bindung oder Zertifikatskonfiguration.
 
+### GitHub Actions / Build-Artefakte
+
+Nach einem erfolgreichen Build auf `main` beziehungsweise dem aktuellen Entwicklungsbranch mit MSI-Erzeugung loescht der Workflow automatisch alle aelteren GitHub-Actions-Artefakte dieses Repositorys. Erhalten bleiben nur die Artefakte des aktuellen erfolgreichen Builds (aktuelle MSI und aktuelles STAGING-Diagnosepaket).
+
+Die Workflow-Historie bleibt erhalten; bereinigt werden die gespeicherten Build-Artefakte.
+
 ### Nach jedem Update pruefen
 
 1. `FAMPulverentnahme` laeuft.
