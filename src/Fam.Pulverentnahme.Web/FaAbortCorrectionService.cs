@@ -140,10 +140,10 @@ public sealed class FaAbortCorrectionService
                 request.Article,
                 request.ExpectedConsumedKg);
 
-            if (!_tanks.IsAllowed(feedback.Warehouse))
+            if (!await _tanks.IsAllowedAsync(feedback.Warehouse, ct))
                 throw new ProcessConflictException(
                     $"Die ursprüngliche Oxaion-Rückmeldung verweist auf Lagerort {feedback.Warehouse}. " +
-                    "Dieser Lagerort ist nicht als FAM-Maschinentank freigegeben. Es wurde nichts storniert.");
+                    "Dieser Lagerort ist in Oxaion ULGSTP nicht als Tanklagerort (LGLGART=02) definiert. Es wurde nichts storniert.");
 
             var tank = await _tanks.ReadStockAsync(feedback.Warehouse, ct);
             if (tank.Status != MachineStockStatuses.Unique || tank.Rows.Count != 1)
