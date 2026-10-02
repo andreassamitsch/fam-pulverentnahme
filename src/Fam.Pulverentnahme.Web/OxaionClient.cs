@@ -24,13 +24,13 @@ public sealed class OxaionClient
         _httpClientFactory = httpClientFactory;
         _options = options.Value;
         _logger = logger;
-        ValidateConfiguration();
     }
 
     public async Task<OxaionSession> ConnectAsync(CancellationToken ct)
     {
+        ValidateConfiguration();
         if (string.IsNullOrWhiteSpace(_options.Password))
-            throw new InvalidOperationException("Oxaion password is not configured. Set environment variable Oxaion__Password.");
+            throw new InvalidOperationException("Oxaion Passwort ist nicht konfiguriert. Bitte die lokale FAM-Konfigurationsoberfläche verwenden.");
 
         var client = _httpClientFactory.CreateClient(nameof(OxaionClient));
         client.Timeout = TimeSpan.FromSeconds(30);
@@ -73,12 +73,17 @@ public sealed class OxaionClient
         if (_options.StagingOnly)
         {
             if (_options.ServerUrl.Contains(":11108", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Safety stop: port 11108 is production and is blocked in STAGING prototype.");
+                throw new InvalidOperationException("Sicherheitsstopp: Produktionsport 11108 darf im STAGING-Modus nicht verwendet werden.");
             if (!_options.ServerUrl.Contains(":11118", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Safety stop: STAGING prototype expects oxaion port 11118.");
-            if (!string.Equals(_options.Firm, "103", StringComparison.Ordinal))
-                throw new InvalidOperationException("Safety stop: STAGING prototype expects company 103.");
+                throw new InvalidOperationException("Sicherheitsstopp: STAGING erwartet den bestätigten Oxaion-Port 11118.");
         }
+        else if (_options.ServerUrl.Contains(":11118", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Sicherheitsstopp: STAGING-Port 11118 darf im PRODUCTION-Modus nicht verwendet werden.");
+        }
+
+        if (!string.Equals(_options.Firm, "103", StringComparison.Ordinal))
+            throw new InvalidOperationException("Sicherheitsstopp: Für die FAM-WebApp ist aktuell nur Oxaion-Firma 103 bestätigt.");
     }
 
     private static string BuildQuery(IEnumerable<KeyValuePair<string, string>> values) =>
