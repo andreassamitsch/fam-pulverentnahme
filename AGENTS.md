@@ -30,7 +30,8 @@ Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gel
 5. bei Fehlerbehandlung zusaetzlich `docs/ERROR_HANDLING.md`
 6. bei PWA, Offline-Betrieb, lokalem Cache, Outbox, Synchronisation oder App-Updates zusaetzlich `docs/OFFLINE_PWA.md`
 7. bei Serverbetrieb, IIS, Windows-Dienst, Laufzeitkonfiguration, STAGING/PRODUCTION-Umschaltung, Deployment, Installer oder MSI zusaetzlich `docs/SERVICE_DEPLOYMENT.md`
-8. `docs/OPEN_POINTS.md`
+8. bei Maschinentanks, Tank-QR, Tanklagerorten oder fehlenden Tanks zusaetzlich `docs/MACHINE_TANK_DEFINITION.md`
+9. `docs/OPEN_POINTS.md`
 
 ## Quellenprioritaet
 
