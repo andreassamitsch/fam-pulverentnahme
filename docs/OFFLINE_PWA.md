@@ -36,7 +36,7 @@ Ab 30.09.2026 gilt fuer die STAGING-PWA zusaetzlich verbindlich:
 
 - Wird eine vom Service Worker gecachte JavaScript-/CSS-Ressource funktional geaendert, muss ihre URL-Version in `index.html` **und** in der Service-Worker-`ASSETS`-Liste gemeinsam angehoben werden.
 - Bei einer neuen App-Shell-Funktion muss gleichzeitig die Service-Worker-`CACHE`-Generation angehoben werden, damit ein installiertes Android-PWA nicht dauerhaft eine aeltere UI aus dem Cache weiterverwendet.
-- Fuer den aktuellen Jobabbruch-/Farbanzeige-Stand vom 01.10.2026 ist `process-mode.js?v=20261001-inventory-flat-1` Bestandteil der App-Shell und der Cache `fam-pulver-staging-v39-inventory-flat-20261001`.
+- Fuer den aktuellen Dienst-/Umgebungsstand vom 02.10.2026 ist die App-Shell-Generation `fam-pulver-v40-service-config-20261002` aktiv. `ui-config.js` und `worker-ui.css` verwenden `?v=20261002-service-config-1`; `process-mode.js?v=20261001-inventory-flat-1` bleibt die aktuelle Prozesslogik.
 - Ein Regressionstest prueft, dass `index.html` und `sw.js` dieselbe `process-mode.js`-Version referenzieren und dass Erst-/Nachdruck-UI im ausgelieferten Frontend vorhanden ist.
 
 
@@ -51,6 +51,12 @@ Der Wegfall des Jobabbruch-Tankscans, die korrigierte Startfokussierung und das 
 ### Lageruebersicht-Cachegeneration 01.10.2026
 
 Die Bereinigung der doppelten Lagerort-/Lagerplatzdarstellung und die flache Bestandszeile werden als App-Shell-Generation `v39` ausgeliefert. `process-mode.js` wird mit `?v=20261001-inventory-flat-1` referenziert.
+
+### Serverumgebung und lokale PWA-Daten
+
+STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
+
+Serverseitige Transaktions- und Auditdateien werden deshalb in getrennten STAGING-/PRODUCTION-Unterverzeichnissen gespeichert. Die noch offene vollstaendige produktive IndexedDB-/Outbox-Migration bleibt davon unberuehrt.
 
 ## PWA-Installierbarkeit auf Android
 
