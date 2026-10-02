@@ -20,56 +20,55 @@ Android Webbrowser / PWA
   -> Oxaion Fachlogik
 ```
 
-Das Frontend enthaelt keine Oxaion-Zugangsdaten. Das Oxaion-Passwort wird im Test ueber die Backend-Laufzeitvariable `Oxaion__Password` gesetzt und niemals in Git gespeichert.
+Das Frontend enthaelt keine Oxaion- oder SQL-Zugangsdaten. Im Windows-Dienstbetrieb werden eine gemeinsame native SQL-Anmeldung sowie der Oxaion-HTTP-Benutzer ausschliesslich ueber die lokale Serverkonfiguration gepflegt. Passwoerter werden per Windows-DPAPI verschluesselt gespeichert und niemals in Git oder an das Frontend ausgeliefert.
 
-Fuer die rein lesende RP.*-Lagerbestandsansicht verwendet das Backend zusaetzlich eine **eigene Oxaion-SQL-Verbindung** aus `OxaionSql__ConnectionString`. Diese Verbindung ist bewusst von `Syncos__ConnectionString` getrennt, damit die richtige Oxaion-Datenbank gewaehlt wird. SQL wird nicht fuer ERP-Buchungen oder Bestandsaenderungen verwendet.
+Die aktive Serverumgebung schaltet gemeinsam Syncos, den rein lesenden Oxaion-SQL-Datenbankkatalog und Oxaion HTTP zwischen STAGING und PRODUCTION um. SQL bleibt fuer Oxaion auf dokumentierte rein lesende Informationsabfragen beschraenkt; ERP-Buchungen und Bestandsaenderungen laufen ausschliesslich ueber Oxaion HTTP/Fachlogik.
 
 Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten. Das Backend fuehrt eine serverseitige Transaktion je `clientOperationId`. Ein unklarer Oxaion-Ausgang wird nicht blind wiederholt, sondern ueber den bekannten Lagerbeleg revalidiert.
 
 ## Technologie
 
 - Frontend: HTML, CSS, JavaScript, PWA, Service Worker, `IndexedDB`, spaeter Smartphone-Kamera fuer QR-/Barcodes
-- Backend: ASP.NET Core / .NET 8, REST API, IIS-faehig
+- Backend: ASP.NET Core / .NET 8, REST API als Windows-Dienst hinter IIS
 - ERP: Oxaion HTTP-Schnittstelle
-- Oxaion SQL: ausschliesslich rein lesende RP.*-Lagerbestandsansicht
+- SQL: gemeinsame native Anmeldung; Syncos-Personalwege und freigegebene rein lesende Oxaion-Informationsabfragen mit umgebungsabhaengigen Datenbankzielen
 - Prototyp-Persistenz: JSON-Transaktionsdateien unter `App_Data/transactions`; spaeter eigene Transaktionsdatenbank vorgesehen
 
-## Schnellstart STAGING
+## Serverinstallation per MSI
 
-### Ohne Git und ohne lokale .NET-Installation
+Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
 
-Der GitHub-Actions-Workflow `Build` erzeugt auf den freigegebenen STAGING-Branches das Artefakt `FAM-Pulverentnahme-STAGING-win-x64` als **self-contained Windows-Paket**. Die .NET-8-Laufzeit ist darin enthalten.
+`FAM-Pulverentnahme-Setup-0.1.0-x64.msi`
 
-1. Artefakt ZIP herunterladen und komplett entpacken.
-2. `START_STAGING.bat` starten.
-3. Oxaion-STAGING-Benutzer und -Passwort fuer die HTTP-Fachlogik eingeben.
-4. Beim ersten Start den **SYNCOS STAGING SQL Connection String** fuer NFC/Passwortpruefung eingeben.
-5. Beim ersten Start den **OXAION STAGING SQL Connection String** fuer die rein lesende RP.*-Lagerbestandsansicht eingeben. Danach werden beide Werte fuer denselben Windows-Benutzer auf diesem Rechner verschluesselt wiederverwendet.
-6. Am PC `http://localhost:5080` oder am Android-Geraet `http://<SERVER-IP>:5080` aufrufen.
+Die MSI installiert den Dienst `FAMPulverentnahme`, stoppt ihn bei einem Upgrade kontrolliert und startet ihn nach der Installation wieder. Die Anwendung lauscht im Dienstbetrieb nur lokal:
 
-Beide SQL-Connection-Strings werden bei der ersten Eingabe verdeckt erfasst und per Windows-DPAPI unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` gespeichert. Sie werden nicht im Repository oder Frontend gespeichert. `Syncos__ConnectionString` und `OxaionSql__ConnectionString` bleiben absichtlich getrennt. Mit `start-staging-published.ps1 -ResetStoredSqlConnections` koennen die gespeicherten Werte neu erfasst werden.
+- `127.0.0.1:5080` – PWA/API fuer den IIS-Reverse-Proxy
+- `127.0.0.1:5081/admin` – lokale Serverkonfiguration
 
-Es ist weder Git noch ein lokal installiertes .NET SDK/Runtime erforderlich.
+Nach der Installation auf APP-01 wird die Konfiguration direkt am Server ueber `http://127.0.0.1:5081/admin` gepflegt. Dort werden eine gemeinsame native SQL-Anmeldung, die STAGING-/PRODUCTION-Datenbankziele sowie Oxaion-Benutzer/-Passwort hinterlegt.
 
-### Entwicklung mit lokalem .NET 8 SDK
+Syncos ist vorbelegt mit:
 
-```powershell
-.\scripts\start-staging.ps1
-```
+- STAGING: `syncos_stg_102`
+- PRODUCTION: `syncos_prd_102`
 
-Das Skript fragt die Oxaion-HTTP-Zugangsdaten weiterhin bei jedem Start ab. Die getrennten Syncos- und Oxaion-SQL-Verbindungen werden nur beim ersten Start beziehungsweise nach Reset verdeckt abgefragt und danach lokal verschluesselt wiederverwendet.
+Die exakten Oxaion-SQL-Katalognamen fuer STAGING und PRODUCTION muessen passend zur vorhandenen Installation eingetragen werden und werden nicht im Repository angenommen.
 
-Alternativ koennen die Laufzeitwerte vor dem Start als Umgebungsvariablen gesetzt werden:
+Die bestaetigten Oxaion-HTTP-Ziele sind:
 
-```powershell
-$env:Oxaion__Password = "<STAGING-Passwort>"
-$env:Syncos__ConnectionString = "<SYNCOS-STAGING>"
-$env:PersonnelAuthentication__ConnectionString = $env:Syncos__ConnectionString
-$env:OxaionSql__ConnectionString = "<OXAION-STAGING-READONLY>"
-dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
-```
+- STAGING: Port `11118`
+- PRODUCTION: Port `11108`
+- Firma: `103`
 
-Der Prototyp blockiert bei `StagingOnly=true` Oxaion-Port `11108` und erwartet Port `11118` sowie Firma `103`.
+PRODUCTION muss in der Admin-Oberflaeche bewusst bestaetigt werden. Beim Umgebungswechsel werden vorhandene Bedienersessions ungueltig und serverseitige Transaktionsdaten bleiben zwischen STAGING und PRODUCTION getrennt.
+
+Der bestehende IIS-/HTTPS-Auftritt soll auf `http://127.0.0.1:5080` weiterleiten. Die lokale Admin-Oberflaeche auf Port 5081 wird nicht ueber IIS veroeffentlicht.
+
+Details: [`docs/SERVICE_DEPLOYMENT.md`](docs/SERVICE_DEPLOYMENT.md).
+
+## Legacy-/Entwicklungsstart STAGING
+
+Die bisherigen self-contained ZIP-/PowerShell-Starter bleiben fuer Entwicklung und gezielte STAGING-Diagnose im Repository. Sie sind nicht mehr das Ziel fuer den dauerhaften APP-01-/IIS-Betrieb.
 
 ## Projektwissen fuer ChatGPT / Codex
 
