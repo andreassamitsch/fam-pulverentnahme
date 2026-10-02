@@ -61,11 +61,6 @@ public static class OxaionDocumentTextBuilder
         value.Length <= maxLength ? value : value[..maxLength];
 }
 
-public sealed class MachineTankOptions
-{
-    public List<string> Warehouses { get; set; } = [];
-}
-
 public sealed record AdditionalPowderSource(
     string Warehouse,
     string WarehouseText,
