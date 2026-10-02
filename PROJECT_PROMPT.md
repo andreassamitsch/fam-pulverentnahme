@@ -31,7 +31,9 @@ Arbeite nicht nur aus Chat-Verlauf, Modellgedaechtnis oder Annahmen.
    - `docs/OFFLINE_PWA.md`
 6. Bei Serverbetrieb, IIS, Windows-Dienst, Konfiguration, STAGING/PRODUCTION, Deployment, Installer oder MSI lies zusaetzlich:
    - `docs/SERVICE_DEPLOYMENT.md`
-7. Suche anschliessend im gesamten Repository gezielt nach Begriffen aus der aktuellen Aufgabe, zum Beispiel:
+7. Bei Maschinentanks, Tanklagerorten, Tank-QR oder fehlenden Tanks lies zusaetzlich:
+   - `docs/MACHINE_TANK_DEFINITION.md`
+8. Suche anschliessend im gesamten Repository gezielt nach Begriffen aus der aktuellen Aufgabe, zum Beispiel:
    - Funktions- oder Klassennamen
    - Oxaion-Programme
    - Tabellen- oder Feldnamen
@@ -42,8 +44,8 @@ Arbeite nicht nur aus Chat-Verlauf, Modellgedaechtnis oder Annahmen.
    - QR-Code-Formate
    - Transaktionsstatus
    - Prozessnamen
-8. Wenn die Aufgabe vom aktuellen Implementierungsstand abhaengt, pruefe den vorhandenen Code und die Tests. Wenn sinnvoll, beruecksichtige auch aktuelle Commits, Issues und Pull Requests.
-9. Frage nicht erneut nach Informationen, die im Repository bereits eindeutig beantwortet sind.
+9. Wenn die Aufgabe vom aktuellen Implementierungsstand abhaengt, pruefe den vorhandenen Code und die Tests. Wenn sinnvoll, beruecksichtige auch aktuelle Commits, Issues und Pull Requests.
+10. Frage nicht erneut nach Informationen, die im Repository bereits eindeutig beantwortet sind.
 
 ## Quellenprioritaet
 
@@ -80,6 +82,7 @@ Folgende Regeln duerfen nicht ohne explizite neue Entscheidung geaendert werden:
 - Eine gemeinsame native SQL-Anmeldung wird fuer Syncos und freigegebene rein lesende Oxaion-SQL-Abfragen verwendet; STAGING/PRODUCTION waehlt die jeweiligen Datenbankziele.
 - Syncos-Datenbanken: STAGING `syncos_stg_102`, PRODUCTION `syncos_prd_102`. Oxaion-SQL-Katalognamen niemals erfinden, sondern aus der Serverkonfiguration verwenden.
 - Oxaion HTTP: STAGING Port 11118, PRODUCTION Port 11108, Firma 103.
+- Maschinentanks werden dynamisch aus der aktiven Oxaion-SQL-Datenbank `ULGSTP` mit `LGFIRM = aktive Firma` und `LGLGART = '02'` ermittelt. Keine statische EOS1/EOS2-Liste pflegen oder erfinden.
 - SQL- und Oxaion-Secrets werden maschinenweit DPAPI-verschluesselt in der lokalen Serverkonfiguration gespeichert und niemals im Repository oder Frontend hinterlegt.
 - Umgebungswechsel invalidiert Bedienersessions; serverseitige Transaktions-/Auditdaten muessen STAGING/PRODUCTION getrennt bleiben.
 - Oxaion ist das fuehrende ERP-System.
