@@ -2,6 +2,12 @@
 
 Stand: 02.10.2026
 
+## Zugehoerige Betriebsdokumentation
+
+Die vollstaendige Administrationssicht steht in `docs/ADMIN_GUIDE.md`. Der Gesamtaufbau steht in `docs/SYSTEM_DOCUMENTATION.md`.
+
+Bei Aenderungen an Windows-Dienst, IIS, MSI, Ports, Konfigurationsoberflaeche, Secrets oder STAGING/PRODUCTION-Umschaltung muessen `SERVICE_DEPLOYMENT.md`, `ADMIN_GUIDE.md` und gegebenenfalls `SYSTEM_DOCUMENTATION.md` gemeinsam aktualisiert werden.
+
 ## Zielbild
 
 Der produktionsnahe Serverbetrieb erfolgt nicht mehr ueber einen interaktiven PowerShell-Start, sondern ueber den Windows-Dienst:
