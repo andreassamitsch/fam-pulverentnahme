@@ -9,14 +9,15 @@
   <link rel="stylesheet" href="/styles.css?v=20260909-connectivity-1">
   <link rel="stylesheet" href="/worker-ui.css?v=20261001-operator-ui-1">
   <link rel="stylesheet" href="/qr-scanner.css?v=20260904-persistent-zoom">
-  <script defer src="/ui-config.js?v=20261001-operator-ui-1"></script>
+  <script defer src="/ui-config.js?v=20261002-service-config-1"></script>
   <script defer src="/connectivity-status.js?v=20260909-connectivity-1"></script>
   <title>Pulververwaltung</title>
 </head>
 <body>
 <header>
   <div class="workerHeader">
-    <div><div class="title">Pulververwaltung</div><div class="sub devOnly">Frontend + ASP.NET Core Backend · STAGING</div></div>
+    <div><div class="title">Pulververwaltung</div><div id="environmentDetail" class="sub devOnly">Frontend + ASP.NET Core Backend</div></div>
+    <span id="environmentBadge" class="environmentBadge staging" aria-label="Aktive Umgebung">STG</span>
     <div id="connectivityLamp" class="connectivityLamp checking" role="status" aria-live="polite" aria-label="Verbindung wird geprüft" title="Verbindung wird geprüft"><span id="connectivityLampText" class="connectivityLampText">Prüfen</span></div>
     <label class="devSwitch developerTool"><input id="devModeToggle" type="checkbox"> Dev-Infos</label>
   </div>
@@ -24,7 +25,7 @@
 <div id="workerNextInstruction" class="workerNext">Bitte anmelden.</div>
 <div id="startupConnectivity" class="startupConnectivity checking" role="status" aria-live="polite"><span id="startupConnectivityText">Verbindungsaufbau: Backend wird geprüft …</span></div>
 <main>
-  <div class="notice warn devOnly"><b>STAGING:</b> Port 11118 / Firma 103. Buchungen sind echte STAGING-Lagerbuchungen.</div>
+  <div id="environmentNotice" class="notice warn devOnly"><b>STAGING:</b> Testumgebung.</div>
 
   <div id="recovery" class="card recovery hidden">
     <h2 id="recoveryTitle">⚠ Offener / unklarer Vorgang</h2>
