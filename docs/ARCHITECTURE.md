@@ -26,7 +26,7 @@ Optional, ausschliesslich fuer die WebApp:
 [WebApp Transaction DB]
 ```
 
-Syncos SQL und Oxaion SQL sind getrennte serverseitige Laufzeitverbindungen. `Syncos__ConnectionString` wird fuer die bestaetigten rein lesenden Personalwege genutzt, derzeit RFID-Zuordnung und Passwort-Fallback. `OxaionSql__ConnectionString` wird ausschliesslich fuer die rein lesende RP.*-Lagerbestandsansicht verwendet und muss auf die richtige Oxaion-Datenbank zeigen. Oxaion bleibt fuer ERP-Stammdaten und Materialbuchungen fachlich fuehrend. Es gibt keine direkten Oxaion-Buchungen per SQL.
+Die WebApp verwendet ab 02.10.2026 eine gemeinsame native SQL-Anmeldung fuer Syncos und die freigegebenen rein lesenden Oxaion-SQL-Funktionen. Server/Benutzer/Passwort sind gemeinsam; die jeweilige Datenbank wird aus der aktiven Umgebung gewaehlt. Syncos verwendet STAGING `syncos_stg_102` beziehungsweise PRODUCTION `syncos_prd_102`; die exakten Oxaion-SQL-Katalognamen werden in der lokalen Serverkonfiguration gepflegt. Oxaion bleibt fuer ERP-Stammdaten und Materialbuchungen fachlich fuehrend. Es gibt keine direkten Oxaion-Buchungen per SQL.
 
 ## Komponenten und Verantwortlichkeiten
 
@@ -73,6 +73,17 @@ Details siehe `docs/PERSONNEL_AUTHENTICATION.md`.
 ### Serverseitige UI-Freigabe
 
 Der Endpoint `/api/ui-config` liefert ausschliesslich nicht-sensitive UI-Freigaben. Aktuell wird damit `developerToolsEnabled` an die PWA uebergeben. Standard ist `false`. Der Schalter dient nur zur Sichtbarkeit von Diagnose-/Entwicklerwerkzeugen; Authentifizierung, Buchungsfreigaben und Oxaion-Revalidierung werden davon nicht beeinflusst.
+
+### Serverdienst und lokale Administrationsoberflaeche
+
+Die Anwendung hat im Windows-Dienstbetrieb zwei strikt lokale Kestrel-Endpunkte:
+
+- `127.0.0.1:5080`: PWA/API fuer den IIS-Reverse-Proxy.
+- `127.0.0.1:5081`: lokale Serverkonfiguration unter `/admin`.
+
+`/admin` und `/api/admin/*` werden auf Port 5080 mit 404 abgewiesen. Auf Port 5081 werden Nicht-Admin-Pfade auf `/admin` umgeleitet. Damit ist die Secret-Konfiguration nicht Bestandteil der extern erreichbaren PWA.
+
+Der STAGING/PRODUCTION-Schalter ist eine serverseitige Betriebsentscheidung. PRODUCTION muss in der Admin-Oberflaeche zusaetzlich bewusst bestaetigt werden. Im PWA-Header wird die aktive Umgebung als `STG` beziehungsweise `PROD` sichtbar angezeigt.
 
 ### Service Worker
 
@@ -136,15 +147,15 @@ Der aktuelle bestaetigte Einsatz ist rein lesend:
 - RFID -> aktiver/sichtbarer `ITSUSER` -> `ObjectKey` als Personalnummer
 - Passwort-Fallback -> vorhandenes `ITSUSER.PASSWORD`
 
-Die Verbindung wird separat als `Syncos__ConnectionString` beziehungsweise fuer die Authentifizierung als `PersonnelAuthentication__ConnectionString` nur serverseitig als Laufzeit-Secret bereitgestellt. Der Browser erhaelt weder Connection String noch gespeicherten Passwortwert.
+Die aktive Syncos-Verbindung wird serverseitig aus der gemeinsamen SQL-Anmeldung und der umgebungsabhaengigen Datenbank erzeugt. Der Browser erhaelt weder Connection String noch gespeicherten Passwortwert. RFID- und Passwortabfrage verwenden dadurch garantiert dieselbe aktive Syncos-Datenbank.
 
 ### Oxaion SQL
 
 Der direkte SQL-Zugriff auf Oxaion ist auf genau die dokumentierte rein lesende Informationsfunktion begrenzt:
 
 - RP.*-Chargenbestaende aller Lagerorte und Lagerplaetze fuer die konfigurierte Firma
-- Connection String: `OxaionSql__ConnectionString`
-- separate Laufzeitverbindung zur richtigen Oxaion-Datenbank; keine Wiederverwendung des Syncos-Connection-Strings
+- Die Oxaion-SQL-Verbindung verwendet dieselbe native SQL-Anmeldung wie Syncos, aber einen eigenen, umgebungsabhaengigen Oxaion-Datenbankkatalog.
+- Die Katalognamen fuer Oxaion STAGING und PRODUCTION werden lokal konfiguriert und nicht im Code angenommen.
 - keine `INSERT`, `UPDATE`, `DELETE`, `MERGE` oder andere schreibende ERP-Manipulationen
 
 Die SQL-Verbindung ist kein Ersatz fuer Oxaion HTTP/Fachlogik und darf nie fuer Materialbuchungen verwendet werden.
@@ -218,13 +229,15 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 
 ## Deployment
 
-- Testbetrieb: vorhandener IIS auf dem Datenbankserver ist moeglich.
-- Bevorzugter Produktivbetrieb: eigener Web-/Application-Server beziehungsweise eigene VM mit IIS und ASP.NET Core Hosting Bundle.
-- Kommunikation erfolgt produktiv verschluesselt per HTTPS; Web NFC benoetigt bereits technisch einen sicheren Kontext.
-- Secrets werden niemals im Repository gespeichert. Fuer STAGING sind die beiden SQL-Connection-Strings per Windows-DPAPI benutzer-/rechnergebunden persistiert; die finale produktive Secret-Bereitstellung bleibt getrennt festzulegen.
-- Der Oxaion-Laufzeitbenutzer ist nicht fest im Anwendungscode konfiguriert; der STAGING-Starter fragt Benutzer und Passwort interaktiv ab.
-- Der STAGING-Starter verwendet fuer `Syncos__ConnectionString` und `OxaionSql__ConnectionString` folgende Reihenfolge: vorhandene Umgebungsvariable -> lokal per DPAPI gespeicherter Wert -> einmalige verdeckte Eingabe. Neu eingegebene Werte werden verschluesselt unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` gespeichert; `-ResetStoredSqlConnections` loescht diese lokale Speicherung bewusst.
-- `PersonnelAuthentication__ConnectionString` verwendet im STAGING-Starter denselben Syncos-Wert; der Oxaion-SQL-Wert wird nicht dafuer wiederverwendet.
+- Verbindlicher Serverbetrieb: Windows-Dienst `FAMPulverentnahme` hinter IIS.
+- Kestrel lauscht im Dienstbetrieb nur auf Loopback: Hauptanwendung `127.0.0.1:5080`, lokale Administrationsoberflaeche `127.0.0.1:5081`.
+- IIS bleibt fuer den externen HTTPS-Zugang und Reverse Proxy auf Port 5080 zustaendig. Port 5081 wird nicht ueber IIS veroeffentlicht.
+- Kommunikation zur PWA erfolgt produktiv verschluesselt per HTTPS; Web NFC benoetigt einen sicheren Kontext.
+- Installation/Upgrade erfolgt als MSI. Der Installer stoppt einen vorhandenen Dienst, ersetzt die Dateien und startet den Dienst danach automatisch wieder.
+- Secrets werden niemals im Repository gespeichert. SQL-Passwort und Oxaion-Passwort werden per Windows-DPAPI `LocalMachine` verschluesselt in der maschinenweiten Konfiguration unter `%ProgramData%\FAM-Pulverentnahme\service-config.json` gespeichert.
+- Die lokale Admin-Oberflaeche verwaltet eine gemeinsame native SQL-Anmeldung, die STAGING-/PRODUCTION-Datenbankzuordnung, die Oxaion-HTTP-Ziele und den Oxaion-Laufzeitbenutzer.
+- Ein Umgebungswechsel invalidiert bestehende Bedienersessions. Serverseitige JSON-Transaktions- und Auditdateien werden in getrennten `STAGING`-/`PRODUCTION`-Unterverzeichnissen gehalten.
+- Die bisherige interaktive STAGING-Startskript-/DPAPI-User-Loesung bleibt nur fuer Entwicklungs-/Legacy-ZIP-Starts bestehen und ist nicht mehr das Ziel fuer den IIS-Serverbetrieb.
 - PWA-Assets muessen mit einer kontrollierten Cache- und Versionsstrategie ausgeliefert werden.
 
 ## Integrationsgrenzen
