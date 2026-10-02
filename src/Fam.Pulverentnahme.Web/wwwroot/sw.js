@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v40-service-config-20261002';
+const CACHE='fam-pulver-v41-dynamic-tanks-20261002';
 const ASSETS=[
   '/',
   '/index.html',
@@ -8,7 +8,7 @@ const ASSETS=[
   '/ui-config.js?v=20261002-service-config-1',
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
-  '/app.js?v=20261001-operator-ui-1',
+  '/app.js?v=20261002-dynamic-tanks-1',
   '/ui-diagnostics.js?v=20260909-ui-diag-1',
   '/article-colors.js?v=20260909-single-process-mode',
   '/personnel-auth.js?v=20260903-guided-worker',
@@ -16,7 +16,7 @@ const ASSETS=[
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20260904-worker-flow-3',
-  '/process-mode.js?v=20261001-inventory-flat-1',
+  '/process-mode.js?v=20261002-dynamic-tanks-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
