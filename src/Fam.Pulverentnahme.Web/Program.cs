@@ -21,7 +21,6 @@ builder.Services.Configure<OxaionOptions>(builder.Configuration.GetSection("Oxai
 builder.Services.Configure<SyncosOptions>(builder.Configuration.GetSection("Syncos"));
 builder.Services.Configure<OxaionSqlOptions>(builder.Configuration.GetSection("OxaionSql"));
 builder.Services.Configure<PrototypeOptions>(builder.Configuration.GetSection("Prototype"));
-builder.Services.Configure<MachineTankOptions>(builder.Configuration.GetSection("MachineTanks"));
 builder.Services.Configure<ServiceHostOptions>(builder.Configuration.GetSection("ServiceHost"));
 builder.Services.AddSingleton<RuntimeConfigurationService>();
 builder.Services.AddHttpClient(nameof(OxaionClient));
