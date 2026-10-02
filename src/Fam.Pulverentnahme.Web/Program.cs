@@ -338,8 +338,8 @@ app.MapPost("/api/mix", async (
                 });
         }
 
-        if (!machineTanks.IsAllowed(request.OldMixWarehouse))
-            return Results.BadRequest(new { error = "Ausgewählter Maschinen-Lagerort ist nicht in der Maschinenliste freigegeben." });
+        if (!await machineTanks.IsAllowedAsync(request.OldMixWarehouse, ct))
+            return Results.BadRequest(new { error = "Ausgewählter Lagerort ist in Oxaion nicht als Tanklagerort (Lagerortart 02) definiert." });
         if (!string.Equals(request.TargetWarehouse, request.OldMixWarehouse, StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { error = "Ziel-Lagerort muss der ausgewählte Maschinen-Lagerort sein." });
         if (MixRequestLogic.Sources(request).Any(s => ReplenishmentRules.IsMachineSource(request, s)))
