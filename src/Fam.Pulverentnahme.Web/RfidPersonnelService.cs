@@ -16,11 +16,16 @@ public sealed class RfidPersonnelService
 {
     private readonly SyncosOptions _options;
     private readonly PersonnelService _personnel;
+    private readonly RuntimeConfigurationService _runtime;
 
-    public RfidPersonnelService(IOptions<SyncosOptions> options, PersonnelService personnel)
+    public RfidPersonnelService(
+        IOptions<SyncosOptions> options,
+        PersonnelService personnel,
+        RuntimeConfigurationService runtime)
     {
         _options = options.Value;
         _personnel = personnel;
+        _runtime = runtime;
     }
 
     public async Task<RfidPersonnelResult?> ResolveAsync(string serialNumber, CancellationToken ct)
@@ -34,12 +39,13 @@ public sealed class RfidPersonnelService
         {
             await connection.OpenAsync(ct);
             await using var command = connection.CreateCommand();
-            command.CommandText = """
+            var schema = _runtime.SyncosSchema;
+            command.CommandText = $"""
                 SELECT TOP (2)
                     t0.ObjectKey,
                     t0.Name,
                     t0.Description
-                FROM syncos_stg_102.ITSDEV.ITSUSER t0
+                FROM [{schema}].[ITSUSER] t0
                 WHERE t0.ClassID = 47
                   AND t0.IsEnabled = -1
                   AND t0.IsVisible = -1
