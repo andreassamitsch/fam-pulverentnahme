@@ -241,7 +241,16 @@ public sealed class RuntimeConfigurationService
         }
 
         var syncosResult = await TestSqlAsync(syncos, $"SELECT TOP (1) 1 FROM [{syncosSchema}].[ITSUSER]", ct);
-        var oxaionResult = await TestSqlAsync(oxaionSql, "SELECT TOP (1) 1 FROM OXAION.LLPWEP", ct);
+        var oxaionStockResult = await TestSqlAsync(oxaionSql, "SELECT TOP (1) 1 FROM OXAION.LLPWEP", ct);
+        var oxaionTankResult = await TestSqlAsync(
+            oxaionSql,
+            "SELECT TOP (1) 1 FROM OXAION.ULGSTP WHERE LGLGART = N'02'",
+            ct);
+        var oxaionResult = (
+            Ok: oxaionStockResult.Ok && oxaionTankResult.Ok,
+            Message: oxaionStockResult.Ok && oxaionTankResult.Ok
+                ? "Verbindung sowie Leseberechtigungen für Lagerbestand und Tanklagerorte (ULGSTP/LGLGART=02) erfolgreich."
+                : $"Lagerbestand: {oxaionStockResult.Message} Tanklagerorte: {oxaionTankResult.Message}");
 
         bool httpOk;
         string httpMessage;
