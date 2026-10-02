@@ -21,6 +21,15 @@ Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-
 - [ ] Optional pruefen und mitschneiden, ob Bestandskorrektur (`I1`/`I2` bzw. lokal bestaetigter Schluessel) und anschliessender `LF`-Transfer in einem einzigen Oxaion-Lagerbeleg sicher moeglich sind. Bis dahin keine gemeinsame Positionsfolge erfinden.
 - [ ] Aufloesung/kleinste Anzeigestufe der produktiv eingesetzten Waage ermitteln und daraus die verbindliche Rundungs-/Abweichungstoleranz festlegen. Keine Toleranz hart codieren oder raten.
 
+## Dynamische Maschinentanks 02.10.2026
+
+- [x] Fachliche Tankdefinition bestaetigt: Oxaion `ULGSTP`, aktive Firma (`LGFIRM`), Lagerortart `LGLGART = '02'`.
+- [x] Statische `MachineTanks:Warehouses = EOS1/EOS2`-Whitelist aus dem Backend entfernt.
+- [x] `GET /api/machines`, Tankscan-Validierung, Lageruebersicht und Jobabbruch-Tankpruefung verwenden die dynamische Oxaion-Tankliste.
+- [x] PWA laedt die Tankliste vor jedem Tankscan erneut, damit STAGING/PRODUCTION und Oxaion-Aenderungen nicht durch eine alte Browserliste verdeckt werden.
+- [x] PRD-Direktabfrage 02.10.2026 bestaetigt aktuell fuenf Tanklagerorte: `EOS1`, `EOS2`, `M400-01`, `M400-02`, `M650`.
+- [ ] APP-01/PRODUCTION nach MSI-Update pruefen: Lageruebersicht zeigt alle fuenf aktuell in `ULGSTP` definierten Tanklagerorte und die drei neuen Tanks lassen sich per QR als Maschinentank verwenden.
+
 ## Lageruebersicht-Darstellung 01.10.2026
 
 - [x] Doppelte Lagerort-/Lagerplatzdarstellung korrigiert: Eine LLAWEP-Lagerortzeile wird unterdrueckt, wenn fuer denselben Artikel/Lagerort/dieselbe Charge konkrete LLPWEP-Lagerplatzbestaende vorhanden sind.
