@@ -20,6 +20,7 @@ internal static class PersonnelAuthenticationSession
 {
     public const string PersonnelNo = "personnel:no";
     public const string PersonnelName = "personnel:name";
+    public const string Environment = "personnel:environment";
 }
 
 /// <summary>
@@ -159,6 +160,13 @@ public sealed class PersonnelAuthenticationService
 
 public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
 {
+    private readonly RuntimeConfigurationService _runtime;
+
+    public PersonnelBookingAuthorizationFilter(RuntimeConfigurationService runtime)
+    {
+        _runtime = runtime;
+    }
+
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var request = context.Arguments.OfType<RealMixRequest>().FirstOrDefault();
@@ -167,6 +175,18 @@ public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
         var session = context.HttpContext.Session;
         var personnelNo = session.GetString(PersonnelAuthenticationSession.PersonnelNo);
         var personnelName = session.GetString(PersonnelAuthenticationSession.PersonnelName);
+        var environment = session.GetString(PersonnelAuthenticationSession.Environment);
+
+        if (!string.Equals(environment, _runtime.EnvironmentName, StringComparison.Ordinal))
+        {
+            session.Clear();
+            return Results.Json(new
+            {
+                status = "ENVIRONMENT_CHANGED",
+                stage = "PERSONNEL_VALIDATION",
+                message = "Die Serverumgebung wurde zwischenzeitlich umgeschaltet. Bitte erneut anmelden. Es wurde keine Materialbuchung gestartet."
+            }, statusCode: StatusCodes.Status401Unauthorized);
+        }
 
         if (string.IsNullOrWhiteSpace(personnelNo) || string.IsNullOrWhiteSpace(personnelName))
         {
@@ -245,15 +265,28 @@ public static class PersonnelAuthenticationExtensions
 
     public static IEndpointRouteBuilder MapPersonnelAuthentication(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/personnel/session", (HttpContext http, PersonnelAuthenticationService auth) =>
+        endpoints.MapGet("/api/personnel/session", (
+            HttpContext http,
+            PersonnelAuthenticationService auth,
+            RuntimeConfigurationService runtime) =>
         {
             var no = http.Session.GetString(PersonnelAuthenticationSession.PersonnelNo);
             var name = http.Session.GetString(PersonnelAuthenticationSession.PersonnelName);
+            var environment = http.Session.GetString(PersonnelAuthenticationSession.Environment);
+            if (!string.IsNullOrWhiteSpace(environment)
+                && !string.Equals(environment, runtime.EnvironmentName, StringComparison.Ordinal))
+            {
+                http.Session.Clear();
+                no = null;
+                name = null;
+            }
+
             return Results.Ok(new
             {
                 authenticated = !string.IsNullOrWhiteSpace(no) && !string.IsNullOrWhiteSpace(name),
                 personnelNo = no,
                 fullName = name,
+                environment = runtime.EnvironmentName,
                 authenticationConfigured = auth.IsConfigured,
                 https = http.Request.IsHttps
             });
@@ -263,6 +296,7 @@ public static class PersonnelAuthenticationExtensions
             PersonnelLoginRequest request,
             HttpContext http,
             PersonnelAuthenticationService auth,
+            RuntimeConfigurationService runtime,
             CancellationToken ct) =>
         {
             try
@@ -280,6 +314,7 @@ public static class PersonnelAuthenticationExtensions
 
                 http.Session.SetString(PersonnelAuthenticationSession.PersonnelNo, person.PersonnelNo);
                 http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, person.FullName);
+                http.Session.SetString(PersonnelAuthenticationSession.Environment, runtime.EnvironmentName);
                 return Results.Ok(new
                 {
                     authenticated = true,
