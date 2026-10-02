@@ -16,7 +16,7 @@ Aktuelles Format:
 EOS1
 ```
 
-Der QR enthält ausschließlich den Oxaion-Tanklagerort.
+Der QR enthält ausschließlich den Oxaion-Tanklagerort. Welche Lagerorte Maschinentanks sind, wird dynamisch aus Oxaion `ULGSTP` über `LGFIRM = aktive Firma` und `LGLGART = '02'` ermittelt.
 
 Verbindlicher aktueller STAGING-Ablauf:
 
@@ -25,7 +25,7 @@ Verbindlicher aktueller STAGING-Ablauf:
 3. Der Bediener kann das Kamerabild ausrichten und den Zoom einstellen.
 4. Erst nach bewusstem Druck auf `Scannen` wird `BarcodeDetector` zyklisch ausgeführt und der rote Scan-Laser eingeblendet.
 5. Codes mit `+++` werden in diesem Schritt abgelehnt.
-6. Der gelesene Wert muss exakt einem Eintrag der gepflegten Maschinen-/Tankliste entsprechen, aktuell beispielsweise `EOS1` oder `EOS2`.
+6. Vor der Validierung lädt die PWA die aktuelle Tankliste aus dem Backend neu. Der gelesene Wert muss einem Oxaion-Lagerort der aktiven Firma entsprechen, der in `ULGSTP` mit `LGLGART = '02'` definiert ist. Es gibt keine statische Tankliste in der PWA.
 7. Erst danach liest das Backend den aktuellen Tankbestand aus Oxaion.
 8. Artikel, Artikelbezeichnung, aktuelle Mix-Charge und kompletter Tankbestand werden aus Oxaion übernommen und bleiben nicht editierbar.
 
