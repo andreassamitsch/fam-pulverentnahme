@@ -6,14 +6,14 @@ namespace Fam.Pulverentnahme.Web;
 
 public sealed class InventoryService
 {
-    private readonly string _connectionString;
+    private readonly OxaionSqlOptions _sql;
     private readonly OxaionOptions _oxaion;
 
     internal const CommandBehavior ReaderBehavior = CommandBehavior.Default;
 
-    public InventoryService(IConfiguration configuration, IOptions<OxaionOptions> oxaion)
+    public InventoryService(IOptions<OxaionSqlOptions> sql, IOptions<OxaionOptions> oxaion)
     {
-        _connectionString = configuration["OxaionSql:ConnectionString"] ?? "";
+        _sql = sql.Value;
         _oxaion = oxaion.Value;
     }
 
@@ -102,14 +102,14 @@ ORDER BY
 
     public async Task<IReadOnlyList<InventoryPosition>> ReadRpStockAsync(CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(_connectionString))
+        if (string.IsNullOrWhiteSpace(_sql.ConnectionString))
             throw new InvalidOperationException(
                 "Oxaion SQL-Verbindung ist nicht konfiguriert. OxaionSql__ConnectionString muss gesetzt sein.");
         if (string.IsNullOrWhiteSpace(_oxaion.Firm))
             throw new InvalidOperationException("Oxaion-Firma ist nicht konfiguriert.");
 
         var result = new List<InventoryPosition>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = new SqlConnection(_sql.ConnectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = QueryText;
