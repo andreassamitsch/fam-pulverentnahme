@@ -25,12 +25,15 @@
       </Directory>
     </StandardDirectory>
 
-    <Files Include="$(var.PublishDir)**" Directory="INSTALLFOLDER">
-      <Exclude Files="$(var.PublishDir)Fam.Pulverentnahme.Web.exe" />
+    <Files Include="$(var.PublishDir)\\**" Directory="INSTALLFOLDER">
+      <Exclude Files="$(var.PublishDir)\\Fam.Pulverentnahme.Web.exe" />
+      <Exclude Files="$(var.PublishDir)\\START_STAGING.bat" />
+      <Exclude Files="$(var.PublishDir)\\start-staging-published.ps1" />
+      <Exclude Files="$(var.PublishDir)\\staging-sql-secrets.ps1" />
     </Files>
 
     <Component Id="ServiceComponent" Directory="INSTALLFOLDER" Guid="F54F7B6B-73ED-4BE5-AF19-5BF766460E4B">
-      <File Id="ServiceExecutable" Source="$(var.PublishDir)Fam.Pulverentnahme.Web.exe" KeyPath="yes" />
+      <File Id="ServiceExecutable" Source="$(var.PublishDir)\\Fam.Pulverentnahme.Web.exe" KeyPath="yes" />
       <ServiceInstall
           Id="FAMPulverentnahmeService"
           Name="FAMPulverentnahme"
