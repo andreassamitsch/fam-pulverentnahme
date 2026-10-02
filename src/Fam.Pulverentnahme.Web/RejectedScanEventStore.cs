@@ -34,14 +34,17 @@ public sealed class RejectedScanEventStore
         "INVALID_QR_FORMAT"
     };
 
-    private readonly string _directory;
+    private readonly string _baseDirectory;
+    private readonly RuntimeConfigurationService _runtime;
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
-    public RejectedScanEventStore(IWebHostEnvironment environment)
+    public RejectedScanEventStore(IWebHostEnvironment environment, RuntimeConfigurationService runtime)
     {
-        _directory = Path.Combine(environment.ContentRootPath, "App_Data", "scan-events");
-        Directory.CreateDirectory(_directory);
+        _baseDirectory = Path.Combine(environment.ContentRootPath, "App_Data", "scan-events");
+        _runtime = runtime;
+        Directory.CreateDirectory(_baseDirectory);
+        MigrateLegacyFilesToStaging(_baseDirectory);
     }
 
     public async Task<RejectedChargeScanEvent> SaveAsync(
@@ -66,7 +69,7 @@ public sealed class RejectedScanEventStore
             normalized.ScannedBatch);
 
         var fileName = $"{evt.RecordedAtUtc:yyyyMMdd_HHmmssfff}_{evt.EventId}.json";
-        var path = Path.Combine(_directory, fileName);
+        var path = Path.Combine(EnvironmentDirectory(), fileName);
         var temp = path + ".tmp";
 
         await _writeLock.WaitAsync(ct);
@@ -97,6 +100,24 @@ public sealed class RejectedScanEventStore
             Clean(request.ExpectedArticle, 64, nameof(request.ExpectedArticle), required: false),
             Clean(request.ScannedArticle, 64, nameof(request.ScannedArticle), required: false),
             Clean(request.ScannedBatch, 128, nameof(request.ScannedBatch), required: false));
+    }
+
+    private string EnvironmentDirectory()
+    {
+        var directory = Path.Combine(_baseDirectory, _runtime.EnvironmentName);
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    private static void MigrateLegacyFilesToStaging(string baseDirectory)
+    {
+        var staging = Path.Combine(baseDirectory, RuntimeEnvironmentNames.Staging);
+        Directory.CreateDirectory(staging);
+        foreach (var file in Directory.EnumerateFiles(baseDirectory, "*.json", SearchOption.TopDirectoryOnly))
+        {
+            var target = Path.Combine(staging, Path.GetFileName(file));
+            if (!File.Exists(target)) File.Move(file, target);
+        }
     }
 
     private static string Clean(string? value, int maxLength, string field, bool required)
