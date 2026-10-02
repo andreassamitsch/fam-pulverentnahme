@@ -121,6 +121,17 @@ public sealed class OperatorUiCorrectionsTests
         Assert.Contains("Der Bestand wird vor der Auslagerung", source);
     }
 
+    [Fact]
+    public void InventoryTankRecognitionSwatchKeepsFlexLayout()
+    {
+        var source = ReadWebFile("process-mode.js");
+
+        Assert.Contains(".inventoryTank .processSwatch{display:inline-flex", source);
+        Assert.Contains(".inventoryTank>div>b,.inventoryTank>div>span{display:block}", source);
+        Assert.Contains(".processSwatch i{display:block;width:50%;height:100%;flex:1 1 50%", source);
+        Assert.DoesNotContain(".inventoryTank b,.inventoryTank span{display:block}", source);
+    }
+
     private static string ReadWebFile(string name)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
