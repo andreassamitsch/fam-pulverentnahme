@@ -118,7 +118,7 @@ Fuer den aktuellen STAGING-Nachfuellprozess gilt verbindlich:
 
 - Die sichtbare manuelle Auswahl des Maschinentanks ist im normalen Ablauf durch den QR-Scan ersetzt.
 - Der Maschinentank-QR enthaelt ausschliesslich den Oxaion-Tanklagerort, zum Beispiel `EOS1`.
-- Der gescannte Tanklagerort muss gegen die gepflegte Maschinen-/Tankliste validiert werden; aktuell sind `EOS1` und `EOS2` konfiguriert.
+- Der gescannte Tanklagerort wird dynamisch gegen Oxaion `ULGSTP` validiert. Verbindliche Tankdefinition ist fuer die aktive Firma `LGLGART = '02'`; es gibt keine hart codierte `EOS1`/`EOS2`-Whitelist. Details und der bestaetigte PRD-Snapshot stehen in `docs/MACHINE_TANK_DEFINITION.md`.
 - Ein Code mit `+++` ist in diesem Scan-Schritt kein gueltiger Maschinentank-QR.
 - Der Pulverartikel wird beim Nachfuellen nicht manuell eingegeben. Er wird aus der einzigen positiven Bestandsposition des gescannten Maschinentanks abgeleitet.
 - Artikelnummer und Artikelbezeichnung sind Systeminformationen und nicht editierbar.
@@ -129,6 +129,24 @@ Fuer den aktuellen STAGING-Nachfuellprozess gilt verbindlich:
 Bis der spaetere FA-/Leerbefuellungsablauf umgesetzt ist, kann ein komplett leerer Tank in diesem Nachfuellprozess keinen Artikel liefern und wird deshalb nicht automatisch freigegeben.
 
 Details zu den QR-Formaten und der noch offenen Produktionsmaschinen-ID-zu-Tank-Zuordnung stehen in `docs/QR_CODE_WORKFLOW.md`.
+
+### Dynamische Maschinentankdefinition ab 02.10.2026
+
+Maschinentanks werden aus der aktiven Oxaion-SQL-Datenbank gelesen:
+
+```sql
+SELECT LGLAGO, LGBEZC
+FROM OXAION.ULGSTP
+WHERE LGFIRM = @firm
+  AND LGLGART = N'02'
+ORDER BY LGLAGO;
+```
+
+Damit folgt die Tankliste automatisch dem STAGING-/PRODUCTION-Schalter. Der am 02.10.2026 direkt bestaetigte PRD-Stand fuer Firma 103 enthaelt `EOS1`, `EOS2`, `M400-01`, `M400-02` und `M650`. Diese Werte sind ein Snapshot und werden nicht fest codiert.
+
+Die gleiche dynamische Definition gilt fuer Tank-QR-Pruefung, Lageruebersicht und serverseitige Sicherheitspruefungen vor tankbezogenen Buchungen. Die PWA aktualisiert die Tankliste vor einem Tankscan erneut.
+
+Details: `docs/MACHINE_TANK_DEFINITION.md`.
 
 ### Auswahl der Nachfuellquellen
 
