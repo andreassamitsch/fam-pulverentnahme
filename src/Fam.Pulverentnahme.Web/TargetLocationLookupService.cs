@@ -14,7 +14,7 @@ public sealed record TargetStorageBinOption(string StorageBin);
 /// </summary>
 public sealed class TargetLocationLookupService
 {
-    private readonly string _connectionString;
+    private readonly OxaionSqlOptions _sql;
     private readonly OxaionOptions _oxaion;
 
     internal const string WarehouseQueryText = """
@@ -49,9 +49,9 @@ WHERE P.PCFIRM = @firm
 ORDER BY StorageBin;
 """;
 
-    public TargetLocationLookupService(IConfiguration configuration, IOptions<OxaionOptions> oxaion)
+    public TargetLocationLookupService(IOptions<OxaionSqlOptions> sql, IOptions<OxaionOptions> oxaion)
     {
-        _connectionString = configuration["OxaionSql:ConnectionString"] ?? "";
+        _sql = sql.Value;
         _oxaion = oxaion.Value;
     }
 
@@ -62,7 +62,7 @@ ORDER BY StorageBin;
     {
         EnsureConfigured();
         var result = new List<TargetWarehouseOption>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = new SqlConnection(_sql.ConnectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = WarehouseQueryText;
@@ -92,7 +92,7 @@ ORDER BY StorageBin;
         if (warehouse.Length == 0) throw new ArgumentException("Lagerort ist erforderlich.");
 
         var result = new List<TargetStorageBinOption>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = new SqlConnection(_sql.ConnectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = StorageBinQueryText;
@@ -112,7 +112,7 @@ ORDER BY StorageBin;
 
     private void EnsureConfigured()
     {
-        if (string.IsNullOrWhiteSpace(_connectionString))
+        if (string.IsNullOrWhiteSpace(_sql.ConnectionString))
             throw new InvalidOperationException(
                 "Oxaion SQL-Verbindung ist nicht konfiguriert. OxaionSql__ConnectionString muss gesetzt sein.");
         if (string.IsNullOrWhiteSpace(_oxaion.Firm))
