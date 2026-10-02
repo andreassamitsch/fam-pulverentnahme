@@ -132,16 +132,16 @@ jobs:
             --configuration Release `
             -p:PublishDir="$publishDir"
 
-          $msi = Get-ChildItem .\installer\bin -Filter 'FAM-Pulverentnahme-Setup-0.1.1-x64.msi' -Recurse |
+          $msi = Get-ChildItem .\installer\bin -Filter 'FAM-Pulverentnahme-Setup-0.1.2-x64.msi' -Recurse |
             Select-Object -First 1
           if (-not $msi) { throw 'MSI output not found.' }
-          Copy-Item $msi.FullName '.\artifacts\FAM-Pulverentnahme-Setup-0.1.1-x64.msi' -Force
+          Copy-Item $msi.FullName '.\artifacts\FAM-Pulverentnahme-Setup-0.1.2-x64.msi' -Force
 
       - name: Upload Windows service MSI
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/separate-processes'
         uses: actions/upload-artifact@v4
         with:
-          name: FAM-Pulverentnahme-Setup-0.1.1-x64
-          path: .\artifacts\FAM-Pulverentnahme-Setup-0.1.1-x64.msi
+          name: FAM-Pulverentnahme-Setup-0.1.2-x64
+          path: .\artifacts\FAM-Pulverentnahme-Setup-0.1.2-x64.msi
           if-no-files-found: error
           retention-days: 14
