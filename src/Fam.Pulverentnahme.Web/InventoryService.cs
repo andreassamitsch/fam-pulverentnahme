@@ -95,8 +95,9 @@ ORDER BY
  X.Firma,
  X.Lagerort,
  X.Lagerplatz,
- X.Artikel,
- X.Charge;
+ CAST(X.Artikel as nvarchar(12)),
+ CAST(X.Artikelbezeichnung as nvarchar(20)),
+ TRIM(X.Charge);
 """;
 
     public async Task<IReadOnlyList<InventoryPosition>> ReadRpStockAsync(CancellationToken ct)
