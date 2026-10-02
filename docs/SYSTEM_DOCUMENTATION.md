@@ -210,7 +210,7 @@ Die Lageruebersicht besteht aus zwei Bereichen:
 1. Maschinentanks: dynamisch aus Oxaion `ULGSTP`, jeweils mit aktuellem Tankzustand.
 2. Pulverlager: RP.*-Bestandspositionen mit Lagerort/Lagerplatz, Charge und Menge.
 
-Bei vorhandenen Oxaion-Sachmerkmalen koennen `EFA01` und `EFA02` als Erkennungsfarben angezeigt werden. Die Farben sind nur eine visuelle Bedienhilfe und keine Buchungsfreigabe.
+Bei vorhandenen Oxaion-Sachmerkmalen koennen `EFA01` und `EFA02` als Erkennungsfarben angezeigt werden. Dieselbe Farbdarstellung wird in Maschinentank- und Pulverlagerkarten verwendet. Ein am 02.10.2026 in PRODUCTION nachgewiesener Tankkarten-CSS-Fehler wurde behoben; `RP.00024` liefert `FF0000 / 833C0C` (Rot/Braun) und muss in Tank- und Lagerkarte identisch erscheinen. Artikel ohne gepflegte gueltige EFA-Werte, z. B. der bestaetigte Gegenfall `RP.00026`, zeigen bewusst kein Farbfeld. Die Farben sind nur eine visuelle Bedienhilfe und keine Buchungsfreigabe.
 
 ## Buchungssicherheit
 
