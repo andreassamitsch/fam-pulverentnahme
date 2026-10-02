@@ -29,7 +29,9 @@ Arbeite nicht nur aus Chat-Verlauf, Modellgedaechtnis oder Annahmen.
    - `docs/ERROR_HANDLING.md`
 5. Bei PWA, Offline-Betrieb, lokalem Cache, Outbox, Synchronisation oder App-Updates lies zusaetzlich:
    - `docs/OFFLINE_PWA.md`
-6. Suche anschliessend im gesamten Repository gezielt nach Begriffen aus der aktuellen Aufgabe, zum Beispiel:
+6. Bei Serverbetrieb, IIS, Windows-Dienst, Konfiguration, STAGING/PRODUCTION, Deployment, Installer oder MSI lies zusaetzlich:
+   - `docs/SERVICE_DEPLOYMENT.md`
+7. Suche anschliessend im gesamten Repository gezielt nach Begriffen aus der aktuellen Aufgabe, zum Beispiel:
    - Funktions- oder Klassennamen
    - Oxaion-Programme
    - Tabellen- oder Feldnamen
@@ -40,8 +42,8 @@ Arbeite nicht nur aus Chat-Verlauf, Modellgedaechtnis oder Annahmen.
    - QR-Code-Formate
    - Transaktionsstatus
    - Prozessnamen
-7. Wenn die Aufgabe vom aktuellen Implementierungsstand abhaengt, pruefe den vorhandenen Code und die Tests. Wenn sinnvoll, beruecksichtige auch aktuelle Commits, Issues und Pull Requests.
-8. Frage nicht erneut nach Informationen, die im Repository bereits eindeutig beantwortet sind.
+8. Wenn die Aufgabe vom aktuellen Implementierungsstand abhaengt, pruefe den vorhandenen Code und die Tests. Wenn sinnvoll, beruecksichtige auch aktuelle Commits, Issues und Pull Requests.
+9. Frage nicht erneut nach Informationen, die im Repository bereits eindeutig beantwortet sind.
 
 ## Quellenprioritaet
 
@@ -71,7 +73,15 @@ Folgende Regeln duerfen nicht ohne explizite neue Entscheidung geaendert werden:
 - Nach Wiederherstellung der Verbindung muss der aktuelle fachliche Zustand vor einer produktiven Oxaion-Buchung erneut serverseitig validiert werden.
 - Bei Konflikten nach Reconnect nicht automatisch ueberschreiben oder blind buchen; Konflikt beziehungsweise manuelle Klaerung verwenden.
 - PWA-Updates muessen kontrolliert erfolgen und duerfen laufende Vorgaenge oder `PENDING_SYNC`-Daten nicht verlieren.
-- Backend: ASP.NET Core / C# / REST API unter IIS.
+- Backend: ASP.NET Core / C# / REST API als Windows-Dienst `FAMPulverentnahme` hinter IIS.
+- Der verbindliche APP-01-Deploymentweg ist die MSI `FAM-Pulverentnahme-Setup-<Version>-x64.msi`; nicht wieder auf manuellen BAT-/PowerShell-Start als regulaeren Serverbetrieb zurueckwechseln.
+- Die MSI muss bei Updates einen vorhandenen Dienst kontrolliert stoppen, die Dateien aktualisieren und den Dienst nach erfolgreicher Installation wieder starten.
+- Hauptdienst nur auf `127.0.0.1:5080`; lokale Admin-Konfiguration nur auf `127.0.0.1:5081/admin`. Port 5081 nicht ueber IIS veroeffentlichen.
+- Eine gemeinsame native SQL-Anmeldung wird fuer Syncos und freigegebene rein lesende Oxaion-SQL-Abfragen verwendet; STAGING/PRODUCTION waehlt die jeweiligen Datenbankziele.
+- Syncos-Datenbanken: STAGING `syncos_stg_102`, PRODUCTION `syncos_prd_102`. Oxaion-SQL-Katalognamen niemals erfinden, sondern aus der Serverkonfiguration verwenden.
+- Oxaion HTTP: STAGING Port 11118, PRODUCTION Port 11108, Firma 103.
+- SQL- und Oxaion-Secrets werden maschinenweit DPAPI-verschluesselt in der lokalen Serverkonfiguration gespeichert und niemals im Repository oder Frontend hinterlegt.
+- Umgebungswechsel invalidiert Bedienersessions; serverseitige Transaktions-/Auditdaten muessen STAGING/PRODUCTION getrennt bleiben.
 - Oxaion ist das fuehrende ERP-System.
 - Das Frontend kommuniziert nicht direkt mit Oxaion.
 - Oxaion-Zugriffe laufen ueber das Backend und freigegebene Oxaion HTTP-Schnittstellen beziehungsweise vorhandene Oxaion-Fachlogik.
