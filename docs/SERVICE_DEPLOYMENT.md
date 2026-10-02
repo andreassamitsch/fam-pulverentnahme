@@ -15,6 +15,23 @@ Der Dienst startet automatisch mit Windows und hostet zwei ausschliesslich lokal
 
 Die externe HTTPS-Adresse bleibt Aufgabe von IIS. Die MSI installiert den Backend-Dienst, sie veraendert keine bestehende IIS-Site oder Zertifikatsbindung automatisch.
 
+## Verbindlichkeit fuer zukuenftige Releases
+
+Dieses Dokument beschreibt den verbindlichen Deploymentweg fuer APP-01 und den IIS-Betrieb.
+
+Fuer jede zukuenftig auszuliefernde Serverversion gilt:
+
+- regulaere Bereitstellung als MSI, nicht als manuell gestartete ZIP;
+- Dateinamensschema `FAM-Pulverentnahme-Setup-<Version>-x64.msi`;
+- vorhandenen Dienst `FAMPulverentnahme` vor dem Ersetzen laufender Dateien stoppen;
+- Dienst nach erfolgreichem Upgrade automatisch wieder starten;
+- Service-Name `FAMPulverentnahme`, Installationsidentitaet/UpgradeCode und Datenpfad nicht ohne dokumentierte Migration aendern;
+- maschinenweite Konfiguration unter `%ProgramData%\FAM-Pulverentnahme` bei Upgrades erhalten;
+- IIS-Konfiguration, HTTPS-Binding und Zertifikat nicht ungefragt durch die MSI veraendern;
+- vor Bereitstellung Build, Tests und MSI-Erzeugung in CI erfolgreich abschliessen.
+
+Die self-contained STAGING-ZIP kann weiterhin als Diagnose-/Entwicklungsartefakt erzeugt werden, ist aber nicht der regulaere APP-01-Updateweg.
+
 ## Installation und Upgrade
 
 Das CI-Artefakt lautet:
