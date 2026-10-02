@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v41-dynamic-tanks-20261002';
+const CACHE='fam-pulver-v42-tank-colors-20261002';
 const ASSETS=[
   '/',
   '/index.html',
@@ -16,7 +16,7 @@ const ASSETS=[
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20260904-worker-flow-3',
-  '/process-mode.js?v=20261002-dynamic-tanks-1',
+  '/process-mode.js?v=20261002-tank-colors-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
@@ -39,7 +39,7 @@ self.addEventListener('install',e=>{
 });
 
 self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fam-pulver-staging-')&&k!==CACHE).map(k=>caches.delete(k)))));
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fam-pulver-')&&k!==CACHE).map(k=>caches.delete(k)))));
 });
 
 self.addEventListener('fetch',e=>{
