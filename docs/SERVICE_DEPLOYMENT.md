@@ -100,7 +100,7 @@ Die exakten Oxaion-SQL-Datenbanknamen sind im Repository nicht verbindlich dokum
 Der native SQL-Benutzer benoetigt nur die fuer die WebApp erforderlichen Leserechte:
 
 - auf der jeweils aktiven Syncos-Datenbank fuer `ITSUSER` (RFID und Passwortpruefung);
-- auf der jeweils aktiven Oxaion-Datenbank fuer die dokumentierten rein lesenden Lagerbestands-/Zielortabfragen.
+- auf der jeweils aktiven Oxaion-Datenbank fuer die dokumentierten rein lesenden Lagerbestands-/Zielortabfragen sowie `OXAION.ULGSTP` zur dynamischen Tankdefinition (`LGLGART = '02'`).
 
 Keine schreibenden Rechte auf Oxaion-ERP-Tabellen sind fuer die WebApp vorgesehen. Materialbuchungen laufen weiterhin ausschliesslich ueber die Oxaion-HTTP-Fachlogik.
 
@@ -133,7 +133,7 @@ Die Admin-Oberflaeche bietet `Aktive Verbindungen testen`.
 Geprueft werden:
 
 1. Syncos SQL in der aktuell gewaehlten Datenbank durch einen rein lesenden Zugriff auf `ITSUSER`.
-2. Oxaion SQL in der aktuell gewaehlten Datenbank durch einen rein lesenden Zugriff auf `OXAION.LLPWEP`.
+2. Oxaion SQL in der aktuell gewaehlten Datenbank durch rein lesende Zugriffe auf Lagerbestand und `OXAION.ULGSTP` fuer Tanklagerorte (`LGLGART = '02'`).
 3. Oxaion HTTP durch einen App-Tunnel-Connect.
 
 Ein erfolgreicher SQL-Test ist keine Freigabe fuer produktive Materialbuchungen.
