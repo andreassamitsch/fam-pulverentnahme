@@ -168,10 +168,16 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 ## Anwendung und Betrieb
 
 - [x] Mitarbeiter-Authentifizierung fuer den aktuellen PWA-Ablauf festgelegt: bevorzugt NFC, alternativ Personalnummer + SYNCOS-Passwort, serverseitige Session und zusaetzliche exakte Oxaion-Personalrevalidierung vor der Materialbuchung. Produktive HTTPS-/Rolloutdetails bleiben separat offen.
-- [ ] Endgueltigen produktiven Web-/Application-Server festlegen
-- [ ] Sichere Bereitstellung der Oxaion-Zugangsdaten und sonstigen Laufzeit-Secrets final festlegen; STAGING-Prototyp fragt den Oxaion-Benutzer und das Passwort beim Serverstart ab und uebergibt beide als `Oxaion__User` / `Oxaion__Password` an den Backend-Prozess. Es gibt keinen fest vorgegebenen Oxaion-Laufzeitbenutzer im Repository.
-- [ ] Produktive Bereitstellung der Syncos-/Oxaion-SQL-Secrets final festlegen. Fuer STAGING ist die wiederholte Eingabe geloest: beide SQL-Connection-Strings werden nach einmaliger verdeckter Eingabe per Windows-DPAPI unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` verschluesselt gespeichert und beim naechsten Start wiederverwendet. Der Connection String steht weder im Frontend noch im Repository.
-- [ ] Persistenztechnik fuer produktives Transaktionslog, Idempotenz, Status und Audit Trail festlegen; STAGING-Prototyp verwendet vorerst JSON-Dateien unter `App_Data/transactions`. Abgelehnte Chargenscans werden vorerst separat unter `App_Data/scan-events` protokolliert.
+- [x] 02.10.2026 Serverhosting festgelegt und umgesetzt: ASP.NET-Core-Backend als Windows-Dienst `FAMPulverentnahme` hinter IIS, Hauptdienst auf Loopback `127.0.0.1:5080`, lokale Administrationsoberflaeche auf `127.0.0.1:5081`.
+- [x] 02.10.2026 Laufzeit-Secrets fuer den Dienstbetrieb festgelegt: Oxaion-Benutzer/-Passwort sowie eine gemeinsame native SQL-Anmeldung werden lokal administriert und per Windows-DPAPI LocalMachine in `%ProgramData%\FAM-Pulverentnahme\service-config.json` gespeichert. Keine Secrets im Frontend/Repository.
+- [x] 02.10.2026 STAGING/PRODUCTION-Umschaltung umgesetzt: Syncos verwendet `syncos_stg_102` bzw. `syncos_prd_102`; Oxaion-SQL-Katalognamen werden fuer beide Umgebungen explizit konfiguriert; Oxaion HTTP schaltet zwischen den bestaetigten Ports 11118/11108. Produktivumschaltung benoetigt eine bewusste Bestaetigung.
+- [x] 02.10.2026 Umgebungswechsel abgesichert: bestehende Mitarbeiter-Sessions werden ungueltig; serverseitige Transaktions-/Auditdateien sind nach STAGING/PRODUCTION getrennt. Historische ungetrennte Dateien werden einmalig dem bisherigen STAGING-Kontext zugeordnet.
+- [x] 02.10.2026 MSI-Installationsprojekt angelegt: Dienst wird automatisch installiert/gestartet; bei Upgrade wird ein vorhandener Dienst gestoppt und anschliessend wieder gestartet.
+- [ ] APP-01-Livetest des MSI-Upgrades: vorhandenen Prozess/Dienst ersetzen, Stop/Start-Verhalten pruefen und bestehenden IIS-Reverse-Proxy auf `127.0.0.1:5080` bestaetigen.
+- [ ] Lokale Admin-Konfiguration auf APP-01 befuellen und testen: gemeinsamer SQL-Server/-Benutzer, Oxaion-STAGING-/PRODUCTION-SQL-Katalognamen, Oxaion-Benutzer/-Passwort; danach Verbindungstest fuer Syncos SQL, Oxaion SQL und Oxaion HTTP.
+- [ ] STAGING/PRODUCTION-Umschaltung live pruefen: sichtbares STG/PROD-Kennzeichen, erzwungene Neuanmeldung und korrekte Datenbank-/Oxaion-Zielwahl. Produktivbuchungen erst nach separater bewusster Freigabe testen.
+- [ ] Nach korrekter STAGING-Konfiguration Lageruebersicht erneut pruefen: `RP.00010` und `RP.00012` muessen den direkt getesteten STAGING-SQL-Daten entsprechen; EFA01/EFA02 von `RP.00010` erneut bestaetigen.
+- [ ] Persistenztechnik fuer produktives Transaktionslog, Idempotenz, Status und Audit Trail finalisieren; aktuell bleiben JSON-Dateien bestehen, sind aber nach STAGING/PRODUCTION getrennt.
 - [ ] Aufbewahrungsdauer, produktiver Speicherort, Zugriffsrechte und Auswertung fuer das Fehlscan-Audit festlegen.
 - [ ] Eindeutigkeitsbedingungen und Aufbewahrungszeit fuer Idempotenzdaten festlegen
 - [ ] Timeoutwerte und Retry-Policy nach weiterer Analyse der Oxaion-Schnittstelle festlegen
