@@ -73,7 +73,7 @@ Details stehen verbindlich in `docs/OFFLINE_PWA.md`.
 ## Bedien- und Diagnosekonfiguration ab 01.10.2026
 
 - `Diagnose` und `Dev-Infos` sind im normalen Mitarbeiterbetrieb standardmaessig ausgeblendet.
-- Die Freigabe erfolgt ausschliesslich serverseitig ueber `Prototype:DeveloperToolsEnabled` beziehungsweise die IIS-/Umgebungsvariable `Prototype__DeveloperToolsEnabled`.
+- Im Windows-Dienstbetrieb erfolgt die Freigabe ausschliesslich ueber die lokale Serverkonfiguration auf `127.0.0.1:5081/admin`; der gespeicherte Wert wird serverseitig als `Prototype:DeveloperToolsEnabled` angewendet.
 - Der Browser darf diese Freigabe nicht eigenmaechtig ueber Session-/LocalStorage aktivieren.
 - Technische Oxaion-Buchungsschluessel werden in der normalen Bedienoberflaeche nicht als Arbeitsanweisung angezeigt; fachliche Aussagen und konkrete Bedienmassnahmen haben Vorrang.
 
