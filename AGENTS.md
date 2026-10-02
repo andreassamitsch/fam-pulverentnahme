@@ -31,7 +31,10 @@ Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gel
 6. bei PWA, Offline-Betrieb, lokalem Cache, Outbox, Synchronisation oder App-Updates zusaetzlich `docs/OFFLINE_PWA.md`
 7. bei Serverbetrieb, IIS, Windows-Dienst, Laufzeitkonfiguration, STAGING/PRODUCTION-Umschaltung, Deployment, Installer oder MSI zusaetzlich `docs/SERVICE_DEPLOYMENT.md`
 8. bei Maschinentanks, Tank-QR, Tanklagerorten oder fehlenden Tanks zusaetzlich `docs/MACHINE_TANK_DEFINITION.md`
-9. `docs/OPEN_POINTS.md`
+9. `docs/SYSTEM_DOCUMENTATION.md`
+10. bei Serverbetrieb, Installation, Konfiguration oder Administration zusaetzlich `docs/ADMIN_GUIDE.md`
+11. bei Bedienablauf, sichtbaren Feldern, Scannerlogik, Meldungen oder Prozessnavigation zusaetzlich `docs/OPERATOR_GUIDE.md`
+12. `docs/OPEN_POINTS.md`
 
 ## Quellenprioritaet
 
@@ -44,6 +47,24 @@ Bei der Ermittlung des aktuellen Projektstands gilt grundsaetzlich folgende Reih
 5. README, Issues, Pull Requests und Commit-Historie als ergaenzender Kontext
 
 Wenn Code und Dokumentation voneinander abweichen, nicht automatisch einen der beiden Staende als richtig annehmen. Die Abweichung benennen und anhand der juengsten expliziten Entscheidung beziehungsweise des Projektziels klaeren.
+
+## Verbindliche Systemdokumentation
+
+Die folgenden Dateien sind Teil des auszuliefernden Projektstands und muessen mit dem Code konsistent bleiben:
+
+- `docs/SYSTEM_DOCUMENTATION.md` - Gesamtfunktion, Architektur, Datenfluesse und Sicherheitsgrenzen
+- `docs/ADMIN_GUIDE.md` - Installation, MSI, Windows-Dienst, IIS, Konfiguration, Betrieb und Stoerungsbehebung
+- `docs/OPERATOR_GUIDE.md` - Bedienung der PWA aus Sicht der Produktionsmitarbeiter
+
+Bei jeder relevanten Aenderung ist im **selben Arbeitsschritt** zu pruefen und gegebenenfalls zu aktualisieren:
+
+- Architektur, Hosting, Datenquelle, Integration, Security oder Umgebung -> `SYSTEM_DOCUMENTATION.md`
+- Dienst, IIS, MSI, Ports, Secrets, SQL-Rechte, Konfiguration, Update-/Recovery-Ablauf -> `ADMIN_GUIDE.md`
+- Prozessschritte, Reihenfolge, sichtbare Felder, Scanablauf, Meldungen, Anmeldung oder Bedienregeln -> `OPERATOR_GUIDE.md`
+
+Eine neue MSI beziehungsweise ein produktionsnaher Release darf nicht als vollstaendig betrachtet werden, wenn die betroffene System-/Admin-/Bedienerdokumentation veraltet ist.
+
+Wenn eine Aenderung alle drei Sichten betrifft, muessen alle drei Dokumente aktualisiert werden. Dauerhaft relevante Informationen duerfen nicht nur im Chat verbleiben.
 
 ## Grundregeln
 
