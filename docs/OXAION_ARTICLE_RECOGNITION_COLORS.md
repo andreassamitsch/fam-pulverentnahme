@@ -149,6 +149,28 @@ Der bestaetigte US17000/US21000-Ablauf wird fuer die WebApp in einem **eigenen f
 
 Hintergrund der Korrektur: In der Lageruebersicht wurde fuer den bestaetigten Referenzartikel `RP.00010` trotz gepflegter Werte `0D0D0D / 7030A0` ein leeres Farbfeld angezeigt. Der Backend-Code verwendete den bereits fuer die Tankliste benutzten Oxaion-Sessionkontext. Ab 01.10.2026 wird der Farbleseweg davon isoliert. Die praktische Android-STAGING-Bestaetigung dieses Fixes steht noch aus.
 
+## PRD-Nachweis und Darstellungsfehler 02.10.2026
+
+Der Produktionsabruf fuer `RP.00024` bestaetigte den Backend-Leseweg eindeutig:
+
+- `EFA01 = FF0000 = Rot`
+- `EFA02 = 833C0C = Braun`
+- Status `COMPLETE`
+- dieselben Werte wurden fuer die Tanks `M400-02` und `M650` geliefert.
+
+Damit war der in der Tankkarte sichtbare leere Rahmen **kein Oxaion-/Backend-Lesefehler**. Die Pulverlagerkarte desselben Artikels zeigte Rot/Braun bereits korrekt.
+
+Ursache war eine CSS-Spezifitaetskollision in der Tankkarte: die Regel `.inventoryTank b,.inventoryTank span{display:block}` ueberschrieb das `display:inline-flex` von `.processSwatch`. Dadurch hatten die beiden inneren Farbhaelften in der Tankkarte keine wirksame Flex-Flaeche.
+
+Korrektur:
+
+- Tankkarten setzen fuer `.inventoryTank .processSwatch` explizit `display:inline-flex`;
+- Text-Layout gilt nur noch fuer die Text-`span` innerhalb des Tanktextcontainers;
+- die beiden inneren Farbflaechen werden explizit als Block/Flex-Kinder mit voller Hoehe gerendert;
+- PWA-Asset-URL und Cache-Generation wurden angehoben, damit Android nicht die fehlerhafte alte CSS-/JS-Generation weiterverwendet.
+
+`RP.00026` bleibt ein korrekter Gegenfall: dort sind EFA01/EFA02 nicht gepflegt beziehungsweise leer, daher wird bewusst kein Farbfeld dargestellt.
+
 ## Darstellung in der PWA
 
 Nach einem eindeutigen Maschinentankbestand:
