@@ -45,7 +45,9 @@ Arbeite nicht nur aus Chat-Verlauf, Modellgedaechtnis oder Annahmen.
    - Transaktionsstatus
    - Prozessnamen
 9. Wenn die Aufgabe vom aktuellen Implementierungsstand abhaengt, pruefe den vorhandenen Code und die Tests. Wenn sinnvoll, beruecksichtige auch aktuelle Commits, Issues und Pull Requests.
-10. Frage nicht erneut nach Informationen, die im Repository bereits eindeutig beantwortet sind.
+10. Lies fuer das Gesamtverstaendnis zusaetzlich `docs/SYSTEM_DOCUMENTATION.md`.
+11. Bei Server-/Admin-/Deploymentthemen lies `docs/ADMIN_GUIDE.md`; bei sichtbarer Bedienung, Prozessfuehrung oder Meldungen lies `docs/OPERATOR_GUIDE.md`.
+12. Frage nicht erneut nach Informationen, die im Repository bereits eindeutig beantwortet sind.
 
 ## Quellenprioritaet
 
@@ -114,6 +116,20 @@ Bei Aufgaben rund um Netzwerkausfall gilt zusaetzlich:
 - Background Sync darf spaeter als Optimierung genutzt werden, aber die fachliche Zuverlaessigkeit darf nicht davon abhaengen.
 - Service-Worker-Cache-Bereinigung darf IndexedDB/Outbox nicht loeschen.
 - IndexedDB-Schemamigrationen muessen noch nicht synchronisierte Daten erhalten.
+
+## Pflicht zur Pflege der Systemdokumentation
+
+Die Systemdokumentation ist Teil des Produktstands und nicht nur Hintergrundinformation.
+
+Verbindliche Dokumente:
+
+- `docs/SYSTEM_DOCUMENTATION.md`
+- `docs/ADMIN_GUIDE.md`
+- `docs/OPERATOR_GUIDE.md`
+
+Bei jeder Aenderung muss geprueft werden, welche dieser Sichten betroffen ist. Architektur-/Integrationsaenderungen gehoeren in die Systemdoku, Betriebs-/Deploymentaenderungen ins Adminhandbuch und sichtbare Prozess-/UI-/Meldungsaenderungen ins Bedienerhandbuch.
+
+Code, Tests und Dokumentation muessen gemeinsam aktualisiert werden. Insbesondere vor einer neuen MSI-Auslieferung muss der Dokumentationsstand geprueft werden.
 
 ## Umgang mit neuen Entscheidungen
 
