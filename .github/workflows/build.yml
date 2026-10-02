@@ -146,3 +146,43 @@ jobs:
           path: .\artifacts\FAM-Pulverentnahme-Setup-0.1.2-x64.msi
           if-no-files-found: error
           retention-days: 14
+      - name: Keep only latest Actions artifacts
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/separate-processes')
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const currentRunId = context.runId;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner,
+              repo,
+              per_page: 100
+            });
+
+            const keep = artifacts.filter(a => a.workflow_run?.id === currentRunId);
+            const remove = artifacts.filter(a => a.workflow_run?.id !== currentRunId);
+
+            core.info(`Artifacts found: ${artifacts.length}`);
+            for (const artifact of keep) {
+              core.info(`KEEP ${artifact.id} ${artifact.name}`);
+            }
+
+            for (const artifact of remove) {
+              await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: artifact.id });
+              core.info(`DELETED ${artifact.id} ${artifact.name}`);
+            }
+
+            const remaining = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner,
+              repo,
+              per_page: 100
+            });
+            const oldRemaining = remaining.filter(a => a.workflow_run?.id !== currentRunId);
+            if (oldRemaining.length) {
+              core.setFailed(`${oldRemaining.length} older artifact(s) still remain.`);
+            }
+            core.info(`Cleanup complete. Remaining artifacts: ${remaining.length}`);
+            for (const artifact of remaining) {
+              core.info(`REMAINING ${artifact.id} ${artifact.name}`);
+            }
