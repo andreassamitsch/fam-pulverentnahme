@@ -128,7 +128,8 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - sichere technische Protokollierung ohne Secrets
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
 - `GET /api/inventory/rp-stock`: rein lesende RP.*-Lagerbestandsansicht ueber die separate Laufzeitverbindung `OxaionSql__ConnectionString`; Details in `docs/INVENTORY_VIEW.md`
-- fuer den STAGING-Nachfuellprototyp: lesender Maschinenbestand aus der bestaetigten `LB30230R`-Auflistung `Chargen pro Lagerort`; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
+- dynamische Maschinentankdefinition aus Oxaion SQL `ULGSTP`: aktive Firma plus `LGLGART = '02'`; Lagerortcode aus `LGLAGO`, Bezeichnung aus `LGBEZC`. Keine statische EOS1/EOS2-Whitelist. Details in `docs/MACHINE_TANK_DEFINITION.md`
+- lesender Maschinenbestand aus der bestaetigten `LB30230R`-Auflistung `Chargen pro Lagerort`; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
 - der Maschinenbestand ist nicht von einem gespeicherten Oxaion-Filter abhaengig: das Backend liest die vollstaendige `LB30230R`-Liste des Lagerorts und wertet direkt die bestaetigte Bedingung `LLAWEP.LALABE != 0` aus
 - EFA01/EFA02 werden nach Artikelableitung ueber den bestaetigten Sachmerkmals-Leseweg geladen und als reine Erkennungshilfe an das Frontend geliefert
 - lesende Nachfuellquellen-Endpunkte `GET /api/source-stock/warehouses` und `GET /api/source-stock/positions`; sie kapseln die bestaetigten Oxaion-Auskuenfte `LB30340R` und `LB30430R`
@@ -154,6 +155,7 @@ Die aktive Syncos-Verbindung wird serverseitig aus der gemeinsamen SQL-Anmeldung
 Der direkte SQL-Zugriff auf Oxaion ist auf genau die dokumentierte rein lesende Informationsfunktion begrenzt:
 
 - RP.*-Chargenbestaende aller Lagerorte und Lagerplaetze fuer die konfigurierte Firma
+- Maschinentankdefinition aus `OXAION.ULGSTP` fuer die aktive Firma mit `LGLGART = '02'`
 - Die Oxaion-SQL-Verbindung verwendet dieselbe native SQL-Anmeldung wie Syncos, aber einen eigenen, umgebungsabhaengigen Oxaion-Datenbankkatalog.
 - Die Katalognamen fuer Oxaion STAGING und PRODUCTION werden lokal konfiguriert und nicht im Code angenommen.
 - keine `INSERT`, `UPDATE`, `DELETE`, `MERGE` oder andere schreibende ERP-Manipulationen
