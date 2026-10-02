@@ -22,6 +22,10 @@ public sealed class InventoryServiceTests
         Assert.Contains("FROM OXAION.LLPWEP AS BX", sql);
         Assert.Contains("BX.LPPONR = LA.LAPONR", sql);
         Assert.Contains("SELECT DISTINCT", sql);
+        Assert.Contains("ORDER BY", sql);
+        Assert.Contains("CAST(X.Artikel as nvarchar(12))", sql);
+        Assert.Contains("CAST(X.Artikelbezeichnung as nvarchar(20))", sql);
+        Assert.Contains("TRIM(X.Charge)", sql);
         Assert.Contains("B.LPIDNR LIKE N'RP.%'", sql);
         Assert.Contains("LA.LAIDNR LIKE N'RP.%'", sql);
         Assert.Contains("B.LPLABE <> 0", sql);
