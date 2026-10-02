@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 
 namespace Fam.Pulverentnahme.Web;
@@ -5,47 +6,72 @@ namespace Fam.Pulverentnahme.Web;
 public sealed record MachineTankOption(string Warehouse, string WarehouseText);
 
 /// <summary>
-/// Process-specific whitelist of machine/tank warehouses. The same list is used by the dropdown
-/// now and is intended to be the validation target for the later machine QR scan.
+/// Machine/tank warehouses are read dynamically from Oxaion ULGSTP for the active company.
+/// The confirmed business definition is LGLGART = '02'. There is no static EOS1/EOS2 whitelist.
 ///
 /// The stock read reuses the confirmed LB30230R "Chargen pro Lagerort" list without an expected
-/// article. The captured EOS1 list is article-independent and already returned rows of multiple
-/// articles; therefore the one positive tank row itself is the source of Article + ArticleText.
+/// article. The one non-zero tank row itself is the source of Article + ArticleText.
 /// No product number is supplied by the browser for this decision.
 /// </summary>
 public sealed class MachineTankService
 {
     private const int MaxListPages = 100;
+    internal const string MachineTankWarehouseSql = """
+        SELECT
+            LG.LGLAGO,
+            LG.LGBEZC
+        FROM OXAION.ULGSTP AS LG
+        WHERE LG.LGFIRM = @firm
+          AND LG.LGLGART = N'02'
+        ORDER BY LG.LGLAGO;
+        """;
+
     private readonly OxaionClient _oxaion;
     private readonly OxaionOptions _oxaionOptions;
-    private readonly MachineTankOptions _machineOptions;
+    private readonly OxaionSqlOptions _oxaionSql;
 
     public MachineTankService(
         OxaionClient oxaion,
         IOptions<OxaionOptions> oxaionOptions,
-        IOptions<MachineTankOptions> machineOptions)
+        IOptions<OxaionSqlOptions> oxaionSql)
     {
         _oxaion = oxaion;
         _oxaionOptions = oxaionOptions.Value;
-        _machineOptions = machineOptions.Value;
+        _oxaionSql = oxaionSql.Value;
     }
 
-    public bool IsAllowed(string warehouse) =>
-        _machineOptions.Warehouses.Any(x => string.Equals(x?.Trim(), warehouse?.Trim(), StringComparison.OrdinalIgnoreCase));
+    public async Task<bool> IsAllowedAsync(string warehouse, CancellationToken ct)
+    {
+        warehouse = (warehouse ?? "").Trim();
+        if (warehouse.Length == 0) return false;
+        var options = await ReadOptionsAsync(ct);
+        return options.Any(x => string.Equals(x.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase));
+    }
 
     public async Task<IReadOnlyList<MachineTankOption>> ReadOptionsAsync(CancellationToken ct)
     {
-        var codes = _machineOptions.Warehouses
-            .Select(x => (x ?? "").Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (codes.Count == 0) throw new InvalidOperationException("No machine tank warehouses are configured.");
+        if (string.IsNullOrWhiteSpace(_oxaionSql.ConnectionString))
+            throw new InvalidOperationException("Oxaion SQL-Verbindung ist nicht konfiguriert.");
 
-        await using var session = await _oxaion.ConnectAsync(ct);
         var result = new List<MachineTankOption>();
-        foreach (var code in codes)
-            result.Add(new MachineTankOption(code, await ResolveWarehouseTextAsync(session, code, ct)));
+        await using var connection = new SqlConnection(_oxaionSql.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = MachineTankWarehouseSql;
+        command.CommandTimeout = 15;
+        command.Parameters.AddWithValue("@firm", _oxaionOptions.Firm);
+
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var warehouse = reader.IsDBNull(0) ? "" : reader.GetString(0).Trim();
+            if (warehouse.Length == 0) continue;
+            var text = reader.IsDBNull(1) ? "" : reader.GetString(1).Trim();
+            if (result.Any(x => string.Equals(x.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            result.Add(new MachineTankOption(warehouse, string.IsNullOrWhiteSpace(text) ? warehouse : text));
+        }
+
         return result;
     }
 
@@ -53,10 +79,14 @@ public sealed class MachineTankService
     {
         warehouse = (warehouse ?? "").Trim();
         if (string.IsNullOrWhiteSpace(warehouse)) throw new ArgumentException("Machine warehouse is required.");
-        if (!IsAllowed(warehouse)) throw new ArgumentException($"Warehouse {warehouse} is not configured as a machine tank.");
+
+        var configured = (await ReadOptionsAsync(ct))
+            .SingleOrDefault(x => string.Equals(x.Warehouse, warehouse, StringComparison.OrdinalIgnoreCase));
+        if (configured is null)
+            throw new ArgumentException($"Lagerort {warehouse} ist laut Oxaion ULGSTP (LGLGART=02) kein Maschinentank.");
 
         await using var session = await _oxaion.ConnectAsync(ct);
-        var warehouseText = await ResolveWarehouseTextAsync(session, warehouse, ct);
+        var warehouseText = configured.WarehouseText;
         var launchInput = BuildLaunchContext(warehouse, warehouseText);
         var launch = await session.CallAsync("US30600J", "", launchInput, ct);
         OxaionSession.AssertNoFcod(launch);
@@ -132,19 +162,6 @@ public sealed class MachineTankService
             DateTimeOffset.UtcNow,
             nonZero,
             recognitionColors);
-    }
-
-    private async Task<string> ResolveWarehouseTextAsync(OxaionSession session, string warehouse, CancellationToken ct)
-    {
-        var plain = await session.CallAsync("US00006J", "*GETPLAIN", Dict(
-            ("MFLD", "LAGO"),
-            ("PGMN", "US30600J"),
-            ("LAGO", warehouse),
-            ("PFIELD", "TX_LAGO"),
-            ("FIELD", "LAGO")), ct);
-        OxaionSession.AssertNoFcod(plain);
-        var text = Get(plain.Dta, "TX_LAGO");
-        return string.IsNullOrWhiteSpace(text) ? warehouse : text;
     }
 
     private Dictionary<string, string> BuildLaunchContext(string warehouse, string warehouseText)
