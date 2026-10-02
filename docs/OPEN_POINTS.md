@@ -25,7 +25,10 @@ Details stehen verbindlich in `docs/JOB_ABORT_CORRECTION_AND_TANK_WEIGHING_2026-
 
 - [x] Doppelte Lagerort-/Lagerplatzdarstellung korrigiert: Eine LLAWEP-Lagerortzeile wird unterdrueckt, wenn fuer denselben Artikel/Lagerort/dieselbe Charge konkrete LLPWEP-Lagerplatzbestaende vorhanden sind.
 - [x] Pulverlager in der PWA vereinfacht: pro Artikel nur noch flache Bestandszeilen `Lagerort / Lagerplatz` + Charge + Menge; keine zusaetzliche Lagerort-Kopfzeile mit erneut dargestellten Chargenmengen.
+- [x] 02.10.2026 SQL-Direktpruefung: `RP.00010` ist in der aktuellen Lagerbestandsabfrage enthalten. Der vorherige Fehlverdacht eines RP.00010-Filters ist damit fuer die SQL-Sicht ausgeraeumt.
+- [x] 02.10.2026 SQL-Fehler nach `SELECT DISTINCT` korrigiert: `ORDER BY` verwendet jetzt die projizierten CAST/TRIM-Ausdruecke fuer Artikel, Artikelbezeichnung und Charge.
 - [ ] Android-STAGING: Beispiel `RP.00002 / H04PULA / Charge 88445` pruefen; die 10,000-kg-Menge darf nur einmal als konkrete Lagerplatzposition erscheinen.
+- [ ] Android-STAGING: `RP.00010` muss nach dem SQL-Fix in der Lagerliste sichtbar sein; SQL-seitig ist der Datensatz bereits bestaetigt.
 
 ## Jobabbruch-/Farbanzeige-Korrekturen 01.10.2026
 
