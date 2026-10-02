@@ -3,8 +3,8 @@
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
     <InstallerPlatform>x64</InstallerPlatform>
-    <OutputName>FAM-Pulverentnahme-Setup-0.1.1-x64</OutputName>
-    <DefineConstants>PublishDir=$(PublishDir);ProductVersion=0.1.1</DefineConstants>
+    <OutputName>FAM-Pulverentnahme-Setup-0.1.2-x64</OutputName>
+    <DefineConstants>PublishDir=$(PublishDir);ProductVersion=0.1.2</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
