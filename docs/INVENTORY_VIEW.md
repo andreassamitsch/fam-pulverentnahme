@@ -18,24 +18,24 @@ Angezeigt werden mindestens:
 
 Nullbestaende werden nicht angezeigt. Negative Bestaende bleiben sichtbar und werden in der PWA als Klaerungsfall markiert.
 
-## Verbindliche technische Entscheidung ab 08.09.2026
+## Verbindliche technische Entscheidung
 
-Fuer diese **rein lesende Lagerbestandsansicht** wird ein eigener serverseitiger SQL-Zugang zur Oxaion-Datenbank verwendet. Die Laufzeitkonfiguration lautet `OxaionSql__ConnectionString`.
+Fuer diese **rein lesende Lagerbestandsansicht** verwendet das Backend den Oxaion-Datenbankkatalog der aktuell gewaehlten Serverumgebung.
 
-`OxaionSql__ConnectionString` ist bewusst von `Syncos__ConnectionString` getrennt:
+Ab 02.10.2026 gilt fuer den Dienstbetrieb:
 
-- `Syncos__ConnectionString` bleibt fuer Syncos-Personalwege wie RFID und Passwort-Fallback bestimmt.
-- `OxaionSql__ConnectionString` muss auf die richtige Oxaion-Datenbank zeigen und wird ausschliesslich fuer die hier dokumentierte lesende RP.*-Bestandsansicht verwendet.
-- Im STAGING-Startskript werden beide Connection Strings getrennt behandelt. Falls keine Umgebungsvariable gesetzt ist, wird zuerst der per Windows-DPAPI lokal gespeicherte Wert verwendet; nur beim ersten Start beziehungsweise nach bewusstem Reset wird verdeckt abgefragt.
+- SQL Server, nativer SQL-Benutzer und SQL-Passwort werden nur einmal zentral konfiguriert und fuer Syncos sowie die freigegebenen Oxaion-SQL-Lesewege wiederverwendet.
+- STAGING und PRODUCTION besitzen getrennte Datenbankziele. Die exakten Oxaion-SQL-Katalognamen werden in der lokalen Konfigurationsoberflaeche gepflegt.
+- Der bisherige Fehlerfall, bei dem die App wegen eines auf PRODUCTION zeigenden SQL-Connection-Strings andere Lagerdaten als eine manuelle STAGING-Abfrage zeigte, wird dadurch vermieden: Umgebung und Datenbankauswahl sind eine gemeinsame serverseitige Konfiguration.
+- SQL-Passwort und Oxaion-Zugangsdaten werden DPAPI-verschluesselt unter `%ProgramData%\FAM-Pulverentnahme\service-config.json` gespeichert.
 
 Wichtig:
 
 - SQL wird hier **nur lesend** verwendet.
 - Es gibt keine ERP-Buchung, Bestandskorrektur oder sonstige Datenmanipulation per SQL.
 - Alle produktiven Materialbuchungen laufen weiterhin ausschliesslich ueber die bestaetigte Oxaion-Fachlogik/HTTP-Schnittstelle.
-- Firma wird als SQL-Parameter `@firm` aus `Oxaion__Firm` uebergeben und nicht fuer andere Firmen frei aus dem Browser gesetzt.
-- Connection String, Benutzer und Passwort verbleiben ausschliesslich serverseitig. Die STAGING-SQL-Connection-Strings duerfen verschluesselt per Windows-DPAPI unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` persistiert werden; Klartext wird nicht in Repository, Frontend oder Logs geschrieben.
-- Der Connection String wird weder im Frontend noch in Health-Antworten oder Logs ausgegeben.
+- Firma wird serverseitig als SQL-Parameter `@firm` aus der aktiven Oxaion-Konfiguration uebergeben und nicht frei aus dem Browser gesetzt.
+- Connection String, Benutzer und Passwort verbleiben ausschliesslich serverseitig und werden weder im Frontend noch in Health-Antworten oder Logs ausgegeben.
 
 ## Aktuelle SQL-Sicht
 
