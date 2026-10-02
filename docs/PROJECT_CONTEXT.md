@@ -15,11 +15,13 @@ Die WebApp soll mit Oxaion kommunizieren. Das Frontend bleibt bewusst einfach. K
 - Auf dem Datenbankserver befinden sich aktuell auch SSRS Reporting Services und IIS.
 - Fuer Tests kann die WebApp auf dem vorhandenen IIS betrieben werden.
 
-### Bevorzugter Produktivbetrieb
+### Verbindlicher Serverbetrieb ab 02.10.2026
 
-- eigener Web-/Application-Server beziehungsweise eigene VM
-- IIS
-- ASP.NET Core Backend
+- Die ASP.NET-Core-Anwendung wird als Windows-Dienst `FAMPulverentnahme` installiert und automatisch gestartet.
+- Der eigentliche Webdienst lauscht nur auf `127.0.0.1:5080`; IIS bleibt der externe HTTPS-Reverse-Proxy zur PWA.
+- Die lokale Administrationsoberflaeche lauscht getrennt auf `127.0.0.1:5081` und wird nicht ueber IIS veroeffentlicht.
+- Installation und Updates erfolgen per MSI. Ein vorhandener Dienst wird beim Upgrade gestoppt und nach erfolgreicher Installation wieder gestartet.
+- Der vorhandene IIS-/HTTPS-Auftritt kann damit auf denselben Loopback-Port 5080 zeigen; die MSI richtet bewusst keinen oeffentlichen zweiten Webzugang ein.
 
 Die WebApp schreibt nicht direkt auf die Oxaion-Datenbank.
 
@@ -39,13 +41,16 @@ Fuer Materialbuchungen soll nach Moeglichkeit die vorhandene Oxaion BDE-/PPS-Log
 
 Fuer die allgemeine Informationsansicht der RP.*-Chargenbestaende ist ab 08.09.2026 ein direkter **rein lesender** SQL-Zugriff des Backends auf die Oxaion-Datenbank freigegeben. Diese Ausnahme gilt nur fuer die in `docs/INVENTORY_VIEW.md` dokumentierte Bestandsabfrage und ist keine Freigabe fuer ERP-Buchungen per SQL.
 
-Verbindlich:
+Verbindlich ab 02.10.2026:
 
-- eigene Laufzeitkonfiguration `OxaionSql__ConnectionString` fuer die Oxaion-Datenbank;
-- `Syncos__ConnectionString` bleibt davon getrennt und wird fuer Syncos-Personalwege verwendet;
-- der Oxaion-SQL-Connection-String muss beim STAGING-Start auf die richtige Oxaion-Datenbank gesetzt beziehungsweise verdeckt eingegeben werden;
-- Connection Strings und Zugangsdaten bleiben ausschliesslich im Backend/Runtime-Environment und werden weder im Frontend noch im Repository gespeichert;
-- Oxaion-SQL-Zugriff fuer die PWA bleibt auf `SELECT`/rein lesende Bestandsinformation begrenzt;
+- Fuer Syncos und den rein lesenden Oxaion-SQL-Zugriff wird **eine gemeinsame native SQL-Anmeldung** (Server, Benutzer, Passwort) verwendet. Der SQL-Benutzer erhaelt serverseitig nur die fuer die WebApp benoetigten Rechte.
+- Die Umgebung bestimmt die verwendeten Datenbanken. Syncos ist mit `syncos_stg_102` fuer STAGING und `syncos_prd_102` fuer PRODUCTION vorbelegt.
+- Die exakten Oxaion-SQL-Katalognamen fuer STAGING und PRODUCTION werden in der lokalen Serverkonfiguration gepflegt; sie werden nicht erfunden oder hart codiert.
+- Die Oxaion-HTTP-Umgebung wird mit demselben STAGING/PRODUCTION-Schalter umgeschaltet: bestaetigter STAGING-Port `11118`, bestaetigter PRODUCTION-Port `11108`, Firma weiterhin `103`.
+- SQL-Passwort sowie Oxaion-Benutzer/-Passwort werden in `%ProgramData%\FAM-Pulverentnahme\service-config.json` nur DPAPI-verschluesselt (LocalMachine) gespeichert. Klartext-Secrets stehen weder im Frontend noch im Repository.
+- Die Konfiguration erfolgt ausschliesslich lokal am Server ueber `http://127.0.0.1:5081/admin`.
+- Ein Wechsel STAGING/PRODUCTION macht vorhandene Mitarbeiter-Sessions ungueltig. Transaktions- und Auditdateien werden nach Umgebung getrennt, damit STAGING-Vorgaenge nicht in PRODUCTION weiterverwendet werden.
+- Oxaion-SQL-Zugriff fuer die PWA bleibt auf dokumentierte `SELECT`-/Informationsfunktionen begrenzt.
 - Materialbuchungen, Bestandskorrekturen und sonstige ERP-Aenderungen laufen weiterhin ausschliesslich ueber Oxaion-Fachlogik/HTTP.
 
 ## PWA und Offline-Faehigkeit
