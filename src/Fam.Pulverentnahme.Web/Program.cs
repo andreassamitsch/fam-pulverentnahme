@@ -1,12 +1,29 @@
 using Fam.Pulverentnahme.Web;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var serviceHost = builder.Configuration.GetSection("ServiceHost").Get<ServiceHostOptions>() ?? new ServiceHostOptions();
+var windowsService = OperatingSystem.IsWindows() && WindowsServiceHelpers.IsWindowsService();
+if (windowsService)
+{
+    builder.Host.UseWindowsService(options => options.ServiceName = serviceHost.ServiceName);
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenLocalhost(serviceHost.MainPort);
+        if (serviceHost.AdminPort != serviceHost.MainPort)
+            options.ListenLocalhost(serviceHost.AdminPort);
+    });
+}
+
 builder.Services.Configure<OxaionOptions>(builder.Configuration.GetSection("Oxaion"));
 builder.Services.Configure<SyncosOptions>(builder.Configuration.GetSection("Syncos"));
+builder.Services.Configure<OxaionSqlOptions>(builder.Configuration.GetSection("OxaionSql"));
 builder.Services.Configure<PrototypeOptions>(builder.Configuration.GetSection("Prototype"));
 builder.Services.Configure<MachineTankOptions>(builder.Configuration.GetSection("MachineTanks"));
+builder.Services.Configure<ServiceHostOptions>(builder.Configuration.GetSection("ServiceHost"));
+builder.Services.AddSingleton<RuntimeConfigurationService>();
 builder.Services.AddHttpClient(nameof(OxaionClient));
 builder.Services.AddSingleton<JsonTransactionStore>();
 builder.Services.AddSingleton<RejectedScanEventStore>();
@@ -21,28 +38,62 @@ builder.Services.AddSingleton<MixBookingService>();
 builder.Services.AddSeparateProcessFeatures();
 
 var app = builder.Build();
+
+// Load the machine-wide encrypted service configuration before any Oxaion/SQL singleton is used.
+_ = app.Services.GetRequiredService<RuntimeConfigurationService>();
+
+var adminPort = serviceHost.AdminPort;
+app.Use(async (context, next) =>
+{
+    var adminPath = context.Request.Path.StartsWithSegments("/admin")
+        || context.Request.Path.StartsWithSegments("/api/admin");
+    var onAdminPort = context.Connection.LocalPort == adminPort;
+
+    if (adminPath && !onAdminPort)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    if (onAdminPort && !adminPath)
+    {
+        context.Response.Redirect("/admin");
+        return;
+    }
+
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UsePersonnelAuthentication();
+app.MapAdminConfiguration();
 
 app.MapGet("/api/health", (
     IOptions<OxaionOptions> options,
     IOptions<SyncosOptions> syncos,
+    IOptions<OxaionSqlOptions> oxaionSql,
+    RuntimeConfigurationService runtime,
     PersonnelAuthenticationService auth) => Results.Ok(new
 {
     ok = true,
-    environment = options.Value.StagingOnly ? "STAGING" : "UNRESTRICTED",
+    environment = runtime.EnvironmentName,
+    serviceConfigurationPersisted = runtime.GetView().Persisted,
     serverUrl = options.Value.ServerUrl,
     firm = options.Value.Firm,
     user = options.Value.User,
     passwordConfigured = !string.IsNullOrWhiteSpace(options.Value.Password),
     syncosConfigured = !string.IsNullOrWhiteSpace(syncos.Value.ConnectionString),
+    oxaionSqlConfigured = !string.IsNullOrWhiteSpace(oxaionSql.Value.ConnectionString),
     personnelAuthenticationConfigured = auth.IsConfigured
 }));
 
-app.MapGet("/api/ui-config", (IOptions<PrototypeOptions> prototype) => Results.Ok(new
+app.MapGet("/api/ui-config", (
+    IOptions<PrototypeOptions> prototype,
+    RuntimeConfigurationService runtime) => Results.Ok(new
 {
-    developerToolsEnabled = prototype.Value.DeveloperToolsEnabled
+    developerToolsEnabled = prototype.Value.DeveloperToolsEnabled,
+    environment = runtime.EnvironmentName
 }));
 
 app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
@@ -130,6 +181,7 @@ app.MapSeparateProcessEndpoints();
 app.MapPost("/api/personnel/nfc", async (
     NfcPersonnelRequest request,
     RfidPersonnelService service,
+    RuntimeConfigurationService runtime,
     HttpContext http,
     CancellationToken ct) =>
 {
@@ -147,6 +199,7 @@ app.MapPost("/api/personnel/nfc", async (
 
         http.Session.SetString(PersonnelAuthenticationSession.PersonnelNo, result.PersonnelNo);
         http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, result.FullName);
+        http.Session.SetString(PersonnelAuthenticationSession.Environment, runtime.EnvironmentName);
         return Results.Ok(result);
     }
     catch (ArgumentException ex)
