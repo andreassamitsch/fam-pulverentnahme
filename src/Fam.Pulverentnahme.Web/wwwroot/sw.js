@@ -25,10 +25,13 @@ const ASSETS=[
   '/process-ux-optimizations.js?v=20261001-operator-ui-1',
   '/process-hotfix-20260909.js?v=20261001-operator-ui-1',
   '/manifest.webmanifest',
+  '/icons/fam-pulver-master.svg',
   '/icons/favicon.svg',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
-  '/icons/icon-maskable-512.svg'
+  '/icons/favicon-32.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install',e=>{
