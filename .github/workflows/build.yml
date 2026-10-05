@@ -91,7 +91,7 @@ jobs:
         run: dotnet test .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj --configuration Release --no-restore
 
       - name: Prepare STAGING artifact name
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
         shell: pwsh
         run: |
           $viennaTime = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTimeOffset]::UtcNow, 'W. Europe Standard Time')
@@ -101,7 +101,7 @@ jobs:
           Write-Host "STAGING artifact: $artifactName.zip (Europe/Vienna)"
 
       - name: Publish self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
         shell: pwsh
         run: |
           $out = '.\artifacts\FAM-Pulverentnahme-STAGING-win-x64'
@@ -116,7 +116,7 @@ jobs:
           Copy-Item .\scripts\START_STAGING.bat (Join-Path $out 'START_STAGING.bat')
 
       - name: Upload self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.STAGING_ARTIFACT_NAME }}
