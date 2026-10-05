@@ -52,6 +52,12 @@ Der Wegfall des Jobabbruch-Tankscans, die korrigierte Startfokussierung und das 
 
 Die Bereinigung der doppelten Lagerort-/Lagerplatzdarstellung und die flache Bestandszeile werden als App-Shell-Generation `v39` ausgeliefert. `process-mode.js` wird mit `?v=20261001-inventory-flat-1` referenziert.
 
+### Diagnose-/Etiketten-Nachdruck-Cachegeneration 05.10.2026
+
+Version `0.1.4` korrigiert einen falschen Leerzustandsalarm im Vorgang `Etiketten nachdrucken`. Der Diagnosewaechter muss `label-reprint` explizit dem sichtbaren Panel `labelReprintProcess` zuordnen. Andernfalls wurde trotz sichtbarer Nachdruckoberflaeche nach 500 ms faelschlich `Anzeigeproblem erkannt` eingeblendet.
+
+Fuer diese Korrektur wird `ui-diagnostics.js?v=20261005-label-reprint-diag-1` sowohl in `index.html` als auch in der Service-Worker-`ASSETS`-Liste verwendet. Die App-Shell-Generation lautet `fam-pulver-v44-label-reprint-diag-20261005`. Damit kann ein bereits installiertes Android-PWA den korrigierten Diagnosecode sicher beziehen.
+
 ### Serverumgebung und lokale PWA-Daten
 
 STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
