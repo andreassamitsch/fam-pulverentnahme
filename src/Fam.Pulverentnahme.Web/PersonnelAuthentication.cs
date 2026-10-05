@@ -74,7 +74,7 @@ internal static class PersonnelAuthenticationSession
         {
             var last = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
             var remaining = timeout - (now - last);
-            return Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+            return Math.Clamp((int)Math.Ceiling(remaining.TotalSeconds), 0, (int)timeout.TotalSeconds);
         }
         catch (ArgumentOutOfRangeException)
         {
