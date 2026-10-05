@@ -116,7 +116,7 @@ values=function(){if(!personnelSessionMatchesSelection())throw new Error('Mitarb
 
 const baseChoosePersonnel=choosePersonnel;
 choosePersonnel=function(p){
-  authenticatedPersonnel=null;resetPersonnelPassword();baseChoosePersonnel(p);showManualPersonnelLogin();
+  authenticatedPersonnel=null;clearPersonnelIdleTracking();resetPersonnelPassword();baseChoosePersonnel(p);showManualPersonnelLogin();
   $('personnelStatus').className='status neutral';
   $('personnelStatus').textContent=personnelAuthConfigured?`Passwort eingeben und anmelden${personnelAuthHttps?'.':' · HTTP-Testbetrieb.'}`:'⛔ Passwortprüfung im Backend ist nicht konfiguriert.';
   updateBookState();setTimeout(()=>$('personnelPassword')?.focus(),0);
@@ -124,7 +124,7 @@ choosePersonnel=function(p){
 
 const baseClearPersonnelSelection=clearPersonnelSelection;
 clearPersonnelSelection=function(message){
-  authenticatedPersonnel=null;resetPersonnelPassword();$('personnelLogin')?.classList.add('hidden');$('personnelLogoutBtn')?.classList.add('hidden');
+  authenticatedPersonnel=null;clearPersonnelIdleTracking();resetPersonnelPassword();$('personnelLogin')?.classList.add('hidden');$('personnelLogoutBtn')?.classList.add('hidden');
   baseClearPersonnelSelection(message);notifyWorkerFlow();
 };
 
@@ -184,14 +184,14 @@ sendRequest=async function(r){
   if(!session.ok||!session.body?.authenticated||session.body.personnelNo!==r.personnelNo||session.body.fullName!==r.personnelName){
     expirePersonnelLocally('Anmeldung ist abgelaufen. Bitte erneut per NFC oder mit Passwort anmelden.');return;
   }
-  applySessionTiming(session.body);
+  setPersonnelIdleTimeout(session.body?.idleTimeoutMinutes);
   return baseSendRequest(r);
 };
 
 function initPersonnelAuth(){
   registerPersonnelUserActivity();
   setPersonnelIdleTimeout(window.FamUiConfig?.personnelIdleTimeoutMinutes);
-  window.FamUiConfigReady?.then?.(config=>setPersonnelIdleTimeout(config?.personnelIdleTimeoutMinutes)).catch?.(()=>{});
+  if(window.FamUiConfigReady&&typeof window.FamUiConfigReady.then==='function')window.FamUiConfigReady.then(config=>setPersonnelIdleTimeout(config?.personnelIdleTimeoutMinutes)).catch(()=>{});
   $('personnelLoginBtn')?.addEventListener('click',()=>loginPersonnel().catch(()=>{}));
   $('personnelLogoutBtn')?.addEventListener('click',()=>logoutPersonnel('manual').catch(()=>{}));
   $('personnelPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginPersonnel().catch(()=>{})}});
