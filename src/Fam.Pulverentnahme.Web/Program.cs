@@ -212,7 +212,17 @@ app.MapPost("/api/personnel/nfc", async (
         http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, result.FullName);
         http.Session.SetString(PersonnelAuthenticationSession.Environment, runtime.EnvironmentName);
         PersonnelAuthenticationSession.MarkUserActivity(http.Session, DateTimeOffset.UtcNow);
-        return Results.Ok(result);
+        return Results.Ok(new
+        {
+            result.SerialNumber,
+            result.Rfid,
+            result.PersonnelNo,
+            result.FullName,
+            result.SyncosName,
+            result.SyncosDescription,
+            idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
+            idleRemainingSeconds = runtime.PersonnelIdleTimeoutMinutes * 60
+        });
     }
     catch (ArgumentException ex)
     {
