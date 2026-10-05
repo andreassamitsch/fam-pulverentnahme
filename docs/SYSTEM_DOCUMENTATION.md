@@ -1,6 +1,6 @@
 # FAM Pulverentnahme - Systemdokumentation
 
-Stand: 02.10.2026
+Stand: 05.10.2026
 
 ## Zweck und Zielgruppe
 
@@ -17,6 +17,7 @@ Ergaenzende praxisorientierte Dokumente:
 - Buchungsszenarien: `docs/BOOKING_SCENARIOS.md`
 - Fehlerbehandlung / Retry / Idempotenz: `docs/ERROR_HANDLING.md`
 - PWA / Offline: `docs/OFFLINE_PWA.md`
+- Entwicklungs-/Test-/Release-Workflow: `docs/DEVELOPMENT_WORKFLOW.md`
 - aktuell offene Punkte: `docs/OPEN_POINTS.md`
 
 ## Systemzweck
@@ -70,6 +71,8 @@ Regulaere APP-01-Updates werden als MSI ausgeliefert:
 Der Installer stoppt einen vorhandenen Dienst vor dem Austausch der Programmdateien und startet ihn nach erfolgreichem Upgrade wieder. IIS-Site, HTTPS-Binding und Zertifikat werden von der MSI nicht ungefragt veraendert.
 
 Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach einem erfolgreichen MSI-Build werden repositoryweit alle aelteren Build-Artefakte geloescht. Erhalten bleiben nur die Artefakte des aktuellsten erfolgreichen Builds.
+
+`main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
 ## STAGING und PRODUCTION
 
