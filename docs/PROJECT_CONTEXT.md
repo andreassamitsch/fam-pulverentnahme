@@ -50,6 +50,7 @@ Verbindlich ab 02.10.2026:
 - SQL-Passwort sowie Oxaion-Benutzer/-Passwort werden in `%ProgramData%\FAM-Pulverentnahme\service-config.json` nur DPAPI-verschluesselt (LocalMachine) gespeichert. Klartext-Secrets stehen weder im Frontend noch im Repository.
 - Die Konfiguration erfolgt ausschliesslich lokal am Server ueber `http://127.0.0.1:5081/admin`.
 - Ein Wechsel STAGING/PRODUCTION macht vorhandene Mitarbeiter-Sessions ungueltig. Transaktions- und Auditdateien werden nach Umgebung getrennt, damit STAGING-Vorgaenge nicht in PRODUCTION weiterverwendet werden.
+- Der Bediener-Inaktivitaets-Timeout ist ab Version `0.1.5` maschinenweit in der lokalen Serverkonfiguration einstellbar (5 bis 1440 Minuten, Default 480). Nur echte Bedieneraktivitaet verlaengert die Frist; Hintergrund-/Health-Aufrufe nicht. Nach Ablauf wird die Personal-Session serverseitig verworfen und eine neue Anmeldung verlangt.
 - Oxaion-SQL-Zugriff fuer die PWA bleibt auf dokumentierte `SELECT`-/Informationsfunktionen begrenzt.
 - Materialbuchungen, Bestandskorrekturen und sonstige ERP-Aenderungen laufen weiterhin ausschliesslich ueber Oxaion-Fachlogik/HTTP.
 
