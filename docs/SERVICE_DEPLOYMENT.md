@@ -56,7 +56,7 @@ Diese Regel verhindert, dass alte MSI-/ZIP-Artefakte den Actions-Speicher dauerh
 
 Das CI-Artefakt lautet:
 
-`FAM-Pulverentnahme-Setup-0.1.3-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.4-x64.msi`
 
 Die MSI ist eine per-machine Installation und benoetigt Administratorrechte.
 
