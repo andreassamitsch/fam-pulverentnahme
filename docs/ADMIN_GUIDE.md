@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der aktuelle am 05.10.2026 auf APP-01/Android praxisgetestete und freigegebene Stand ist `0.1.4`. Er enthaelt den praxisbestaetigten Tank-Farbfeldfix und die ebenfalls praxisbestaetigte Korrektur der falschen Diagnosekarte im Etiketten-Nachdruck.
+Der stabile praxisgetestete Stand ist `0.1.4`. Aktueller Release Candidate ist `0.1.5` mit serverseitig einstellbarem User Timeout bei Inaktivitaet.
 
 ### Erstinstallation
 
@@ -128,6 +128,19 @@ Auswahl:
 PRODUCTION erfordert eine zusaetzliche bewusste Bestaetigung.
 
 Beim Umgebungswechsel werden vorhandene Mitarbeiter-Sessions ungueltig. Bediener muessen sich erneut anmelden.
+
+### User Timeout bei Inaktivitaet
+
+In der lokalen Admin-Oberflaeche kann `User Timeout bei Inaktivitaet (Minuten)` eingestellt werden.
+
+- zulaessiger Bereich: **5 bis 1440 Minuten**
+- Default fuer bestehende Installationen: **480 Minuten**
+- die Einstellung wird in `service-config.json` gespeichert
+- eine Aenderung gilt serverseitig ab dem naechsten Request; ein Neustart des Dienstes ist nicht erforderlich
+- nur echte Bedieneraktivitaet verlaengert die Frist; Healthchecks und automatische Hintergrundabfragen nicht
+- nach Ablauf wird die Personal-Session serverseitig verworfen und die PWA verlangt eine neue Anmeldung
+
+Fuer den produktiven Betrieb sollte der Wert so gewaehlt werden, dass gemeinsam genutzte Produktionsgeraete nicht dauerhaft unter dem vorherigen Mitarbeiter angemeldet bleiben.
 
 ### Gemeinsame SQL-Anmeldung
 
