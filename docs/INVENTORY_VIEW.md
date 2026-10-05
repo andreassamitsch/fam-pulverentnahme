@@ -1,6 +1,6 @@
 # RP.* Lagerbestandsansicht
 
-Stand: 01.10.2026
+Stand: 05.10.2026
 
 ## Fachliches Ziel
 
@@ -74,6 +74,15 @@ Die Informationsseite ist zweigeteilt:
 2. **Pulverlager** darunter: pro Artikel eine flache Liste der tatsaechlichen Bestandspositionen. Jede Zeile zeigt `Lagerort / Lagerplatz` (beziehungsweise nur den Lagerort, wenn kein Lagerplatz existiert), darunter die Charge und rechts die Menge. Eine zusaetzliche Lagerort-Kopfzeile mit nochmals separaten Chargen-/Mengenzeilen wird bewusst nicht dargestellt.
 
 Die bereits bestaetigte Erkennungsfarbenlogik aus `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md` wird artikelweise wiederverwendet. Der Sachmerkmalsabruf erfolgt in einem frischen, vom Tank-/Lagerlisten-Kontext getrennten Oxaion-App-Tunnel. Fuer denselben Artikel wird das aufgeloeste Farbergebnis sowohl bei Maschinentanks als auch im Pulverlager verwendet. Kann kein gueltiger HEX-Wert gelesen werden, zeigt die PWA kein leeres Farbfeld. Farben sind nur visuelle Erkennungshilfe und keine Buchungsfreigabe.
+
+### Korrektur 05.10.2026: Farbfeld in Maschinentank-Karten
+
+Beim realen Android-/PRODUCTION-Test wurde fuer `RP.00024` beobachtet, dass EFA01/EFA02 im Pulverlager korrekt als Rot/Braun dargestellt wurden, die Karten `M400-02` und `M650` jedoch nur einen leeren Farbrahmen zeigten. Damit war die Oxaion-Sachmerkmalsauflösung nachweislich vorhanden; der Fehler lag in der Tank-Darstellung des Frontends.
+
+Die Tank- und Pulverlagerdarstellung verwenden deshalb denselben serverseitig artikelweise aufgeloesten `recognitionColors`-Datensatz. Das Frontend rendert die zwei Farben robust als ein einziges `linear-gradient`-Hintergrundfeld statt als zwei innere Teil-Elemente. Ein Regressionstest prueft zusaetzlich, dass ein Artikel wie `RP.00024` im Tank denselben Farbdaten-Datensatz erhaelt wie im Pulverlager.
+
+Da die PWA alte Frontend-Dateien cachen kann, wurde fuer diesen Stand die Service-Worker-Cachekennung auf `fam-pulver-v43-inventory-speed-colors-20261005` und die `process-mode.js`-Assetversion auf `20261005-inventory-speed-colors-1` angehoben. Der installierbare Korrekturstand ist Version `0.1.3`.
+
 
 ## Nicht mehr verwendeter JET-Indexweg
 
