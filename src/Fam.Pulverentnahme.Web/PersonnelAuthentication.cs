@@ -21,6 +21,51 @@ internal static class PersonnelAuthenticationSession
     public const string PersonnelNo = "personnel:no";
     public const string PersonnelName = "personnel:name";
     public const string Environment = "personnel:environment";
+    public const string LastUserActivityUtc = "personnel:last-user-activity-utc";
+
+    public static bool IsAuthenticated(ISession session) =>
+        !string.IsNullOrWhiteSpace(session.GetString(PersonnelNo))
+        && !string.IsNullOrWhiteSpace(session.GetString(PersonnelName));
+
+    public static void MarkUserActivity(ISession session, DateTimeOffset now)
+    {
+        if (!IsAuthenticated(session)) return;
+        session.SetString(LastUserActivityUtc, now.ToUnixTimeSeconds().ToString());
+    }
+
+    public static bool ExpireIfIdle(ISession session, int timeoutMinutes, DateTimeOffset now)
+    {
+        if (!IsAuthenticated(session)) return false;
+
+        var raw = session.GetString(LastUserActivityUtc);
+        if (!long.TryParse(raw, out var unixSeconds))
+        {
+            MarkUserActivity(session, now);
+            return false;
+        }
+
+        DateTimeOffset last;
+        try { last = DateTimeOffset.FromUnixTimeSeconds(unixSeconds); }
+        catch (ArgumentOutOfRangeException)
+        {
+            MarkUserActivity(session, now);
+            return false;
+        }
+
+        if (now < last)
+        {
+            MarkUserActivity(session, now);
+            return false;
+        }
+
+        if (!IsIdleExpired(last, now, timeoutMinutes)) return false;
+
+        session.Clear();
+        return true;
+    }
+
+    internal static bool IsIdleExpired(DateTimeOffset lastActivity, DateTimeOffset now, int timeoutMinutes) =>
+        now - lastActivity >= TimeSpan.FromMinutes(RuntimeConfigurationService.ValidatePersonnelIdleTimeoutMinutes(timeoutMinutes));
 }
 
 /// <summary>
@@ -227,7 +272,6 @@ public static class PersonnelAuthenticationExtensions
         services.AddSingleton<PersonnelBookingAuthorizationFilter>();
 
         services.AddDistributedMemoryCache();
-        var sessionMinutes = Math.Clamp(configuration.GetValue<int?>("PersonnelAuthentication:SessionMinutes") ?? 480, 5, 1440);
         services.AddSession(options =>
         {
             options.Cookie.Name = ".FamPulver.Personnel";
@@ -235,7 +279,10 @@ public static class PersonnelAuthenticationExtensions
             options.Cookie.IsEssential = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-            options.IdleTimeout = TimeSpan.FromMinutes(sessionMinutes);
+            // The dynamic operator idle timeout is enforced explicitly below and can be changed
+            // at runtime. Keep the underlying ASP.NET session alive long enough for the largest
+            // supported configured timeout; background requests never mark user activity.
+            options.IdleTimeout = TimeSpan.FromMinutes(1440);
         });
 
         services.AddRateLimiter(options =>
@@ -259,6 +306,15 @@ public static class PersonnelAuthenticationExtensions
     public static WebApplication UsePersonnelAuthentication(this WebApplication app)
     {
         app.UseSession();
+        app.Use(async (context, next) =>
+        {
+            var runtime = context.RequestServices.GetRequiredService<RuntimeConfigurationService>();
+            _ = PersonnelAuthenticationSession.ExpireIfIdle(
+                context.Session,
+                runtime.PersonnelIdleTimeoutMinutes,
+                DateTimeOffset.UtcNow);
+            await next();
+        });
         app.UseRateLimiter();
         return app;
     }
@@ -288,6 +344,7 @@ public static class PersonnelAuthenticationExtensions
                 fullName = name,
                 environment = runtime.EnvironmentName,
                 authenticationConfigured = auth.IsConfigured,
+                idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
                 https = http.Request.IsHttps
             });
         });
@@ -315,11 +372,13 @@ public static class PersonnelAuthenticationExtensions
                 http.Session.SetString(PersonnelAuthenticationSession.PersonnelNo, person.PersonnelNo);
                 http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, person.FullName);
                 http.Session.SetString(PersonnelAuthenticationSession.Environment, runtime.EnvironmentName);
+                PersonnelAuthenticationSession.MarkUserActivity(http.Session, DateTimeOffset.UtcNow);
                 return Results.Ok(new
                 {
                     authenticated = true,
                     personnelNo = person.PersonnelNo,
                     fullName = person.FullName,
+                    idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
                     https = http.Request.IsHttps,
                     loginMethod = "PASSWORD"
                 });
@@ -343,6 +402,27 @@ public static class PersonnelAuthenticationExtensions
                 }, statusCode: StatusCodes.Status503ServiceUnavailable);
             }
         }).RequireRateLimiting(LoginRateLimitPolicy);
+
+        endpoints.MapPost("/api/personnel/activity", (
+            HttpContext http,
+            RuntimeConfigurationService runtime) =>
+        {
+            if (!PersonnelAuthenticationSession.IsAuthenticated(http.Session))
+            {
+                return Results.Json(new
+                {
+                    status = "AUTH_REQUIRED",
+                    message = "Mitarbeiter-Session ist abgelaufen. Bitte erneut anmelden."
+                }, statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            PersonnelAuthenticationSession.MarkUserActivity(http.Session, DateTimeOffset.UtcNow);
+            return Results.Ok(new
+            {
+                authenticated = true,
+                idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes
+            });
+        });
 
         endpoints.MapPost("/api/personnel/logout", (HttpContext http) =>
         {
