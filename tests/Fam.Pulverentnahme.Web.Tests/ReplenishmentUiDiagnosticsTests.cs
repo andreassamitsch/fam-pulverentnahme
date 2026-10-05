@@ -99,11 +99,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV44RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV45RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-v44-label-reprint-diag-20261005", source);
+        Assert.Contains("fam-pulver-v45-user-idle-timeout-20261005", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20261005-label-reprint-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
