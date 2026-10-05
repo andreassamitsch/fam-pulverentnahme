@@ -35,6 +35,7 @@ Vor jeder Implementierung oder Aenderung muessen mindestens folgende Dateien gel
 10. bei Serverbetrieb, Installation, Konfiguration oder Administration zusaetzlich `docs/ADMIN_GUIDE.md`
 11. bei Bedienablauf, sichtbaren Feldern, Scannerlogik, Meldungen oder Prozessnavigation zusaetzlich `docs/OPERATOR_GUIDE.md`
 12. `docs/OPEN_POINTS.md`
+13. bei Codeaenderungen, Branches, Versionierung, Pull Requests, Tests oder Releases zusaetzlich `docs/DEVELOPMENT_WORKFLOW.md`
 
 ## Quellenprioritaet
 
@@ -65,6 +66,17 @@ Bei jeder relevanten Aenderung ist im **selben Arbeitsschritt** zu pruefen und g
 Eine neue MSI beziehungsweise ein produktionsnaher Release darf nicht als vollstaendig betrachtet werden, wenn die betroffene System-/Admin-/Bedienerdokumentation veraltet ist.
 
 Wenn eine Aenderung alle drei Sichten betrifft, muessen alle drei Dokumente aktualisiert werden. Dauerhaft relevante Informationen duerfen nicht nur im Chat verbleiben.
+
+## Branch-, Test- und Release-Regeln
+
+Die verbindliche Detailregel steht in `docs/DEVELOPMENT_WORKFLOW.md`.
+
+- `main` ist der stabile, getestete und freigegebene Integrationsstand.
+- Entwicklung erfolgt auf Feature-, Fix- oder Release-Branches und wird nach erfolgreichen automatisierten Tests sowie erforderlicher Praxisfreigabe ueber einen Pull Request nach `main` uebernommen.
+- Ein fertig getesteter und freigegebener Stand darf nicht dauerhaft nur auf einem Feature-Branch verbleiben.
+- Jede bereits bereitgestellte installierbare MSI-Version ist unveraenderlich. Geaenderter Code, Frontend, PWA-Cache oder Installer erfordert fuer den naechsten bereitgestellten Build eine neue Versionsnummer.
+- Bei Frontend-Aenderungen muessen Asset-Versionierung und Service-Worker-Cache bewusst geprueft und bei Bedarf angehoben werden.
+- Vor einem Merge nach `main` darf der verpflichtende CI-Lauf nicht rot sein.
 
 ## Grundregeln
 
