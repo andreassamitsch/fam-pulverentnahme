@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der aktuelle am 05.10.2026 auf APP-01/Android praxisgetestete und freigegebene Stand ist `0.1.3`.
+Der aktuelle Release Candidate 05.10.2026 ist `0.1.4`. Er baut auf dem praxisbestaetigten `0.1.3`-Farbfeldfix auf und korrigiert die falsche Diagnosekarte im Etiketten-Nachdruck.
 
 ### Erstinstallation
 
