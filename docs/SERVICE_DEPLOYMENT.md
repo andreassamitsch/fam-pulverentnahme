@@ -1,6 +1,6 @@
 # Windows-Dienst, IIS und Serverkonfiguration
 
-Stand: 02.10.2026
+Stand: 05.10.2026
 
 ## Zugehoerige Betriebsdokumentation
 
@@ -34,7 +34,10 @@ Fuer jede zukuenftig auszuliefernde Serverversion gilt:
 - Service-Name `FAMPulverentnahme`, Installationsidentitaet/UpgradeCode und Datenpfad nicht ohne dokumentierte Migration aendern;
 - maschinenweite Konfiguration unter `%ProgramData%\FAM-Pulverentnahme` bei Upgrades erhalten;
 - IIS-Konfiguration, HTTPS-Binding und Zertifikat nicht ungefragt durch die MSI veraendern;
-- vor Bereitstellung Build, Tests und MSI-Erzeugung in CI erfolgreich abschliessen.
+- vor Bereitstellung Build, Tests und MSI-Erzeugung in CI erfolgreich abschliessen;
+- eine bereits zum Test oder Einsatz bereitgestellte MSI-Version nicht mit geaendertem Inhalt erneut erzeugen; jede weitere installierbare Aenderung erhaelt die naechste Versionsnummer;
+- die Versionsnummer zentral im WiX-Projekt als `ProductVersion` pflegen; MSI-Dateiname und CI-Artefaktname werden daraus abgeleitet;
+- den getesteten und freigegebenen Stand nach erfolgreicher Praxisfreigabe ueber einen gruenen Pull Request nach `main` uebernehmen. Details: `docs/DEVELOPMENT_WORKFLOW.md`.
 
 Die self-contained STAGING-ZIP kann weiterhin als Diagnose-/Entwicklungsartefakt erzeugt werden, ist aber nicht der regulaere APP-01-Updateweg.
 
@@ -53,7 +56,7 @@ Diese Regel verhindert, dass alte MSI-/ZIP-Artefakte den Actions-Speicher dauerh
 
 Das CI-Artefakt lautet:
 
-`FAM-Pulverentnahme-Setup-0.1.2-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.3-x64.msi`
 
 Die MSI ist eine per-machine Installation und benoetigt Administratorrechte.
 
