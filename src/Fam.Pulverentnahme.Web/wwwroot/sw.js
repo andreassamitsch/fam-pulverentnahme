@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v42-tank-colors-20261002';
+const CACHE='fam-pulver-v43-inventory-speed-colors-20261005';
 const ASSETS=[
   '/',
   '/index.html',
@@ -16,7 +16,7 @@ const ASSETS=[
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20260904-worker-flow-3',
-  '/process-mode.js?v=20261002-tank-colors-1',
+  '/process-mode.js?v=20261005-inventory-speed-colors-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
