@@ -2,12 +2,13 @@
 
 // STAGING UI diagnostics: no passwords, tokens, request bodies or personnel data.
 (function(){
-  const VERSION='20260921-ui-diag-3';
+  const VERSION='20261005-ui-diag-4';
   const STORAGE_KEY='fam-pulver-ui-diag-v1';
   const FIRST_START_RELOAD_KEY='fam-pulver-first-controlled-start';
   const MAX_ENTRIES=220;
   const PROCESS_PANELS={
     'tank-out':'tankOutProcess',
+    'label-reprint':'labelReprintProcess',
     'fill-new':'fillNewProcess',
     'fa-consumption':'faConsumptionProcess',
     'fa-abort-correction':'faAbortProcess',
@@ -58,7 +59,7 @@
     try{stockStatus=String(typeof machineStock!=='undefined'&&machineStock?.status||'')}catch{}
     const processModeScripts=[...document.scripts].map(x=>x.src||'').filter(x=>x.includes('/process-mode.js')).map(x=>x.replace(location.origin,''));
     const diagnosticScripts=[...document.scripts].map(x=>x.src||'').filter(x=>/ui-diagnostics|replenish-router-guard|process-mode-focus-fix|process-shell/.test(x)).map(x=>x.replace(location.origin,''));
-    const ids=['loginStep','processChoiceStep',...LEGACY_IDS,'tankOutProcess','fillNewProcess','faConsumptionProcess','faAbortProcess','inventoryProcess'];
+    const ids=['loginStep','processChoiceStep',...LEGACY_IDS,'tankOutProcess','labelReprintProcess','fillNewProcess','faConsumptionProcess','faAbortProcess','inventoryProcess'];
     const visibleIds=ids.filter(id=>visible(el(id)));
     const activeMode=document.querySelector('.processChoice.active')?.dataset?.mode||'';
     const expectedPanelId=PROCESS_PANELS[activeMode]||'';
