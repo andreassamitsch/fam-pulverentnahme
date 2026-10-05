@@ -81,15 +81,22 @@ public sealed class InventoryOverviewService
 
         var colors = await ReadColorsAsync(allArticles, ct);
 
-        tanks = tanks.Select(tank =>
+        tanks = ApplyRecognitionColors(tanks, colors);
+
+        return new InventoryOverviewResult(powderStock, tanks, colors);
+    }
+
+    internal static List<InventoryTankOverview> ApplyRecognitionColors(
+        IReadOnlyList<InventoryTankOverview> tanks,
+        IReadOnlyDictionary<string, ArticleRecognitionColorsResult> colors)
+    {
+        return tanks.Select(tank =>
         {
             var article = tank.Rows.Count == 1 ? tank.Rows[0].Article : "";
             return !string.IsNullOrWhiteSpace(article) && colors.TryGetValue(article, out var resolved)
                 ? tank with { RecognitionColors = resolved }
                 : tank;
         }).ToList();
-
-        return new InventoryOverviewResult(powderStock, tanks, colors);
     }
 
     internal static InventoryTankOverview BuildTankOverview(
