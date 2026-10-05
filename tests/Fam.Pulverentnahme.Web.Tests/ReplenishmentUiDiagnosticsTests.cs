@@ -10,7 +10,7 @@ public sealed class ReplenishmentUiDiagnosticsTests
         var webRoot = WebRoot();
         var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
 
-        Assert.Contains("/ui-diagnostics.js?v=20261001-jobabort-colors-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261005-label-reprint-diag-1", index);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", index);
         Assert.True(index.IndexOf("/process-mode.js", StringComparison.Ordinal) <
                     index.IndexOf("/replenish-router-guard.js", StringComparison.Ordinal));
@@ -53,11 +53,13 @@ public sealed class ReplenishmentUiDiagnosticsTests
         var router = File.ReadAllText(Path.Combine(WebRoot(), "process-mode.js"));
 
         Assert.Contains("'tank-out':'tankOutProcess'", source);
+        Assert.Contains("'label-reprint':'labelReprintProcess'", source);
         Assert.Contains("'fill-new':'fillNewProcess'", source);
         Assert.Contains("'fa-consumption':'faConsumptionProcess'", source);
         Assert.Contains("'fa-abort-correction':'faAbortProcess'", source);
         Assert.Contains("'inventory':'inventoryProcess'", source);
         Assert.Contains("'faAbortProcess'", source);
+        Assert.Contains("'labelReprintProcess'", source);
         Assert.Contains("if(expected)return state.visibleIds.includes(expected)", source);
         Assert.Contains("getClientRects().length", source);
         Assert.Contains("expectedPanelVisible", source);
@@ -70,6 +72,17 @@ public sealed class ReplenishmentUiDiagnosticsTests
         Assert.Contains("/api/fa-abort-correction/resolve-source", router);
         Assert.DoesNotContain("abortTankStep", router);
         Assert.Contains("Oxaion-Fall prüfen", router);
+    }
+
+    [Fact]
+    public void LabelReprintIsRecognizedAsVisibleProcessContent()
+    {
+        var source = File.ReadAllText(Path.Combine(WebRoot(), "ui-diagnostics.js"));
+
+        Assert.Contains("'label-reprint':'labelReprintProcess'", source);
+        Assert.Contains("'labelReprintProcess'", source);
+        Assert.Contains("const expected=PROCESS_PANELS[state.activeMode]", source);
+        Assert.Contains("if(expected)return state.visibleIds.includes(expected)", source);
     }
 
     [Fact]
@@ -86,13 +99,13 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV43RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV44RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-v43-inventory-speed-colors-20261005", source);
+        Assert.Contains("fam-pulver-v44-label-reprint-diag-20261005", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
-        Assert.Contains("/ui-diagnostics.js?v=20260909-ui-diag-1", source);
+        Assert.Contains("/ui-diagnostics.js?v=20261005-label-reprint-diag-1", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
     }
 
