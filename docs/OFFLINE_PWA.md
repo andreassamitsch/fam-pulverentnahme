@@ -58,6 +58,10 @@ Version `0.1.4` korrigiert einen falschen Leerzustandsalarm im Vorgang `Etikette
 
 Fuer diese Korrektur wird `ui-diagnostics.js?v=20261005-label-reprint-diag-1` sowohl in `index.html` als auch in der Service-Worker-`ASSETS`-Liste verwendet. Die App-Shell-Generation lautet `fam-pulver-v44-label-reprint-diag-20261005`. Damit kann ein bereits installiertes Android-PWA den korrigierten Diagnosecode sicher beziehen.
 
+### User-Idle-Timeout-Cachegeneration 05.10.2026
+
+Version `0.1.5` fuehrt den serverseitig konfigurierbaren Personal-Inaktivitaets-Timeout ein. `ui-config.js` und `personnel-auth.js` werden mit `?v=20261005-user-timeout-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v45-user-idle-timeout-20261005`. Damit erhalten installierte Android-PWAs sowohl die aktuelle Timeout-Konfiguration als auch die Benutzeraktivitaets-/Auto-Logout-Logik.
+
 ### Serverumgebung und lokale PWA-Daten
 
 STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
