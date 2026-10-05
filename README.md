@@ -42,13 +42,13 @@ Zentrale aktuelle Dokumentation:
 - [Administratorhandbuch](docs/ADMIN_GUIDE.md) - Installation, Dienst, IIS, Konfiguration, Update und Stoerungsbehebung
 - [Bedienerhandbuch](docs/OPERATOR_GUIDE.md) - Bedienung der PWA in der Produktion
 
-Diese drei Dokumente sind Teil des verbindlichen Projektstands und werden bei relevanten Aenderungen zusammen mit Code und Tests aktualisiert.
+Diese drei Dokumente sind Teil des verbindlichen Projektstands und werden bei relevanten Aenderungen zusammen mit Code und Tests aktualisiert. Der verbindliche Branch-, Test-, Versions- und Releaseablauf steht in [Entwicklungs-/Release-Workflow](docs/DEVELOPMENT_WORKFLOW.md).
 
 ## Serverinstallation per MSI
 
 Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
 
-`FAM-Pulverentnahme-Setup-0.1.2-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.3-x64.msi`
 
 Die MSI installiert den Dienst `FAMPulverentnahme`, stoppt ihn bei einem Upgrade kontrolliert und startet ihn nach der Installation wieder. Die Anwendung lauscht im Dienstbetrieb nur lokal:
 
