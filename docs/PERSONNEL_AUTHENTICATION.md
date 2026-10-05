@@ -1,125 +1,69 @@
-# Mitarbeiter-Anmeldung: NFC-Zielbild und aktueller Passwort-Entwicklungsstand
+# Mitarbeiter-Anmeldung: NFC und Passwort-Fallback
 
-## Verbindliche Zielentscheidung vom 18.09.2026
+Stand: 04.09.2026
 
-Fuer die finale Pulverentnahme-PWA ist die Mitarbeiter-Anmeldung per NFC-Chip beschlossen.
+## Ziel
 
-Verbindlich gilt:
+Vor einer produktiven Materialbuchung muss der handelnde Mitarbeiter eindeutig identifiziert und in einer serverseitigen Session gebunden sein.
 
-- Die eingesetzten Mitarbeiterchips funktionieren mit dem vorgesehenen NFC-Ablauf.
-- Wird ein Chip erfolgreich erkannt und serverseitig eindeutig einem gueltigen Mitarbeiter zugeordnet, gilt der Mitarbeiter als angemeldet.
-- Bei erfolgreicher NFC-Anmeldung ist kein zusaetzliches Passwort erforderlich.
-- Die Zuordnung erfolgt serverseitig auf Basis der vorhandenen SYNCOS-RFID-Zuordnung; Chip-/RFID-Werte werden nicht als frei vertrauenswuerdige Browserangabe behandelt.
-- Nach erfolgreicher Zuordnung wird wie bisher eine serverseitige Session verwendet.
-- Die erneute Oxaion-Personalpruefung unmittelbar vor dem ersten schreibenden Materialbuchungsaufruf bleibt als getrennte fachliche Sicherheitspruefung bestehen.
-- Es gibt keinen Offline-Bypass fuer eine abgelaufene oder fehlende Anmeldung.
-- Fuer den Produktivbetrieb bleibt HTTPS verbindlich.
-- Ob das ASP.NET-Core-Backend spaeter hinter IIS oder direkt als Windows-Dienst mit Kestrel betrieben wird, ist fuer diese Authentifizierungsentscheidung unerheblich und derzeit noch offen.
+Fuer die produktionsnahe Bedienung gilt ab diesem Stand:
 
-Der aktuell vorhandene Login ueber Personalnummer und SYNCOS-Passwort bleibt waehrend der Entwicklung am Client-Rechner vorerst als technischer Zwischenstand bestehen. Er ist seit dem 18.09.2026 nicht mehr das finale Produktivkonzept.
+1. **NFC ist der bevorzugte Loginweg.**
+2. **Personalnummer + SYNCOS-Passwort ist der Fallback**, wenn NFC nicht zur Verfuegung steht.
+3. Beide Wege erzeugen dieselbe serverseitige Personal-Session.
+4. `/api/mix` akzeptiert einen neuen Buchungsaufruf nur, wenn diese Session exakt zu `PersonnelNo` und `PersonnelName` des Vorgangs passt.
+5. Unmittelbar vor dem ersten schreibenden Oxaion-Aufruf bleibt die bereits bestaetigte exakte Oxaion-Personalpruefung zusaetzlich aktiv.
 
-## Aktueller Passwort-Entwicklungsstand
+Damit ist die Session eine zusaetzliche Zugriffssicherung und kein Ersatz fuer die fachliche Oxaion-Revalidierung.
 
-## Status
+## NFC-Login
 
-Am 03.09.2026 wurde fuer den damaligen STAGING-/Entwicklungsstand folgende Passwortanmeldung umgesetzt:
+Ablauf:
 
-- Die Auswahl eines Mitarbeiters ueber die Oxaion-Personalnummer allein reicht nicht mehr fuer eine produktive Buchung.
-- Nach der bewussten Auswahl des Oxaion-Mitarbeiters muss der Bediener sein Passwort eingeben.
-- Die Passwortpruefung erfolgt ausschliesslich im ASP.NET-Core-Backend.
-- Das Frontend kennt weder den Legacy-Schluessel noch den gespeicherten `PASSWORD`-Wert.
-- Passwort, transformierter Passwortwert und Datenbank-Credential duerfen weder in `IndexedDB`, im `clientOperationId`-Vorgang, im Transaktionslog noch in Git gespeichert werden.
-- Eine neue Anmeldung ist ein Online-Schritt. Bei abgelaufener Session gibt es keinen Offline-Bypass; der Bediener muss sich nach Wiederherstellung der Backend-Verbindung erneut anmelden.
-- Fuer die aktuelle STAGING-/Testphase muss die WebApp inklusive Mitarbeiter-Login auch ueber normales HTTP im internen Netz testbar sein. HTTP wird deshalb im Backend nicht blockiert. Fuer den Produktivbetrieb bleibt HTTPS verbindlich.
+1. Browser liest den NFC-Chip ueber Web NFC.
+2. Reader-Trennzeichen werden entsprechend `docs/NFC_PERSONNEL_LOOKUP.md` entfernt; die RFID bleibt ein alphanumerischer String.
+3. Backend sucht die RFID rein lesend in `syncos_stg_102.ITSDEV.ITSUSER` mit:
+   - `ClassID = 47`
+   - `IsEnabled = -1`
+   - `IsVisible = -1`
+4. `ObjectKey` liefert die zugeordnete Personalnummer.
+5. Backend bestaetigt diese Personalnummer erneut ueber den dokumentierten exakten Oxaion-`IPENU`-Ablauf.
+6. Nur bei eindeutiger Syncos-Zuordnung und erfolgreicher Oxaion-Bestaetigung wird die Backend-Session auf diese Person gesetzt.
 
-Die bestehende Oxaion-Personalpruefung ueber `PEPENU` und `PEPENA` bleibt unveraendert bestehen. Der nachfolgend dokumentierte Passwortweg beschreibt den aktuellen Implementierungsstand bis zur NFC-Umstellung. Fuer das finale Zielbild wird die bereits vorhandene SYNCOS-RFID-Zuordnung fuer die serverseitige Chipzuordnung verwendet.
+Der NFC-Weg fragt kein zusaetzliches Passwort ab. Er ist eine bewusste neue Prozessentscheidung fuer den eingesetzten Personalchip als bevorzugtes Anmeldemedium.
 
-## Aktueller Ablauf des Passwort-Zwischenstands
+Ein fehlgeschlagener NFC-Versuch darf keine Person raten oder eine Session fuer eine nicht eindeutig bestaetigte RFID setzen.
 
-1. Bediener gibt die Personalnummer ein.
-2. Backend sucht den Mitarbeiter wie bisher ueber die bestaetigte Oxaion-Personallogik.
-3. Bediener waehlt bewusst den Treffer `PEPENU - PEPENA`.
-4. PWA zeigt das Passwortfeld.
-5. `POST /api/personnel/login` sendet Personalnummer und Passwort an das Backend. In STAGING darf dies fuer Tests auch ueber HTTP erfolgen; produktiv muss die Verbindung ueber HTTPS laufen.
-6. Backend liest den Mitarbeiter erneut exakt aus Oxaion.
-7. Backend liest den aktiven und sichtbaren SYNCOS-Benutzer zur Personalnummer aus `syncos_stg_102.ITSDEV.ITSUSER`.
-8. Der Lookup verwendet die bekannte Zuordnung ueber den Suffix des `OBJECTKEY`, z. B. Personalnummer `446` -> `OBJECTKEY LIKE '%446'`.
-9. Backend transformiert das eingegebene Passwort mit der am 03.09.2026 rekonstruierten SYNCOS-Legacy-Logik und vergleicht die Bytes zeitkonstant mit `ITSUSER.PASSWORD`.
-10. Bei Erfolg wird eine serverseitige Session angelegt. Im Browser liegt nur die HTTP-Session-Cookie-Referenz; das Passwort wird verworfen.
-11. `POST /api/mix` akzeptiert neue Buchungen nur, wenn die Session vorhanden ist und Personalnummer sowie Name exakt mit dem Buchungsvorgang uebereinstimmen.
-12. Direkt vor der Materialbuchung bleibt zusaetzlich die bereits bestehende erneute Oxaion-Pruefung von `PEPENU` und `PEPENA` aktiv.
+## Manueller Fallback: Personalnummer + Passwort
 
-Im aktuellen Passwort-Zwischenstand bestehen zwei voneinander getrennte Sicherheitspruefungen:
+Wenn Web NFC nicht verfuegbar ist oder der Personalchip nicht gelesen werden kann:
 
-- Anmeldung: Personalnummer + Passwort
-- fachliche Buchungspruefung: Mitarbeiter unmittelbar vor dem ersten schreibenden Oxaion-Aufruf erneut eindeutig in Oxaion bestaetigen
+1. Bediener gibt die Personalnummer ohne fuehrende Nullen ein.
+2. Die vorhandene Oxaion-AJAX-Suche liefert ausschliesslich passende `PEPENU - PEPENA`-Treffer.
+3. Bediener waehlt den Mitarbeiter bewusst aus.
+4. Bediener gibt das vorhandene SYNCOS-Passwort ein.
+5. Das Klartextpasswort wird nur fuer diesen Login-Request an das Backend uebertragen und danach im Browser verworfen.
+6. Backend prueft Identitaet erneut in Oxaion und vergleicht den transformierten Passwortwert zeitkonstant mit dem vorhandenen SYNCOS-`PASSWORD`-Wert.
+7. Bei Erfolg wird dieselbe Personal-Session gesetzt wie beim NFC-Login.
 
-Im finalen NFC-Zielbild wird die erste Stufe durch die eindeutige NFC-/RFID-Zuordnung ersetzt; die zweite Stufe bleibt bestehen.
+### Browser-Passwortspeicherung
 
-## Rekonstruierte SYNCOS-Passworttransformation
+Fuer die Produktions-PWA soll das vorhandene SYNCOS-Passwort nicht als speicherbares Browser-Passwort angeboten werden. Im aktuellen Android-/Chrome-orientierten Stand wird das Eingabefeld daher bewusst nicht als klassisches Browser-Passwortfeld ausgezeichnet:
 
-Der Datenbankwert ist kein MD5-, SHA-1-, SHA-256- oder SHA-512-Hash. Die kontrollierten Testdaten zeigen eine positionsabhaengige XOR-Transformation mit anschliessender Legacy-Zeichenbehandlung.
+- kein `type=password`;
+- kein `autocomplete=current-password`;
+- `autocomplete=off` und gaengige Passwortmanager-Ignore-Hinweise;
+- visuelle Maskierung ueber `-webkit-text-security: disc`;
+- initial `readonly`, Freigabe erst bei bewusstem Fokus;
+- nach jedem erfolgreichen oder fehlgeschlagenen Login wird der Feldinhalt wieder geloescht.
 
-Bisher bestaetigter Positionsschluessel fuer 18 Zeichen:
+Diese Massnahmen verhindern die Passwort-speichern-Abfrage im vorgesehenen Android-/Browser-Testaufbau soweit die Browser-Heuristik dies respektiert. Eine Website kann UI-Entscheidungen eines Browsers oder eines separat installierten Passwortmanagers nicht absolut erzwingen. Sollte der eingesetzte verwaltete Browser trotz dieser Kennzeichnung weiterhin eine Speicherung anbieten, muss dies zusaetzlich ueber Browser-/MDM-Policy unterbunden werden.
 
-```text
-Pos: 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18
-Key: 49 FC 1F D1 49 7B FB 2E 63 1B 56 81 27 3D 00 0C 0C 86
-```
+Diese UI-Haertung aendert nichts an der serverseitigen Passwortpruefung. Das Passwort darf weiterhin niemals in IndexedDB, Transaktionsdaten, Auditdateien oder Logs gespeichert werden.
 
-Grundoperation je Zeichen:
+## Bestaetigter SYNCOS-Credential-Lookup
 
-```text
-transformierter Wert = Zeichenwert XOR Positionsschluessel
-```
-
-Fallen die resultierenden Werte in den C1-Steuerzeichenbereich `0x80` bis `0x9F`, wurde in den kontrollierten Tests im gespeicherten Wert `0x3F` (`?`) beobachtet. Werte ab `0xA0` blieben byteidentisch erhalten.
-
-### Bestaetigte Testvektoren
-
-```text
-1                  -> 78
-2                  -> 7B
-12                 -> 78CE
-731486             -> 7ECF2EE5714D
-123456789987654321 -> 78CE2CE57C4DCC165A226EB61108343F3EB7
-abcdefggfedcba     -> 283F7CB52C1D3F49057E32E2455C
-aBcdefGgfedcba     -> 28BE7CB52C1DBC49057E32E2455C
-```
-
-Der letzte Test wurde vorab aus der rekonstruierten Logik mit `28BE7CB52C1DBC49057E32E2455C` vorhergesagt und anschliessend exakt so von SYNCOS gespeichert. Damit ist die Transformation fuer die getesteten ASCII-Buchstaben/Ziffern eindeutig bestaetigt.
-
-### Aktuelle Implementierungsgrenze
-
-Die WebApp akzeptiert fuer diese Legacy-Pruefung derzeit nur:
-
-- `0-9`
-- `A-Z`
-- `a-z`
-- maximal 18 Zeichen
-
-Diese Grenze ist absichtlich enger als eine erfundene Verallgemeinerung. Sonderzeichen und Positionen ab 19 sind noch nicht durch kontrollierte Testvektoren bestaetigt.
-
-## Bestaetigte Credential-Abfrage
-
-Die bereits fuer die RFID-Zuordnung verwendete SYNCOS-Abfrage ist bestaetigt und wird nicht als frei konfigurierbare SQL-Anweisung behandelt:
-
-```sql
-SELECT t0.RFID,
-       t0.ObjectKey,
-       t0.Name,
-       t0.Description,
-       t0.PASSWORD,
-       t0.IsEnabled,
-       t0.IsVisible
-  FROM syncos_stg_102.ITSDEV.ITSUSER t0
- WHERE t0.ClassID = 47
-   AND t0.IsEnabled = -1
-   AND t0.IsVisible = -1
-   AND t0.OBJECTKEY LIKE '%446'
-```
-
-Die Backend-Implementierung verwendet dieselben bestaetigten Bedingungen, liest fuer die Passwortpruefung aber nur die benoetigte Spalte `PASSWORD` und setzt die Personalnummer als SQL-Parameter ein:
+Der Passwort-Fallback verwendet ausschliesslich den bereits bestaetigten rein lesenden Lookup:
 
 ```sql
 SELECT t0.PASSWORD
@@ -130,80 +74,58 @@ SELECT t0.PASSWORD
    AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
 ```
 
-Damit ist keine `PasswordLookupSql`-Laufzeitkonfiguration mehr vorgesehen.
+Die Abfrage ist parametriert. Mehrere aktive/sichtbare Treffer fuer dieselbe Personalnummer werden abgelehnt.
 
-Verbindliche Sicherheitsregeln:
+Die direkte SQL-Nutzung ist auf diese vorhandenen Syncos-Personal-/Credential-Lesewege begrenzt. Sie ist keine Freigabe fuer Oxaion-Buchungen oder sonstige ERP-Manipulationen per SQL.
 
-- ausschliesslich `SELECT`;
-- Personalnummer wird parametriert uebergeben;
-- nur `ClassID = 47`;
-- nur `IsEnabled = -1`;
-- nur `IsVisible = -1`;
-- kein Treffer -> Anmeldung abgelehnt;
-- mehr als ein Treffer -> Anmeldung abgelehnt, da die Zuordnung nicht eindeutig ist;
-- keine Schreiboperation an `ITSUSER`.
+## Nachgewiesene Legacy-Passworttransformation
 
-Nur der Datenbank-Connection-String bleibt Laufzeitkonfiguration:
+Die bestehende Implementierung `SyncosLegacyPasswordCodec` reproduziert die am 03.09.2026 mit kontrollierten Testbenutzern nachgewiesene SYNCOS-Legacy-Transformation.
 
-```text
-PersonnelAuthentication__ConnectionString
-```
+Aktuell freigegebener Bereich:
 
-Zugangsdaten im Connection String sind Secrets und duerfen nicht in Git gespeichert werden.
+- ASCII-Ziffern
+- ASCII-Gross-/Kleinbuchstaben
+- maximal 18 Zeichen
 
-## OBJECTKEY-Zuordnung
+Die Transformation bleibt ausschliesslich serverseitig. Sie ist kein moderner Passwort-Hash und wird nicht als neue Passwortspeicherung verwendet; sie dient nur dazu, den bereits vorhandenen SYNCOS-Wert zu pruefen.
 
-Im realen Referenzdatensatz wurde fuer Personalnummer `446` der Benutzer mit
+Bestaetigte Regressionstestvektoren sind in `tests/Fam.Pulverentnahme.Web.Tests/PersonnelAuthenticationTests.cs` hinterlegt.
 
-```text
-OBJECTKEY = 0000000446
-NAME      = ANSA
-PASSWORD  = 7ECF2EE5714D
-```
+Sonderzeichen oder laengere Passwoerter bleiben bis zu kontrollierten Testvektoren offen.
 
-beobachtet.
+## Session und Buchungsfreigabe
 
-Die bereits vorhandene RFID-Abfrage verwendet die Personalnummer als `OBJECTKEY`-Suffix. Dieses Verhalten wird fuer die Passwortanmeldung uebernommen. Mehrdeutige Suffix-Treffer werden nicht toleriert.
+Die ASP.NET-Core-Session speichert nur die fuer die Zuordnung erforderliche Mitarbeiteridentitaet:
 
-## HTTP in der Testphase
+- Personalnummer
+- vollstaendiger Oxaion-Name
 
-Fuer den aktuellen STAGING-Betrieb darf die WebApp im internen Netz ueber HTTP aufgerufen und der Login getestet werden.
+Passwort, transformierter Passwortwert, RFID oder Connection String werden nicht als Authentifizierungsersatz in `IndexedDB` gespeichert.
 
-Technisch gilt:
+Die aktuelle STAGING-Session hat einen Idle-Timeout von 480 Minuten.
 
-- der Login-Endpunkt erzwingt aktuell in STAGING kein HTTPS;
-- das Session-Cookie verwendet `CookieSecurePolicy.SameAsRequest`;
-- bei HTTP funktioniert die Session ohne `Secure`-Flag;
-- bei HTTPS wird das Cookie automatisch mit `Secure` ausgeliefert;
-- die Bedienoberflaeche kennzeichnet eine erfolgreiche Anmeldung ueber HTTP als `HTTP-Testbetrieb`.
+Vor einer neuen Materialbuchung verlangt `PersonnelBookingAuthorizationFilter`:
 
-Wichtig fuer die Abgrenzung: Browser behandeln Service Worker und installierbare PWA-Funktionen als Secure-Context-Funktionen. Deshalb kann ueber eine normale HTTP-Adresse im LAN die WebApp und die Login-/Buchungslogik getestet werden, aber nicht zwingend der komplette installierte PWA-/Offline-Lebenszyklus. Fuer diesen Teil wird spaeter HTTPS benoetigt.
+- gueltige Session;
+- Session-Personalnummer = `request.PersonnelNo`;
+- Session-Name = `request.PersonnelName`.
 
-Fuer den Produktivbetrieb ist HTTP nicht freigegeben. Vor Produktivsetzung muss ein vertrauenswuerdiger HTTPS-Endpunkt aktiv sein. Dieser kann spaeter entweder ueber IIS oder direkt ueber Kestrel im Windows-Dienst bereitgestellt werden; die Hosting-Entscheidung ist noch offen.
+Danach erfolgt innerhalb des Buchungsablaufs weiterhin die exakte Oxaion-Personalrevalidierung.
 
-## Session und Fehlverhalten
+## HTTPS und STAGING
 
-- Session-Idle-Timeout im aktuellen STAGING-Stand: 480 Minuten, konfigurierbar.
-- Login-Endpunkt ist aktuell pro Client-IP auf 10 Versuche pro Minute begrenzt.
-- Falsche Personalnummer und falsches Passwort liefern dieselbe Bedienermeldung.
-- Ein fehlender oder nicht eindeutiger Credential-Datensatz fuehrt nicht zu einer Freigabe.
-- Ist die SYNCOS-Datenbank nicht erreichbar oder der Connection String nicht konfiguriert, wird keine Anmeldung bestaetigt.
-- Stimmt der angemeldete Mitarbeiter beim Buchungsaufruf nicht exakt mit `PersonnelNo` und `PersonnelName` des Vorgangs ueberein, wird vor jeder Materialbuchung mit `AUTH_CONFLICT` gestoppt.
-- Nach App-/Server-Neustart kann eine erneute Anmeldung erforderlich sein. Das ist sicherer als eine lokal gespeicherte Passwort- oder Authentifizierungsumgehung.
+- Web NFC benoetigt auf den eingesetzten Browsern einen sicheren HTTPS-Kontext.
+- Der manuelle Passwort-Fallback kann fuer den internen STAGING-Test gemaess der bereits getroffenen Testentscheidung auch ueber HTTP genutzt werden.
+- Produktiv bleibt HTTPS fuer die gesamte PWA verbindlich.
 
-## Sicherheitsbewertung
+## Secrets
 
-Die rekonstruierte SYNCOS-Transformation ist eine Legacy-Obfuskation und kein moderner Passwort-Hash. Die PWA verwendet sie nur, um einen bereits vorhandenen SYNCOS-Passwortwert kompatibel zu pruefen.
+Fuer STAGING werden SQL-Connection-Strings weiterhin nur serverseitig verwendet. Nach einmaliger verdeckter Eingabe duerfen sie lokal per Windows-DPAPI fuer denselben Windows-Benutzer und Rechner verschluesselt gespeichert und bei spaeteren Starts wiederverwendet werden.
 
-Daraus folgen verbindlich:
+Der Self-contained-Starter verwendet denselben eingegebenen Syncos-STAGING-Connection-String fuer:
 
-- Transformation nur serverseitig;
-- kein Legacy-Schluessel im JavaScript;
-- keine Ausgabe des gespeicherten Passwortwerts an das Frontend;
-- keine Passwortprotokollierung;
-- HTTP nur fuer den bewusst begrenzten STAGING-/Testbetrieb im internen Netz;
-- HTTPS fuer den Produktivbetrieb;
-- zeitkonstanter Vergleich der transformierten Bytes;
-- keine Verwendung dieser Transformation fuer neue eigene Passwortspeicher der WebApp.
+- `Syncos__ConnectionString` - RFID-Zuordnung
+- `PersonnelAuthentication__ConnectionString` - Passwort-Fallback
 
-Wenn spaeter eine eigene WebApp-Benutzerverwaltung entsteht, muss sie moderne Passwort-Hashverfahren verwenden und darf diese Legacy-Logik nicht uebernehmen.
+Der Connection String steht nicht im Frontend und nicht im Repository. Die lokale STAGING-Speicherung liegt unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml`; mit `-ResetStoredSqlConnections` kann sie geloescht werden.

@@ -1,0 +1,62 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package
+      Name="FAM Pulverentnahme"
+      Manufacturer="Fuchshofer Präzisionstechnik"
+      Version="$(var.ProductVersion)"
+      UpgradeCode="DCE3D55F-3E98-4BB5-9307-B662985E104A"
+      Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von FAM Pulverentnahme ist bereits installiert." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="FAM Pulverentnahme" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="FAMDATADIR" Name="FAM-Pulverentnahme">
+        <Component Id="ProgramDataFolder" Guid="EF0050B4-17F7-4F43-9850-2541AB615213">
+          <CreateFolder>
+            <util:PermissionEx User="SYSTEM" GenericAll="yes" />
+            <util:PermissionEx User="Administrators" GenericAll="yes" />
+          </CreateFolder>
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Files Include="$(var.PublishDir)\\**" Directory="INSTALLFOLDER">
+      <Exclude Files="$(var.PublishDir)\\Fam.Pulverentnahme.Web.exe" />
+      <Exclude Files="$(var.PublishDir)\\START_STAGING.bat" />
+      <Exclude Files="$(var.PublishDir)\\start-staging-published.ps1" />
+      <Exclude Files="$(var.PublishDir)\\staging-sql-secrets.ps1" />
+    </Files>
+
+    <Component Id="ServiceComponent" Directory="INSTALLFOLDER" Guid="F54F7B6B-73ED-4BE5-AF19-5BF766460E4B">
+      <File Id="ServiceExecutable" Source="$(var.PublishDir)\\Fam.Pulverentnahme.Web.exe" KeyPath="yes" />
+      <ServiceInstall
+          Id="FAMPulverentnahmeService"
+          Name="FAMPulverentnahme"
+          DisplayName="FAM Pulverentnahme"
+          Description="Backend-Dienst für die FAM Pulverentnahme WebApp hinter IIS."
+          Type="ownProcess"
+          Start="auto"
+          ErrorControl="normal"
+          Account="LocalSystem">
+        <util:ServiceConfig
+            FirstFailureActionType="restart"
+            SecondFailureActionType="restart"
+            ThirdFailureActionType="restart"
+            RestartServiceDelayInSeconds="10"
+            ResetPeriodInDays="1" />
+      </ServiceInstall>
+      <ServiceControl
+          Id="FAMPulverentnahmeServiceControl"
+          Name="FAMPulverentnahme"
+          Start="install"
+          Stop="both"
+          Remove="uninstall"
+          Wait="yes" />
+    </Component>
+  </Package>
+</Wix>

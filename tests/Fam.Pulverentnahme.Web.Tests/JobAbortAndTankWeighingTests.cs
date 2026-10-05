@@ -1,0 +1,244 @@
+using System.Xml.Linq;
+using Fam.Pulverentnahme.Web;
+using Xunit;
+
+namespace Fam.Pulverentnahme.Web.Tests;
+
+public sealed class JobAbortAndTankWeighingTests
+{
+    [Theory]
+    [InlineData("I1", "1")]
+    [InlineData("I2", "2")]
+    public void CorrectionUsesFreshlyRecordedOxaionDirection(
+        string bookingKey,
+        string expectedDirection)
+    {
+        Assert.Equal(expectedDirection, MaterialTransferBookingService.ExpectedCorrectionStockDirection(bookingKey));
+    }
+
+    [Fact]
+    public void RecordedCostCenterGetPlainResponseIsXmlDeclarationOnly()
+    {
+        Assert.True(OxaionSession.IsXmlDeclarationOnly("<?xml version=\"1.0\" encoding=\"UTF-8\"?> \r\n"));
+        Assert.False(OxaionSession.IsXmlDeclarationOnly("<?xml version=\"1.0\"?><PARM/>"));
+    }
+
+    [Fact]
+    public void CorrectionCarriesAllPackageMediumInternalMirrorFieldsRequiredByLb20115()
+    {
+        var fields = MaterialTransferBookingService.CorrectionPackageInternalMirrorFields();
+
+        Assert.Equal("", fields["TX_PCKMS"]);
+        Assert.Equal("", fields["I_TX_PCKMS"]);
+        Assert.Equal("", fields["TX_PCKMM"]);
+        Assert.Equal("", fields["I_TX_PCKMM"]);
+        Assert.Equal("", fields["TX_PCKMZ"]);
+        Assert.Equal("", fields["I_TX_PCKMZ"]);
+    }
+
+    [Fact]
+    public void I2CorrectionKeyAllowsBlankDefaultAccountBecauseAccountingComesFromValidatedPosition()
+    {
+        Assert.True(MaterialTransferBookingService.CorrectionBookingKeyMatches(
+            "I2",
+            "I2",
+            "Bestandskorr. Abgang (Schwund)",
+            "J"));
+    }
+
+    [Fact]
+    public void BothInventoryCorrectionKeysUseBindingFamKeysAndRecordedDialogKeyType()
+    {
+        Assert.Equal("21", MaterialTransferBookingService.FamCorrectionBusinessArea);
+        Assert.Equal("5100", MaterialTransferBookingService.FamCorrectionCostCenter);
+        Assert.Equal("LKOPF", MaterialTransferBookingService.CorrectionDialogKeyType);
+    }
+
+    [Fact]
+    public void I2CorrectionKeyStillRequiresLagerBookingPermission()
+    {
+        Assert.False(MaterialTransferBookingService.CorrectionBookingKeyMatches(
+            "I2",
+            "I2",
+            "Bestandskorr. Abgang (Schwund)",
+            "N"));
+    }
+
+    [Theory]
+    [InlineData("I2", 0.001)]
+    [InlineData("I1", 0.002)]
+    public void InventoryCorrectionRequiresExactlyOneConfirmedMovement(string key, double qty)
+    {
+        MovementRow[] rows =
+        [
+            new("1", key, "RP.00010", "RP00010MIX_20260909_140218", "EOS1", "", (decimal)qty, "2026-09-18-12.19.07")
+        ];
+
+        Assert.True(MaterialTransferBookingService.CorrectionMovementComplete(
+            rows, key, "RP.00010", "EOS1", "RP00010MIX_20260909_140218", (decimal)qty, out _));
+    }
+
+    [Fact]
+    public void InventoryCorrectionRejectsUnexpectedAdditionalMovement()
+    {
+        MovementRow[] rows =
+        [
+            new("1", "I2", "RP.00010", "MIX1", "EOS1", "", 0.001m, "t1"),
+            new("1", "I2", "RP.00010", "MIX1", "EOS1", "", 0.001m, "t2")
+        ];
+
+        Assert.False(MaterialTransferBookingService.CorrectionMovementComplete(
+            rows, "I2", "RP.00010", "EOS1", "MIX1", 0.001m, out _));
+    }
+
+    [Fact]
+    public void StornoCandidateIsSelectedByExactFaPositionQuantityTankAndMix()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW>
+  <KEY><ARFIRM>103</ARFIRM><ARRMNR>33806</ARRMNR><ARRMZT>11.59.48</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY>
+  <PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ>
+  <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
+  <_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50>
+  <_INTERN.WW_TX70B>RP.00010 EOS1  RP00010MIX_20260909_140218</_INTERN.WW_TX70B>
+</ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var row = FaAbortCorrectionService.FindUniqueFeedback(
+            xml, "FA24FK00126", 10, "RP.00010", 20.160m, "EOS1", "RP00010MIX_20260909_140218");
+
+        Assert.Equal("33806", row.ReportNo);
+        Assert.Equal("11.59.48", row.ReportTime);
+        Assert.Equal("2026-09-18", row.ReportDate);
+        Assert.Equal("MT", row.Transaction);
+    }
+
+    [Fact]
+    public void SingleValidOxaionStornoRowWithDifferentMixIsBlockedWithActionableMessage()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW>
+  <KEY><ARFIRM>103</ARFIRM><ARRMNR>44001</ARRMNR><ARRMZT>15.02.06</ARRMZT><ARFAUN>FA24FI00118</ARFAUN><ARYRML>2026-09-08</ARYRML></KEY>
+  <PWARMP.ARAKKZ>MK</PWARMP.ARAKKZ>
+  <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
+  <_INTERN.WW_TX50>RP.00010 2.815 kg</_INTERN.WW_TX50>
+  <_INTERN.WW_TX70B>RP.00010 EOS1 OLD_MIX</_INTERN.WW_TX70B>
+</ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var ex = Assert.Throws<ProcessConflictException>(() =>
+            FaAbortCorrectionService.FindUniqueFeedback(
+                xml,
+                "FA24FI00118",
+                10,
+                "RP.00010",
+                2.815m,
+                "EOS1",
+                "CURRENT_MIX"));
+
+        Assert.Contains("Tankcharge seit der ursprünglichen FA-Buchung geändert", ex.Message);
+        Assert.Contains("OLD_MIX", ex.Message);
+        Assert.Contains("CURRENT_MIX", ex.Message);
+        Assert.Contains("manuell über Lagerbelege", ex.Message);
+    }
+
+    [Fact]
+    public void SingleValidOxaionStornoRowWithSameTankAndMixIsAccepted()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW>
+  <KEY><ARFIRM>103</ARFIRM><ARRMNR>44001</ARRMNR><ARRMZT>15.02.06</ARRMZT><ARFAUN>FA24FI00118</ARFAUN><ARYRML>2026-09-08</ARYRML></KEY>
+  <PWARMP.ARAKKZ>MK</PWARMP.ARAKKZ>
+  <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
+  <_INTERN.WW_TX50>RP.00010 2.815 kg</_INTERN.WW_TX50>
+  <_INTERN.WW_TX70B>RP.00010 EOS1 RP00010MIX_20260909_140218</_INTERN.WW_TX70B>
+</ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var row = FaAbortCorrectionService.FindUniqueFeedback(
+            xml,
+            "FA24FI00118",
+            10,
+            "RP.00010",
+            2.815m,
+            "EOS1",
+            "RP00010MIX_20260909_140218");
+
+        Assert.Equal("44001", row.ReportNo);
+        Assert.Equal("RP00010MIX_20260909_140218", row.Batch);
+    }
+
+    [Fact]
+    public void StornoSourceCanBeDerivedFromOneUniqueCoreMatchWithoutTankScan()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW>
+  <KEY><ARFIRM>103</ARFIRM><ARRMNR>44001</ARRMNR><ARRMZT>15.02.06</ARRMZT><ARFAUN>FA24FI00118</ARFAUN><ARYRML>2026-09-08</ARYRML></KEY>
+  <PWARMP.ARAKKZ>MK</PWARMP.ARAKKZ>
+  <PWARMP.ARPOSN>10</PWARMP.ARPOSN>
+  <_INTERN.WW_TX50>RP.00010 2.815 kg</_INTERN.WW_TX50>
+  <_INTERN.WW_TX70B>RP.00010 EOS1 RP00010MIX_20260909_140218</_INTERN.WW_TX70B>
+</ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var row = FaAbortCorrectionService.FindUniqueFeedbackByCore(
+            xml, "FA24FI00118", 10, "RP.00010", 2.815m);
+
+        Assert.Equal("EOS1", row.Warehouse);
+        Assert.Equal("RP00010MIX_20260909_140218", row.Batch);
+        Assert.Equal("44001", row.ReportNo);
+    }
+
+    [Fact]
+    public void StornoSourceDerivationFailsClosedWhenCoreMatchIsAmbiguous()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW><KEY><ARFIRM>103</ARFIRM><ARRMNR>1</ARRMNR><ARRMZT>10.00.00</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY><PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ><PWARMP.ARPOSN>10</PWARMP.ARPOSN><_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50><_INTERN.WW_TX70B>RP.00010 EOS1 MIX1</_INTERN.WW_TX70B></ROW>
+<ROW><KEY><ARFIRM>103</ARFIRM><ARRMNR>2</ARRMNR><ARRMZT>10.01.00</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY><PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ><PWARMP.ARPOSN>10</PWARMP.ARPOSN><_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50><_INTERN.WW_TX70B>RP.00010 EOS2 MIX2</_INTERN.WW_TX70B></ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        var ex = Assert.Throws<ProcessConflictException>(() =>
+            FaAbortCorrectionService.FindUniqueFeedbackByCore(
+                xml, "FA24FK00126", 10, "RP.00010", 20.160m));
+
+        Assert.Contains("Mehrere (2)", ex.Message);
+        Assert.Contains("nicht automatisch eindeutig abgeleitet", ex.Message);
+    }
+
+    [Fact]
+    public void StornoCandidateFailsClosedWhenMultipleCoreMatchesCannotBeResolvedByTankAndMix()
+    {
+        var xml = XDocument.Parse("""
+<PARM><TABLE>
+<ROW><KEY><ARFIRM>103</ARFIRM><ARRMNR>1</ARRMNR><ARRMZT>10.00.00</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY><PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ><PWARMP.ARPOSN>10</PWARMP.ARPOSN><_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50><_INTERN.WW_TX70B>RP.00010 EOS1 MIX1</_INTERN.WW_TX70B></ROW>
+<ROW><KEY><ARFIRM>103</ARFIRM><ARRMNR>2</ARRMNR><ARRMZT>10.01.00</ARRMZT><ARFAUN>FA24FK00126</ARFAUN><ARYRML>2026-09-18</ARYRML></KEY><PWARMP.ARAKKZ>MT</PWARMP.ARAKKZ><PWARMP.ARPOSN>10</PWARMP.ARPOSN><_INTERN.WW_TX50>RP.00010 20.16 kg</_INTERN.WW_TX50><_INTERN.WW_TX70B>RP.00010 EOS1 MIX1</_INTERN.WW_TX70B></ROW>
+<STOP/>
+</TABLE></PARM>
+""");
+
+        Assert.Throws<ProcessConflictException>(() =>
+            FaAbortCorrectionService.FindUniqueFeedback(
+                xml, "FA24FK00126", 10, "RP.00010", 20.160m, "EOS1", "OTHER_MIX"));
+    }
+
+    [Theory]
+    [InlineData(32.3504, 32.350)]
+    [InlineData(32.3505, 32.351)]
+    public void TankWeightIsNormalizedToConfirmedThreeDecimalOxaionQuantity(double input, double expected) =>
+        Assert.Equal((decimal)expected, TankOutService.RoundKg((decimal)input));
+}

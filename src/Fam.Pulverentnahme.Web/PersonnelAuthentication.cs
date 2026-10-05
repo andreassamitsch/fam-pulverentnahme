@@ -20,6 +20,7 @@ internal static class PersonnelAuthenticationSession
 {
     public const string PersonnelNo = "personnel:no";
     public const string PersonnelName = "personnel:name";
+    public const string Environment = "personnel:environment";
 }
 
 /// <summary>
@@ -63,9 +64,6 @@ public static class SyncosLegacyPasswordCodec
         for (var i = 0; i < password.Length; i++)
         {
             var transformed = (byte)(password[i] ^ PositionKey[i]);
-
-            // Controlled lower-case tests proved that XOR results in the C1 control range are
-            // persisted as '?' (0x3F), while values >= 0xA0 remain byte-identical.
             result[i] = transformed is >= 0x80 and <= 0x9F ? (byte)0x3F : transformed;
         }
 
@@ -78,22 +76,15 @@ public static class SyncosLegacyPasswordCodec
 
 public sealed class PersonnelCredentialStore
 {
-    // Confirmed existing STAGING lookup used elsewhere for RFID/personnel assignment.
-    // Keep this query in code so the application has one reviewed, read-only credential path.
-    private const string PasswordLookupSql = """
-        SELECT t0.PASSWORD
-          FROM syncos_stg_102.ITSDEV.ITSUSER t0
-         WHERE t0.ClassID = 47
-           AND t0.IsEnabled = -1
-           AND t0.IsVisible = -1
-           AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
-        """;
-
     private readonly PersonnelAuthenticationOptions _options;
+    private readonly RuntimeConfigurationService _runtime;
 
-    public PersonnelCredentialStore(IOptions<PersonnelAuthenticationOptions> options)
+    public PersonnelCredentialStore(
+        IOptions<PersonnelAuthenticationOptions> options,
+        RuntimeConfigurationService runtime)
     {
         _options = options.Value;
+        _runtime = runtime;
     }
 
     public bool IsConfigured =>
@@ -109,7 +100,15 @@ public sealed class PersonnelCredentialStore
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandType = CommandType.Text;
-        command.CommandText = PasswordLookupSql;
+        var schema = _runtime.SyncosSchema;
+        command.CommandText = $"""
+            SELECT t0.PASSWORD
+              FROM [{schema}].[ITSUSER] t0
+             WHERE t0.ClassID = 47
+               AND t0.IsEnabled = -1
+               AND t0.IsVisible = -1
+               AND t0.OBJECTKEY LIKE '%' + @PersonnelNo
+            """;
         command.Parameters.Add(new SqlParameter("@PersonnelNo", SqlDbType.NVarChar, 10) { Value = normalized });
 
         await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleResult, ct);
@@ -126,7 +125,7 @@ public sealed class PersonnelCredentialStore
     {
         if (!IsConfigured)
             throw new InvalidOperationException(
-                "Personnel authentication is not configured. Configure PersonnelAuthentication__ConnectionString at runtime.");
+                "Mitarbeiter-Anmeldung ist nicht konfiguriert. Bitte die lokale FAM-Konfigurationsoberfläche verwenden.");
     }
 }
 
@@ -148,11 +147,7 @@ public sealed class PersonnelAuthenticationService
         var normalized = PersonnelService.NormalizeInput(personnelNo);
         if (string.IsNullOrWhiteSpace(normalized) || string.IsNullOrEmpty(password)) return null;
 
-        // Validate the legacy transform input before any database access.
         _ = SyncosLegacyPasswordCodec.EncodeVerifiedAlphanumeric(password);
-
-        // Personnel identity stays authoritative in Oxaion. The SYNCOS database is used only
-        // to validate the password for the already selected personnel number.
         var person = await _personnel.ReadExactAsync(normalized, ct);
         if (person is null) return null;
 
@@ -165,6 +160,13 @@ public sealed class PersonnelAuthenticationService
 
 public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
 {
+    private readonly RuntimeConfigurationService _runtime;
+
+    public PersonnelBookingAuthorizationFilter(RuntimeConfigurationService runtime)
+    {
+        _runtime = runtime;
+    }
+
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var request = context.Arguments.OfType<RealMixRequest>().FirstOrDefault();
@@ -173,6 +175,18 @@ public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
         var session = context.HttpContext.Session;
         var personnelNo = session.GetString(PersonnelAuthenticationSession.PersonnelNo);
         var personnelName = session.GetString(PersonnelAuthenticationSession.PersonnelName);
+        var environment = session.GetString(PersonnelAuthenticationSession.Environment);
+
+        if (!string.Equals(environment, _runtime.EnvironmentName, StringComparison.Ordinal))
+        {
+            session.Clear();
+            return Results.Json(new
+            {
+                status = "ENVIRONMENT_CHANGED",
+                stage = "PERSONNEL_VALIDATION",
+                message = "Die Serverumgebung wurde zwischenzeitlich umgeschaltet. Bitte erneut anmelden. Es wurde keine Materialbuchung gestartet."
+            }, statusCode: StatusCodes.Status401Unauthorized);
+        }
 
         if (string.IsNullOrWhiteSpace(personnelNo) || string.IsNullOrWhiteSpace(personnelName))
         {
@@ -180,7 +194,7 @@ public sealed class PersonnelBookingAuthorizationFilter : IEndpointFilter
             {
                 status = "AUTH_REQUIRED",
                 stage = "PERSONNEL_VALIDATION",
-                message = "Bitte Mitarbeiter mit Personalnummer und Passwort anmelden. Es wurde keine Materialbuchung gestartet."
+                message = "Bitte Mitarbeiter per NFC oder mit Personalnummer und Passwort anmelden. Es wurde keine Materialbuchung gestartet."
             }, statusCode: StatusCodes.Status401Unauthorized);
         }
 
@@ -220,10 +234,6 @@ public static class PersonnelAuthenticationExtensions
             options.Cookie.HttpOnly = true;
             options.Cookie.IsEssential = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
-
-            // STAGING must remain testable over plain HTTP in the internal network. With
-            // SameAsRequest the cookie works over HTTP during testing and automatically gets the
-            // Secure flag when the app is later served via HTTPS.
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.IdleTimeout = TimeSpan.FromMinutes(sessionMinutes);
         });
@@ -255,15 +265,28 @@ public static class PersonnelAuthenticationExtensions
 
     public static IEndpointRouteBuilder MapPersonnelAuthentication(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/personnel/session", (HttpContext http, PersonnelAuthenticationService auth) =>
+        endpoints.MapGet("/api/personnel/session", (
+            HttpContext http,
+            PersonnelAuthenticationService auth,
+            RuntimeConfigurationService runtime) =>
         {
             var no = http.Session.GetString(PersonnelAuthenticationSession.PersonnelNo);
             var name = http.Session.GetString(PersonnelAuthenticationSession.PersonnelName);
+            var environment = http.Session.GetString(PersonnelAuthenticationSession.Environment);
+            if (!string.IsNullOrWhiteSpace(environment)
+                && !string.Equals(environment, runtime.EnvironmentName, StringComparison.Ordinal))
+            {
+                http.Session.Clear();
+                no = null;
+                name = null;
+            }
+
             return Results.Ok(new
             {
                 authenticated = !string.IsNullOrWhiteSpace(no) && !string.IsNullOrWhiteSpace(name),
                 personnelNo = no,
                 fullName = name,
+                environment = runtime.EnvironmentName,
                 authenticationConfigured = auth.IsConfigured,
                 https = http.Request.IsHttps
             });
@@ -273,6 +296,7 @@ public static class PersonnelAuthenticationExtensions
             PersonnelLoginRequest request,
             HttpContext http,
             PersonnelAuthenticationService auth,
+            RuntimeConfigurationService runtime,
             CancellationToken ct) =>
         {
             try
@@ -290,12 +314,14 @@ public static class PersonnelAuthenticationExtensions
 
                 http.Session.SetString(PersonnelAuthenticationSession.PersonnelNo, person.PersonnelNo);
                 http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, person.FullName);
+                http.Session.SetString(PersonnelAuthenticationSession.Environment, runtime.EnvironmentName);
                 return Results.Ok(new
                 {
                     authenticated = true,
                     personnelNo = person.PersonnelNo,
                     fullName = person.FullName,
-                    https = http.Request.IsHttps
+                    https = http.Request.IsHttps,
+                    loginMethod = "PASSWORD"
                 });
             }
             catch (ArgumentException)

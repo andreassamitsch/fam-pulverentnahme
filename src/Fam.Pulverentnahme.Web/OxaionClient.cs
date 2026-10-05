@@ -24,13 +24,13 @@ public sealed class OxaionClient
         _httpClientFactory = httpClientFactory;
         _options = options.Value;
         _logger = logger;
-        ValidateConfiguration();
     }
 
     public async Task<OxaionSession> ConnectAsync(CancellationToken ct)
     {
+        ValidateConfiguration();
         if (string.IsNullOrWhiteSpace(_options.Password))
-            throw new InvalidOperationException("Oxaion password is not configured. Set environment variable Oxaion__Password.");
+            throw new InvalidOperationException("Oxaion Passwort ist nicht konfiguriert. Bitte die lokale FAM-Konfigurationsoberfläche verwenden.");
 
         var client = _httpClientFactory.CreateClient(nameof(OxaionClient));
         client.Timeout = TimeSpan.FromSeconds(30);
@@ -73,12 +73,17 @@ public sealed class OxaionClient
         if (_options.StagingOnly)
         {
             if (_options.ServerUrl.Contains(":11108", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Safety stop: port 11108 is production and is blocked in STAGING prototype.");
+                throw new InvalidOperationException("Sicherheitsstopp: Produktionsport 11108 darf im STAGING-Modus nicht verwendet werden.");
             if (!_options.ServerUrl.Contains(":11118", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Safety stop: STAGING prototype expects oxaion port 11118.");
-            if (!string.Equals(_options.Firm, "103", StringComparison.Ordinal))
-                throw new InvalidOperationException("Safety stop: STAGING prototype expects company 103.");
+                throw new InvalidOperationException("Sicherheitsstopp: STAGING erwartet den bestätigten Oxaion-Port 11118.");
         }
+        else if (_options.ServerUrl.Contains(":11118", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Sicherheitsstopp: STAGING-Port 11118 darf im PRODUCTION-Modus nicht verwendet werden.");
+        }
+
+        if (!string.Equals(_options.Firm, "103", StringComparison.Ordinal))
+            throw new InvalidOperationException("Sicherheitsstopp: Für die FAM-WebApp ist aktuell nur Oxaion-Firma 103 bestätigt.");
     }
 
     private static string BuildQuery(IEnumerable<KeyValuePair<string, string>> values) =>
@@ -109,7 +114,7 @@ public sealed class OxaionSession : IAsyncDisposable
         _logger = logger;
     }
 
-    public async Task<OxaionCallResult> CallAsync(string program, string action, IReadOnlyDictionary<string, string>? dta, CancellationToken ct)
+    public async Task<OxaionCallResult> CallAsync(string program, string action, IReadOnlyDictionary<string, string>? dta, CancellationToken ct, bool allowXmlDeclarationOnly = false)
     {
         var form = new Dictionary<string, string>
         {
@@ -144,12 +149,32 @@ public sealed class OxaionSession : IAsyncDisposable
             throw new OxaionTransportException($"Transport error during {program} {action}; booking outcome may be uncertain.", ex);
         }
 
-        var xml = OxaionClient.ParseXml(raw);
+        XDocument xml;
+        try
+        {
+            xml = OxaionClient.ParseXml(raw);
+        }
+        catch (InvalidOperationException) when (allowXmlDeclarationOnly && IsXmlDeclarationOnly(raw))
+        {
+            // PW22021R *STORNO is confirmed by the 2026-09-18 FAM JET trace to return
+            // HTTP success with only the XML declaration. This is not considered booking proof;
+            // the caller must still verify the feedback list and the resulting FA/tank state.
+            xml = new XDocument(new XElement("EMPTY"));
+        }
+
         var error = xml.Descendants("ERROR").FirstOrDefault();
         if (error is not null)
             throw new InvalidOperationException($"Oxaion ERROR during {program} {action}: {error.Value.Trim()}");
 
         return new OxaionCallResult(raw, xml, ReadDta(xml));
+    }
+
+    internal static bool IsXmlDeclarationOnly(string raw)
+    {
+        var value = (raw ?? "").Trim();
+        return value.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
+            && value.EndsWith("?>", StringComparison.Ordinal)
+            && value.IndexOf('<', 1) < 0;
     }
 
     public static void AssertNoFcod(OxaionCallResult result)

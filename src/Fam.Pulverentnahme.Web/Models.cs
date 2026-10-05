@@ -9,15 +9,56 @@ public sealed class OxaionOptions
     public bool StagingOnly { get; set; } = true;
 }
 
+public sealed class SyncosOptions
+{
+    public string ConnectionString { get; set; } = "";
+}
+
+public sealed class OxaionSqlOptions
+{
+    public string ConnectionString { get; set; } = "";
+}
+
 public sealed class PrototypeOptions
 {
     public bool EnableFailureSimulation { get; set; } = true;
+    public bool DeveloperToolsEnabled { get; set; } = false;
     public string TransactionDirectory { get; set; } = "App_Data/transactions";
 }
 
-public sealed class MachineTankOptions
+public sealed record OxaionDocumentTexts(string DocumentText, string MatchCode);
+
+public static class OxaionDocumentTextBuilder
 {
-    public List<string> Warehouses { get; set; } = [];
+    public const int DocumentTextMaxLength = 40;
+    public const int MatchCodeMaxLength = 35;
+
+    public static OxaionDocumentTexts Build(string transactionId, string personnelNo, string bookingText)
+    {
+        var normalizedBookingText = Normalize(bookingText);
+        var normalizedPersonnelNo = Normalize(personnelNo);
+        var transactionPrefix = Normalize(transactionId);
+        if (transactionPrefix.Length > 12) transactionPrefix = transactionPrefix[..12];
+
+        var documentText = Clip(
+            string.IsNullOrWhiteSpace(normalizedPersonnelNo)
+                ? normalizedBookingText
+                : $"{normalizedBookingText} | PN{normalizedPersonnelNo}",
+            DocumentTextMaxLength);
+
+        var matchParts = new[] { transactionPrefix, string.IsNullOrWhiteSpace(normalizedPersonnelNo) ? "" : $"PN{normalizedPersonnelNo}", normalizedBookingText }
+            .Where(x => !string.IsNullOrWhiteSpace(x));
+        var matchCode = Clip(string.Join("|", matchParts), MatchCodeMaxLength);
+
+        return new OxaionDocumentTexts(documentText, matchCode);
+    }
+
+    private static string Normalize(string? value) =>
+        string.Join(" ", (value ?? "").Replace('\r', ' ').Replace('\n', ' ')
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+    private static string Clip(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength];
 }
 
 public sealed record AdditionalPowderSource(

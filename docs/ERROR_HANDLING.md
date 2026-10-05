@@ -211,3 +211,48 @@ Die Nachbearbeitung darf keine unkontrollierte direkte SQL-Buchung in Oxaion ver
 - Request- und Response-Daten vor der Persistierung filtern beziehungsweise redigieren.
 - Audit-Daten gegen unbeabsichtigte Aenderung schuetzen und eine noch festzulegende Aufbewahrungsregel anwenden.
 - Lokale Browserdaten sind nur Zwischenpuffer und duerfen nicht als einziges dauerhaftes Audit-Archiv verwendet werden.
+
+## Mehrschritt-Korrekturen: Tankwiegung und FA-Jobabbruch
+
+Seit 18.09.2026 gelten fuer die technisch bestaetigten Korrekturprozesse zusaetzliche feste Transaktionsgrenzen.
+
+### Tankwiegung vor LF/LE
+
+- Wenn ein I1/I2-Teilvorgang bereits einen Oxaion-Lagerbelegkopf erzeugt hat und danach im Dialogaufbau oder bei `LB20115J *PUTNEW` technisch abbricht, bleibt der Teilvorgang `MANUAL_REVIEW_REQUIRED`. Auch wenn noch keine bestaetigte Lagerbewegung vorliegt, darf der Gesamtvorgang nicht blind mit neuer `clientOperationId` wiederholt werden, bevor der Teilvorgang beziehungsweise der angelegte Oxaion-Beleg abgeglichen wurde.
+- Sonderfall aus den frischen I1/I2-Mitschnitten: `US00006J *GETPLAIN` fuer `PSKSTL` liefert erfolgreich nur die XML-Deklaration ohne `PARM`/`DTA`. Dieser leere Response darf nur an diesem explizit bestaetigten Dialogschritt als erwarteter Erfolg behandelt werden; er ist **kein** allgemeines Signal, leere Oxaion-Antworten zu akzeptieren.
+
+- Eine erforderliche I1-/I2-Bestandskorrektur ist eine eigene idempotente Teiltransaktion mit eigener `clientOperationId`-Ableitung.
+- Bei `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` der Korrektur darf **kein** LF/LE-Transfer gestartet werden.
+- Nach bestaetigter I1/I2-Bewegung muss der Tankbestand erneut gelesen werden und exakt der gewogenen, auf 0,001 kg normalisierten Menge entsprechen.
+- Ist I1/I2 bestaetigt, aber der spaetere LF/LE-Transfer unklar, wird die Korrektur weder automatisch storniert noch erneut gebucht. Nur der LF/LE-Teil darf ueber seine vorhandene lesende Verifikation geklaert werden.
+- Ein Reconcile des Gesamtvorgangs startet niemals nachtraeglich automatisch einen noch nicht begonnenen LF/LE-Schreibschritt.
+
+### Etikettendruck nach erfolgreichem Tank-Out
+
+- Ein eigenständiger Nachdruck ist eine neue Drucktransaktion und darf nur auf einem bereits erfolgreichen Tank-Out basieren.
+- Frühere `SUCCESS`-Druckaufträge dürfen bewusst ergänzt werden; ihre erfolgreich angeforderte Etikettenanzahl wird angezeigt, aber nicht automatisch erneut verwendet.
+- Sobald für dieselbe Tank-Auslagerung ein Druckauftrag `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED` ist, blockiert das Backend jeden neuen Druck mit neuer `clientOperationId`. Damit kann der Bediener die Kein-Blind-Reprint-Regel nicht über den Nachdruckdialog umgehen.
+- Der neue Druckoperator kann vom ursprünglichen Auslagerungsoperator abweichen; entscheidend ist eine gültige aktuelle Personal-Session, die exakt zum neuen Druckrequest passt.
+
+- Etikettendruck wird erst nach eindeutigem `SUCCESS` der Materialbuchung angeboten und ist eine **eigene** korrelierte Operation.
+- Ein Druckfehler darf den bereits erfolgreichen I1/I2-/LF/LE-Materialvorgang nicht auf Fehler zurücksetzen und niemals eine erneute Materialbuchung auslösen.
+- Vor `MN50100J *RUN` eindeutig abgelehnte/abgebrochene Druckvorbereitung bedeutet nur: Druck wurde nicht gestartet.
+- Sobald `MN50100J *RUN` versendet wurde, beweist ein Timeout, Connection Reset oder fehlende Antwort nicht, dass kein Druckauftrag entstanden ist. Status `UNCERTAIN` beziehungsweise `MANUAL_REVIEW_REQUIRED`.
+- In diesem Fall **kein Blind-Reprint**. Drucker und Oxaion-Druckwarteschlange prüfen.
+- Eine erfolgreiche `MN50100J *RUN`-Antwort bestätigt die Übergabe des Druckauftrags an Oxaion, nicht das physische Herauskommen der Etiketten.
+- `MN50100J *HIDEDLG` liefert im bestätigten Referenzmitschnitt nur die XML-Deklaration; declaration-only ist ausschließlich für diesen explizit bestätigten Aufruf zulässig.
+
+### FA-Jobabbruch
+
+- Bereits beim FA-Scan wird die gueltige Oxaion-Stornorueckmeldung rein lesend eindeutig bestimmt. Tanklager und Mix-Charge werden aus dieser Originalrueckmeldung abgeleitet; ein manueller Tankscan ist keine Voraussetzung mehr.
+- Der abgeleitete Lagerort muss ein freigegebener FAM-Maschinentank sein. Sein aktueller Bestand wird vor jeder Mengeneingabe neu gelesen. Weicht Artikel oder Mix-Charge von der Originalrueckmeldung ab, ist dies ein fachlicher Konflikt **vor jedem Schreibaufruf**: keine Mengeneingabe, kein Storno, keine neue MK. Bei mehreren passenden Originalrueckmeldungen wird ebenfalls fail-closed gesperrt.
+- Diese automatische Vorpruefung ersetzt nicht die erneute serverseitige Quellpruefung unmittelbar vor dem Storno.
+
+- `PW22021R *STORNO` kann im bestaetigten FAM-Referenzfall bei HTTP-Erfolg nur die XML-Deklaration zurueckgeben. Diese Antwort ist **kein** Erfolgskriterium.
+- Nach einem Stornoaufruf gilt der Ausgang solange als nicht bestaetigt, bis alle drei Beweise vorliegen:
+  1. exakter Rueckmeldeschluessel ist aus der `PW22021R`-Liste verschwunden;
+  2. FA-Materialposition zeigt den bestaetigten Stornozustand `AMMATV=0 / AMMPST=0`;
+  3. dieselbe Tank-Mix-Charge ist exakt um die urspruenglich stornierte Menge erhoeht.
+- Fehlt einer dieser Beweise, wird keine neue MK gestartet und der Storno niemals blind wiederholt.
+- Nach bestaetigtem Storno wird die korrigierte MK als eigene deterministisch korrelierte Teiltransaktion ausgefuehrt.
+- Ist der Storno sicher bestaetigt, aber die neue MK nicht eindeutig erfolgreich, darf der Gesamtvorgang nicht von vorne gestartet werden. Der Zwischenzustand geht in `MANUAL_REVIEW_REQUIRED`; nur der MK-Teilvorgang wird nach den bestehenden MK-Reconcile-Regeln untersucht.

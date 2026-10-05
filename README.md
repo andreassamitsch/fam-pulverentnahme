@@ -20,46 +20,67 @@ Android Webbrowser / PWA
   -> Oxaion Fachlogik
 ```
 
-Das Frontend enthaelt keine Oxaion-Zugangsdaten. Das Oxaion-Passwort wird im Test ueber die Backend-Laufzeitvariable `Oxaion__Password` gesetzt und niemals in Git gespeichert.
+Das Frontend enthaelt keine Oxaion- oder SQL-Zugangsdaten. Im Windows-Dienstbetrieb werden eine gemeinsame native SQL-Anmeldung sowie der Oxaion-HTTP-Benutzer ausschliesslich ueber die lokale Serverkonfiguration gepflegt. Passwoerter werden per Windows-DPAPI verschluesselt gespeichert und niemals in Git oder an das Frontend ausgeliefert.
+
+Die aktive Serverumgebung schaltet gemeinsam Syncos, den rein lesenden Oxaion-SQL-Datenbankkatalog und Oxaion HTTP zwischen STAGING und PRODUCTION um. SQL bleibt fuer Oxaion auf dokumentierte rein lesende Informationsabfragen beschraenkt; ERP-Buchungen und Bestandsaenderungen laufen ausschliesslich ueber Oxaion HTTP/Fachlogik.
 
 Fuer kurze Netzwerkausfaelle werden lokale Vorgangsdaten in `IndexedDB` gehalten. Das Backend fuehrt eine serverseitige Transaktion je `clientOperationId`. Ein unklarer Oxaion-Ausgang wird nicht blind wiederholt, sondern ueber den bekannten Lagerbeleg revalidiert.
 
 ## Technologie
 
 - Frontend: HTML, CSS, JavaScript, PWA, Service Worker, `IndexedDB`, spaeter Smartphone-Kamera fuer QR-/Barcodes
-- Backend: ASP.NET Core / .NET 8, REST API, IIS-faehig
+- Backend: ASP.NET Core / .NET 8, REST API als Windows-Dienst hinter IIS
 - ERP: Oxaion HTTP-Schnittstelle
+- SQL: gemeinsame native Anmeldung; Syncos-Personalwege und freigegebene rein lesende Oxaion-Informationsabfragen mit umgebungsabhaengigen Datenbankzielen
 - Prototyp-Persistenz: JSON-Transaktionsdateien unter `App_Data/transactions`; spaeter eigene Transaktionsdatenbank vorgesehen
 
-## Schnellstart STAGING
+## Systemdokumentation
 
-### Ohne Git und ohne lokale .NET-Installation
+Zentrale aktuelle Dokumentation:
 
-Der GitHub-Actions-Workflow `Build` erzeugt auf `main` das Artefakt `FAM-Pulverentnahme-STAGING-win-x64` als **self-contained Windows-Paket**. Die .NET-8-Laufzeit ist darin enthalten.
+- [Systemdokumentation](docs/SYSTEM_DOCUMENTATION.md) - Aufbau und Funktionsweise des Gesamtsystems
+- [Administratorhandbuch](docs/ADMIN_GUIDE.md) - Installation, Dienst, IIS, Konfiguration, Update und Stoerungsbehebung
+- [Bedienerhandbuch](docs/OPERATOR_GUIDE.md) - Bedienung der PWA in der Produktion
 
-1. Artefakt ZIP herunterladen und komplett entpacken.
-2. `START_STAGING.bat` starten.
-3. STAGING-Passwort fuer `KHCSYN` verdeckt eingeben.
-4. Am PC `http://localhost:5080` oder am Android-Geraet `http://<SERVER-IP>:5080` aufrufen.
+Diese drei Dokumente sind Teil des verbindlichen Projektstands und werden bei relevanten Aenderungen zusammen mit Code und Tests aktualisiert. Der verbindliche Branch-, Test-, Versions- und Releaseablauf steht in [Entwicklungs-/Release-Workflow](docs/DEVELOPMENT_WORKFLOW.md).
 
-Es ist weder Git noch ein lokal installiertes .NET SDK/Runtime erforderlich.
+## Serverinstallation per MSI
 
-### Entwicklung mit lokalem .NET 8 SDK
+Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
 
-```powershell
-.\scripts\start-staging.ps1
-```
+`FAM-Pulverentnahme-Setup-0.1.4-x64.msi`
 
-Das Skript fragt das STAGING-Passwort fuer `KHCSYN` verdeckt ab und setzt es nur fuer den laufenden Backend-Prozess.
+Die MSI installiert den Dienst `FAMPulverentnahme`, stoppt ihn bei einem Upgrade kontrolliert und startet ihn nach der Installation wieder. Die Anwendung lauscht im Dienstbetrieb nur lokal:
 
-Alternativ manuell:
+- `127.0.0.1:5080` – PWA/API fuer den IIS-Reverse-Proxy
+- `127.0.0.1:5081/admin` – lokale Serverkonfiguration
 
-```powershell
-$env:Oxaion__Password = "<STAGING-Passwort fuer KHCSYN>"
-dotnet run --project .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --urls http://0.0.0.0:5080
-```
+Nach der Installation auf APP-01 wird die Konfiguration direkt am Server ueber `http://127.0.0.1:5081/admin` gepflegt. Dort werden eine gemeinsame native SQL-Anmeldung, die STAGING-/PRODUCTION-Datenbankziele sowie Oxaion-Benutzer/-Passwort hinterlegt.
 
-Der Prototyp blockiert bei `StagingOnly=true` Oxaion-Port `11108` und erwartet Port `11118` sowie Firma `103`.
+Syncos ist vorbelegt mit:
+
+- STAGING: `syncos_stg_102`
+- PRODUCTION: `syncos_prd_102`
+
+Die exakten Oxaion-SQL-Katalognamen fuer STAGING und PRODUCTION muessen passend zur vorhandenen Installation eingetragen werden und werden nicht im Repository angenommen.
+
+Maschinentanks werden nicht in der WebApp gepflegt. Sie werden dynamisch aus der aktiven Oxaion-SQL-Datenbank über `OXAION.ULGSTP` mit `LGFIRM = aktive Firma` und `LGLGART = '02'` gelesen. Dadurch können STAGING und PRODUCTION unterschiedliche Tanklagerorte haben. Details: [`docs/MACHINE_TANK_DEFINITION.md`](docs/MACHINE_TANK_DEFINITION.md).
+
+Die bestaetigten Oxaion-HTTP-Ziele sind:
+
+- STAGING: Port `11118`
+- PRODUCTION: Port `11108`
+- Firma: `103`
+
+PRODUCTION muss in der Admin-Oberflaeche bewusst bestaetigt werden. Beim Umgebungswechsel werden vorhandene Bedienersessions ungueltig und serverseitige Transaktionsdaten bleiben zwischen STAGING und PRODUCTION getrennt.
+
+Der bestehende IIS-/HTTPS-Auftritt soll auf `http://127.0.0.1:5080` weiterleiten. Die lokale Admin-Oberflaeche auf Port 5081 wird nicht ueber IIS veroeffentlicht.
+
+Details: [`docs/SERVICE_DEPLOYMENT.md`](docs/SERVICE_DEPLOYMENT.md).
+
+## Legacy-/Entwicklungsstart STAGING
+
+Die bisherigen self-contained ZIP-/PowerShell-Starter bleiben fuer Entwicklung und gezielte STAGING-Diagnose im Repository. Sie sind nicht mehr das Ziel fuer den dauerhaften APP-01-/IIS-Betrieb.
 
 ## Projektwissen fuer ChatGPT / Codex
 
@@ -68,7 +89,7 @@ Der Prototyp blockiert bei `StagingOnly=true` Oxaion-Port `11108` und erwartet P
 - PWA-, Offline-, Outbox-, Sync- und Update-Regeln stehen in [`docs/OFFLINE_PWA.md`](docs/OFFLINE_PWA.md).
 - Fehler-, Retry- und Idempotenzregeln stehen in [`docs/ERROR_HANDLING.md`](docs/ERROR_HANDLING.md).
 - Der bestaetigte STAGING-Mix-Ablauf steht in [`docs/STAGING_REAL_MIX_PROTOTYPE.md`](docs/STAGING_REAL_MIX_PROTOTYPE.md).
-- Der manuelle Uebergangsprozess inklusive Papier-Zettel fuer Nachfuellen, FA-Verbrauch und Pulverwechsel steht in [`docs/MANUAL_TRANSITION_PROCESS.md`](docs/MANUAL_TRANSITION_PROCESS.md).
+- Die rein lesende RP.*-Bestandsansicht steht in [`docs/INVENTORY_VIEW.md`](docs/INVENTORY_VIEW.md).
 - Ein kopierbarer Repository-first-Projektprompt steht in [`PROJECT_PROMPT.md`](PROJECT_PROMPT.md).
 
 Der Grundsatz lautet: Vor Antworten und Aenderungen zuerst den aktuellen Stand im Repository lesen und gezielt nach bereits vorhandenen Entscheidungen und Implementierungen suchen.

@@ -210,3 +210,6 @@ http://<IP-DES-WEBSERVERS>:5080
 - produktive Transaktionsdatenbank statt JSON-Dateistore;
 - finaler Pulverwechsel-/Ruecklagerungsprozess;
 - finaler Scanner-/PWA-Endausbau.
+## Persistierte STAGING-SQL-Verbindungen
+
+Die beiden SQL-Verbindungen fuer Syncos-Personalwege und die rein lesenden Oxaion-SQL-Abfragen muessen nicht mehr bei jedem Start neu eingegeben werden. `start-staging.ps1` und `start-staging-published.ps1` verwenden Umgebungsvariablen mit Vorrang; ansonsten lesen sie die benutzer-/rechnergebunden per Windows-DPAPI verschluesselte Datei `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml`. Fehlt ein Wert, wird er einmalig verdeckt abgefragt und dort verschluesselt gespeichert. `-ResetStoredSqlConnections` loescht die lokale Speicherung fuer eine bewusste Neuerfassung. Oxaion-HTTP-Benutzer und -Passwort werden weiterhin nicht dauerhaft gespeichert.

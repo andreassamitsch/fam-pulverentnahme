@@ -6,12 +6,16 @@ on:
       - main
       - feature/staging-real-mix-prototype
       - pr8-pwa-test
+      - feature/nfc-personnel
+      - feature/worker-guided-ui
+      - feature/separate-processes
   pull_request:
     branches:
       - main
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   build:
@@ -31,14 +35,73 @@ jobs:
       - name: Restore tests
         run: dotnet restore .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj
 
+      - name: Check frontend JavaScript syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\app.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\article-colors.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\connectivity-status.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-mode.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-mode-focus-fix.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-shell.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\header-user-menu.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-ux-optimizations.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\process-hotfix-20260909.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\target-location.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\personnel-auth.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\nfc.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\qr-scanner.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\submit.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\worker-ui.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\worker-enhancements.js',
+            '.\src\Fam.Pulverentnahme.Web\wwwroot\sw.js'
+          )
+          foreach ($file in $files) {
+            node --check $file
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            '.\scripts\start-staging.ps1',
+            '.\scripts\start-staging-published.ps1',
+            '.\scripts\staging-sql-secrets.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref]$tokens,
+              [ref]$errors
+            )
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+            }
+          }
+
       - name: Build
         run: dotnet build .\src\Fam.Pulverentnahme.Web\Fam.Pulverentnahme.Web.csproj --configuration Release --no-restore
 
       - name: Test
         run: dotnet test .\tests\Fam.Pulverentnahme.Web.Tests\Fam.Pulverentnahme.Web.Tests.csproj --configuration Release --no-restore
 
+      - name: Prepare STAGING artifact name
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
+        shell: pwsh
+        run: |
+          $viennaTime = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTimeOffset]::UtcNow, 'W. Europe Standard Time')
+          $stamp = $viennaTime.ToString('yyyy-MM-dd_HH-mm-ss')
+          $artifactName = "FAM-Pulverentnahme-STAGING-$stamp-win-x64"
+          "STAGING_ARTIFACT_NAME=$artifactName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "STAGING artifact: $artifactName.zip (Europe/Vienna)"
+
       - name: Publish self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
         shell: pwsh
         run: |
           $out = '.\artifacts\FAM-Pulverentnahme-STAGING-win-x64'
@@ -49,13 +112,89 @@ jobs:
             --output $out
 
           Copy-Item .\scripts\start-staging-published.ps1 (Join-Path $out 'start-staging-published.ps1')
+          Copy-Item .\scripts\staging-sql-secrets.ps1 (Join-Path $out 'staging-sql-secrets.ps1')
           Copy-Item .\scripts\START_STAGING.bat (Join-Path $out 'START_STAGING.bat')
 
       - name: Upload self-contained Windows STAGING package
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pr8-pwa-test' || github.ref == 'refs/heads/feature/nfc-personnel' || github.ref == 'refs/heads/feature/worker-guided-ui' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
         uses: actions/upload-artifact@v4
         with:
-          name: FAM-Pulverentnahme-STAGING-win-x64
+          name: ${{ env.STAGING_ARTIFACT_NAME }}
           path: .\artifacts\FAM-Pulverentnahme-STAGING-win-x64\
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
+
+      - name: Prepare Windows service MSI metadata
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
+        shell: pwsh
+        run: |
+          [xml]$wixProject = Get-Content '.\installer\Fam.Pulverentnahme.Setup.wixproj'
+          $version = [string]$wixProject.Project.PropertyGroup.ProductVersion
+          if ([string]::IsNullOrWhiteSpace($version)) { throw 'ProductVersion is missing in installer project.' }
+          $msiName = "FAM-Pulverentnahme-Setup-$version-x64"
+          "PRODUCT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MSI_NAME=$msiName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "MSI version: $version"
+
+      - name: Build Windows service MSI
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
+        shell: pwsh
+        run: |
+          $publishDir = (Resolve-Path '.\artifacts\FAM-Pulverentnahme-STAGING-win-x64').Path
+          dotnet build .\installer\Fam.Pulverentnahme.Setup.wixproj `
+            --configuration Release `
+            -p:PublishDir="$publishDir"
+
+          $msi = Get-ChildItem .\installer\bin -Filter "$env:MSI_NAME.msi" -Recurse |
+            Select-Object -First 1
+          if (-not $msi) { throw "MSI output not found: $env:MSI_NAME.msi" }
+          Copy-Item $msi.FullName ".\artifacts\$env:MSI_NAME.msi" -Force
+
+      - name: Upload Windows service MSI
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/separate-processes' || startsWith(github.head_ref, 'release/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MSI_NAME }}
+          path: .\artifacts\${{ env.MSI_NAME }}.msi
+          if-no-files-found: error
+          retention-days: 14
+      - name: Keep only latest Actions artifacts
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/separate-processes')
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const currentRunId = context.runId;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner,
+              repo,
+              per_page: 100
+            });
+
+            const keep = artifacts.filter(a => a.workflow_run?.id === currentRunId);
+            const remove = artifacts.filter(a => a.workflow_run?.id !== currentRunId);
+
+            core.info(`Artifacts found: ${artifacts.length}`);
+            for (const artifact of keep) {
+              core.info(`KEEP ${artifact.id} ${artifact.name}`);
+            }
+
+            for (const artifact of remove) {
+              await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: artifact.id });
+              core.info(`DELETED ${artifact.id} ${artifact.name}`);
+            }
+
+            const remaining = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner,
+              repo,
+              per_page: 100
+            });
+            const oldRemaining = remaining.filter(a => a.workflow_run?.id !== currentRunId);
+            if (oldRemaining.length) {
+              core.setFailed(`${oldRemaining.length} older artifact(s) still remain.`);
+            }
+            core.info(`Cleanup complete. Remaining artifacts: ${remaining.length}`);
+            for (const artifact of remaining) {
+              core.info(`REMAINING ${artifact.id} ${artifact.name}`);
+            }

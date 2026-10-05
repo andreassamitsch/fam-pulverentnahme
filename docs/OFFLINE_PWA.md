@@ -30,6 +30,40 @@ Schreibende API-Antworten und ERP-Buchungsergebnisse duerfen nicht als fachliche
 
 Lesende Daten mit fachlicher Bedeutung, insbesondere Maschinenzustaende, werden nur ueber die explizit definierte IndexedDB-Cachelogik mit Zeitstempel und Versionsinformation verwendet.
 
+### Cache-Versionierung bei Frontend-Aenderungen
+
+Ab 30.09.2026 gilt fuer die STAGING-PWA zusaetzlich verbindlich:
+
+- Wird eine vom Service Worker gecachte JavaScript-/CSS-Ressource funktional geaendert, muss ihre URL-Version in `index.html` **und** in der Service-Worker-`ASSETS`-Liste gemeinsam angehoben werden.
+- Bei einer neuen App-Shell-Funktion muss gleichzeitig die Service-Worker-`CACHE`-Generation angehoben werden, damit ein installiertes Android-PWA nicht dauerhaft eine aeltere UI aus dem Cache weiterverwendet.
+- Fuer den aktuellen Dienst-/Umgebungsstand vom 02.10.2026 ist die App-Shell-Generation `fam-pulver-v40-service-config-20261002` aktiv. `ui-config.js` und `worker-ui.css` verwenden `?v=20261002-service-config-1`; `process-mode.js?v=20261001-inventory-flat-1` bleibt die aktuelle Prozesslogik.
+- Ein Regressionstest prueft, dass `index.html` und `sw.js` dieselbe `process-mode.js`-Version referenzieren und dass Erst-/Nachdruck-UI im ausgelieferten Frontend vorhanden ist.
+
+
+### Operator-UI-Cachegeneration 01.10.2026
+
+Die Korrekturen fuer Prozessnavigation, Tankauslagerungs-Fokus, Lageruebersicht, serverseitig freigeschaltete Diagnosewerkzeuge und kompakte erledigte Schritte sind gemeinsam als neue App-Shell-Generation versioniert. Alle dabei geaenderten Frontendressourcen werden mit `?v=20261001-operator-ui-1` referenziert; `ui-config.js` ist Bestandteil der App-Shell.
+
+### Jobabbruch-/Farbanzeige-Cachegeneration 01.10.2026
+
+Der Wegfall des Jobabbruch-Tankscans, die korrigierte Startfokussierung und das Rendering der Erkennungsfarben werden gemeinsam als App-Shell-Generation `v38` ausgeliefert. Die geaenderten Frontenddateien `process-mode.js`, `process-shell.js` und `ui-diagnostics.js` verwenden `?v=20261001-jobabort-colors-1`.
+
+### Lageruebersicht-Cachegeneration 01.10.2026
+
+Die Bereinigung der doppelten Lagerort-/Lagerplatzdarstellung und die flache Bestandszeile werden als App-Shell-Generation `v39` ausgeliefert. `process-mode.js` wird mit `?v=20261001-inventory-flat-1` referenziert.
+
+### Diagnose-/Etiketten-Nachdruck-Cachegeneration 05.10.2026
+
+Version `0.1.4` korrigiert einen falschen Leerzustandsalarm im Vorgang `Etiketten nachdrucken`. Der Diagnosewaechter muss `label-reprint` explizit dem sichtbaren Panel `labelReprintProcess` zuordnen. Andernfalls wurde trotz sichtbarer Nachdruckoberflaeche nach 500 ms faelschlich `Anzeigeproblem erkannt` eingeblendet.
+
+Fuer diese Korrektur wird `ui-diagnostics.js?v=20261005-label-reprint-diag-1` sowohl in `index.html` als auch in der Service-Worker-`ASSETS`-Liste verwendet. Die App-Shell-Generation lautet `fam-pulver-v44-label-reprint-diag-20261005`. Damit kann ein bereits installiertes Android-PWA den korrigierten Diagnosecode sicher beziehen.
+
+### Serverumgebung und lokale PWA-Daten
+
+STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
+
+Serverseitige Transaktions- und Auditdateien werden deshalb in getrennten STAGING-/PRODUCTION-Unterverzeichnissen gespeichert. Die noch offene vollstaendige produktive IndexedDB-/Outbox-Migration bleibt davon unberuehrt.
+
 ## PWA-Installierbarkeit auf Android
 
 Der STAGING-Prototyp ist technisch als installierbare PWA konfiguriert:

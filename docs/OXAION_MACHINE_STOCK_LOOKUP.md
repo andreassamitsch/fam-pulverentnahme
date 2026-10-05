@@ -64,6 +64,12 @@ Charge:   RP10WEB_20260901_085443
 Bestand:  164,330 KGM
 ```
 
+## Tanklagerort vor der Bestandsabfrage
+
+Ob ein Lagerort ein FAM-Maschinentank ist, wird seit 02.10.2026 nicht mehr aus einer statischen Anwendungsliste bestimmt. Vor dem `LB30230R`-Bestandsweg wird der Lagerort gegen die aktive Oxaion-SQL-Datenbank geprüft. Verbindliche Definition ist `ULGSTP.LGFIRM = aktive Firma` und `ULGSTP.LGLGART = '02'`.
+
+`LGLAGO` liefert den Tanklagerort, `LGBEZC` die Bezeichnung. Details: `docs/MACHINE_TANK_DEFINITION.md`.
+
 ## Backend-API und fachliche Ergebnisse
 
 Der STAGING-Prototyp stellt bereit:

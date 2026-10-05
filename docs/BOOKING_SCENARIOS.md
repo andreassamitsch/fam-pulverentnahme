@@ -154,3 +154,43 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Oxaion-Aktion:** Ausschliesslich lesende Bestandsabfragen `LB30340R`, `LB30430R` beziehungsweise bei bestaetigtem `LAG1626` `LB30230R`; keine Materialbuchung.
 - **Ergebnisstatus:** Sicherer Vor-Buchungs-Konflikt, kein unklarer ERP-Ausgang.
 - **Fehlerbehandlung:** Aktuelle Quelle erneut aus Oxaion auswaehlen und danach einen normalen Buchungsversuch mit den aktualisierten Daten starten. Kein blindes Weitersenden der alten Lagerplatzdarstellung.
+
+
+## Szenario P: Tank-Auslagern mit Wiegeabweichung
+
+- **Trigger:** Beim Vorgang `Pulver aus Tank auslagern` weicht die auf 0,001 kg normalisierte gewogene Netto-Pulvermenge `Qphys` vom unmittelbar zuvor bestaetigten Oxaion-Tankbestand `Qsys` ab.
+- **Pruefungen:** Mitarbeiter, Tank, Artikel, Mix-Charge und `Qsys` erneut online bestaetigen. Differenz ausschliesslich als `abs(Qphys-Qsys)` bestimmen.
+- **Backend-Aktion bei Minderbestand:** Eigene idempotente Teiltransaktion mit `I2 = Bestandskorr. Abgang (Schwund)` auf exakt Tank/Artikel/Mix-Charge. Verbindliche FAM-Kontierung: `PSWERK=21`, `PSKSTL=5100`. Die alte Referenzkombination 03/6000 wird nicht mehr verwendet. Eine leere `LBSKSB`-Vorbelegung im Buchungsschluessel ist zulaessig.
+- **Oxaion-Positionskontext:** Vor dem ersten Korrektur-`PUTNEW` wird die frisch aufgezeichnete Dialogfolge nachgebildet: F4 Buchungsschluessel -> Lagerort -> Charge/Artikel -> Artikel-GETPLAIN -> Kostenstelle. Erst danach wird mit `KEYTYPE=LKOPF`, `PSWERK=21`, `PSKSTL=5100` und `TX_B1SB01=2` fuer I2 beziehungsweise `1` fuer I1 gebucht. Die Bezeichnungstexte `TX_BWKZ`, `TX_IDNR`, `TX_LAGO` und `TX_KSTL` werden aus den Oxaion-Antworten uebernommen und nicht von der WebApp vorgegeben. Fuer den LB20115-Textstrukturzustand werden zusaetzlich die leeren Paare `TX_PCKMS`/`I_TX_PCKMS`, `TX_PCKMM`/`I_TX_PCKMM` und `TX_PCKMZ`/`I_TX_PCKMZ` mitgefuehrt; der Oxaion-Quellcode dereferenziert diese internen Spiegelwerte in `entryChkIDNR04`.
+- **Backend-Aktion bei Mehrbestand:** Eigene idempotente Teiltransaktion mit `I1 = Bestandskorrektur Zugang` auf exakt Tank/Artikel/Mix-Charge. Verbindliche FAM-Kontierung ebenfalls `PSWERK=21`, `PSKSTL=5100`.
+- **Oxaion-Aktion:** Lagerbeleg `LB20100J`; Korrekturposition `LB20115J`, bestaetigter `TCODE=WIN2`-/`LOADWIN2`-Ablauf; Persistierung `LB20110R *UPD`; anschliessend Beleg schliessen und exakt verifizieren.
+- **Fortsetzung:** Erst nach eindeutig erfolgreicher Korrektur und erneut gelesenem Tankbestand exakt `Qphys` wird die bewaehrte `LF/LE`-Umlagerung ueber `Qphys` gestartet.
+- **Ergebnisstatus:** Gesamtvorgang `SUCCESS` nur, wenn gegebenenfalls I1/I2 sowie LF/LE jeweils eindeutig verifiziert sind.
+- **Fehlerbehandlung:** Unklarer I1/I2-Ausgang blockiert LF/LE. Eine bereits bestaetigte Korrektur wird bei spaeter unklarem LF/LE-Ausgang nicht automatisch rueckgaengig gemacht oder erneut gebucht.
+
+- **Optionaler Schritt nach Erfolg:** Erst wenn die I1/I2-Korrektur (falls erforderlich), der Tank-Re-Read und die LF/LE-Auslagerung eindeutig erfolgreich verifiziert sind, darf die App Etikettendruck anbieten. Gedruckt wird auf Basis der eindeutigen Zielbewegung `LE` derselben Position, Charge, Ziel-Lagerort/Lagerplatz und Menge.
+- **Drucksequenz:** `LB31004R` -> `LB20090J *CHKPOPUP` -> `LB20100J *CALLA4ETI` -> `EK99103R *LOAD/*PRINTCFG` -> `MN50100J *GET/*GETTABLE/*HIDEDLG/*CHECK/*CHECKTBL/*PUTTBL/*RUN`. Die Bediener-Stückzahl ist `EK99103R.MENGE`; `UGANKO` bleibt die aus Oxaion gelesene Kopienzahl des Druckjobs.
+- **Transaktionsgrenze:** Etikettendruck hat eine eigene `clientOperationId` und ändert den bereits erfolgreichen Tank-Out nicht. Nach unklarem `MN50100J *RUN` kein Blind-Reprint.
+
+## Szenario Q: Korrekturbuchung Fertigungsauftrag nach Jobabbruch
+
+- **Trigger:** Pulver wurde bereits beim Druckstart auf den Fertigungsauftrag gebucht; der Druckjob wurde abgebrochen und der gewogene tatsaechliche Ist-Verbrauch ist kleiner als der urspruenglich gebuchte Verbrauch.
+- **Pruefungen vor Storno:** Mitarbeiter, FA, Materialposition, `AMMATV` und `AMMPST` erneut online bestaetigen. Der aktuell bestaetigte Stornoablauf ist fuer die komplett abgebuchte Materialposition `AMMPST=9` mit positivem Verbrauch freigegeben.
+- **Originalrueckmeldung und Tankquelle:** `PW22000J *LOADNEW` mit `STORNO=J` und danach `PW22000J *STON`; die Oxaion-Standard-Stornoliste `PW22021R` lesen. Sie gilt als bereits auf gueltige/stornierbare Rueckmeldungen gefiltert. Fuer einen automatischen Storno muss genau eine Rueckmeldung auf FA, Materialposition, Artikel und urspruengliche Menge passen. **Tanklager und Mix-Charge werden aus diesem eindeutigen Listeneintrag abgeleitet; ein Bediener-Tankscan entfaellt.** Der abgeleitete Lagerort muss ein freigegebener FAM-Maschinentank sein. Sein aktueller Oxaion-Bestand muss weiterhin denselben Artikel und dieselbe Mix-Charge enthalten. Ist die Tankcharge inzwischen eine andere, wird der Vorgang vor der Mengeneingabe gesperrt; es erfolgt kein Storno.
+- **Storno:** `PW22021R *STORNO` mit exakter Rueckmeldenummer, Rueckmeldedatum und Rueckmeldeuhrzeit aus diesem Listeneintrag.
+- **Storno-Verifikation:** Eine HTTP-Antwort oder die im Referenzfall nur aus der XML-Deklaration bestehende Antwort ist kein Erfolgsbeweis. Vor dem zweiten Schreibschritt muessen (a) der exakte Rueckmeldeschluessel aus der Liste verschwunden sein, (b) die FA-Materialposition `AMMATV=0 / AMMPST=0` zeigen und (c) dieselbe Tank-Mix-Charge exakt um die urspruengliche Verbrauchsmenge erhoeht sein.
+- **Neue Rueckmeldung:** Nur nach dieser dreifachen Bestaetigung wird der gewogene korrigierte Ist-Verbrauch mit der bestaetigten normalen MK-Logik neu gebucht. Bei `0,000 kg` ist keine neue MK erforderlich.
+- **Ergebnisstatus:** `SUCCESS` erst nach finaler exakter Verifikation von FA-Materialposition und Tank/Mix.
+- **Fehlerbehandlung:** Bei unklarem Storno kein Blind-Retry und keine neue MK. Ist der Storno sicher erfolgreich, aber die neue MK unklar oder fehlgeschlagen, bleibt dieser Zwischenzustand sichtbar; der Gesamtvorgang darf nicht erneut von vorne gestartet werden.
+
+
+## Szenario Q: Etiketten-Nachdruck
+
+- **Trigger:** Bediener benötigt nach einer eindeutig erfolgreichen Tank-Auslagerung weitere Etiketten oder der physische Drucker hat einen bereits erfolgreich an Oxaion übergebenen Druckauftrag nicht ausgegeben.
+- **Quelle:** ausschließlich gespeicherter Tank-Out mit `SUCCESS`, Lagerbeleg und unverändertem ursprünglichem Request.
+- **Auswahl:** Lagerbeleg / Artikel / Charge / Ziel; bisherige erfolgreiche Etikettenanzahl wird angezeigt.
+- **Backend-Aktion:** neue eigene Druck-`clientOperationId`; ursprüngliche Tank-Out-ID als Referenz; exakte erneute LE-Verifikation; danach derselbe bestätigte `LB31004R -> LB20090J -> LB20100J -> EK99103R -> MN50100J`-Druckpfad.
+- **Kein Materialwrite:** keine I1/I2-, LF/LE- oder sonstige Lagerbuchung.
+- **Personal:** der aktuell angemeldete Mitarbeiter darf vom ursprünglichen Auslagerungsmitarbeiter abweichen; der Nachdruck protokolliert den aktuell handelnden Mitarbeiter.
+- **Sperre:** existiert ein Druckvorgang derselben Auslagerung mit `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`, wird kein neuer Druckauftrag gestartet.
+- **Wiederholter Erfolg:** ein früherer `SUCCESS` darf bewusst durch einen neuen Nachdruck ergänzt werden; jeder Auftrag bleibt als separate Transaktion nachvollziehbar.
