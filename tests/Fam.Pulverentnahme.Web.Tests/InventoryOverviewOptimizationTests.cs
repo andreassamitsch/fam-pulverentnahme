@@ -45,6 +45,32 @@ public sealed class InventoryOverviewOptimizationTests
     }
 
     [Fact]
+    public void SameRecognitionColorsAreUsedForTankAndPowderArticle()
+    {
+        var colors = new Dictionary<string, ArticleRecognitionColorsResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["RP.00024"] = new(
+                ArticleRecognitionColorStatuses.Complete,
+                "RP.00024",
+                new ArticleRecognitionColor("EFA01", "FF0000", "Rot"),
+                new ArticleRecognitionColor("EFA02", "8B4513", "Braun"),
+                "Erkennungsfarben vollständig.")
+        };
+
+        var tank = InventoryOverviewService.BuildTankOverview(
+            new MachineTankOption("M400-02", "EP-M400S-02-Tank"),
+            [
+                new InventoryPosition("RP.00024", "AlSi10Mg", "M400-02", "M400-02", "", "0001049", 120.100m, "KGM", false)
+            ]);
+
+        var mapped = InventoryOverviewService.ApplyRecognitionColors([tank], colors);
+
+        Assert.Same(colors["RP.00024"], mapped[0].RecognitionColors);
+        Assert.Equal("FF0000", mapped[0].RecognitionColors!.Color1!.Hex);
+        Assert.Equal("8B4513", mapped[0].RecognitionColors!.Color2!.Hex);
+    }
+
+    [Fact]
     public void InventoryOverviewNoLongerPerformsSerialTankHttpReads()
     {
         var source = ReadRepoFile("src", "Fam.Pulverentnahme.Web", "InventoryOverviewService.cs");
