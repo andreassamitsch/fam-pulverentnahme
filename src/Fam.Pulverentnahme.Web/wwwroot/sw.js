@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v43-inventory-speed-colors-20261005';
+const CACHE='fam-pulver-v44-label-reprint-diag-20261005';
 const ASSETS=[
   '/',
   '/index.html',
@@ -9,7 +9,7 @@ const ASSETS=[
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20261002-dynamic-tanks-1',
-  '/ui-diagnostics.js?v=20260909-ui-diag-1',
+  '/ui-diagnostics.js?v=20261005-label-reprint-diag-1',
   '/article-colors.js?v=20260909-single-process-mode',
   '/personnel-auth.js?v=20260903-guided-worker',
   '/nfc.js?v=20260903-guided-worker',
