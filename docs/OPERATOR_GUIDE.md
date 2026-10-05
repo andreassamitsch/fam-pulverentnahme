@@ -250,6 +250,8 @@ Fehlt ein Farbfeld, bedeutet das nicht automatisch, dass der Artikel falsch ist.
 
 Dieser Vorgang druckt Etiketten zu einer bereits erfolgreich abgeschlossenen Tankauslagerung nach. Er fuehrt keine neue Materialbuchung aus.
 
+Die technische Karte `Anzeigeproblem erkannt` ist nur fuer einen tatsaechlich inkonsistenten beziehungsweise leeren Prozesszustand vorgesehen. Eine normal sichtbare Nachdruckoberflaeche ist kein Fehlerzustand und darf diese Karte nicht ausloesen.
+
 Bedienablauf:
 
 1. `Etiketten nachdrucken` waehlen.
