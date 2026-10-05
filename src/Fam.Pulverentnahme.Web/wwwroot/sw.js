@@ -1,17 +1,17 @@
-const CACHE='fam-pulver-v44-label-reprint-diag-20261005';
+const CACHE='fam-pulver-v45-user-idle-timeout-20261005';
 const ASSETS=[
   '/',
   '/index.html',
   '/styles.css?v=20260909-connectivity-1',
   '/worker-ui.css?v=20261002-service-config-1',
   '/qr-scanner.css?v=20260904-persistent-zoom',
-  '/ui-config.js?v=20261002-service-config-1',
+  '/ui-config.js?v=20261005-user-timeout-1',
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20261002-dynamic-tanks-1',
   '/ui-diagnostics.js?v=20261005-label-reprint-diag-1',
   '/article-colors.js?v=20260909-single-process-mode',
-  '/personnel-auth.js?v=20260903-guided-worker',
+  '/personnel-auth.js?v=20261005-user-timeout-1',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20260903-guided-worker',
   '/worker-ui.js?v=20261001-operator-ui-1',
