@@ -134,7 +134,7 @@ window.acceptAuthenticatedNfcPersonnel=function(person){
   baseChoosePersonnel({personnelNo:person.personnelNo,fullName:person.fullName});
   authenticatedPersonnel={personnelNo:person.personnelNo,fullName:person.fullName};
   personnelAuthHttps=location.protocol==='https:';
-  applySessionTiming({idleTimeoutMinutes:window.FamUiConfig?.personnelIdleTimeoutMinutes},{freshActivity:true});
+  applySessionTiming(person,{freshActivity:true});
   showAuthenticatedPersonnel('NFC');updateBookState();renderSummary();return true;
 };
 
