@@ -128,7 +128,9 @@ public sealed class OperatorUiCorrectionsTests
 
         Assert.Contains(".inventoryTank .processSwatch{display:inline-flex", source);
         Assert.Contains(".inventoryTank>div>b,.inventoryTank>div>span{display:block}", source);
-        Assert.Contains(".processSwatch i{display:block;width:50%;height:100%;flex:1 1 50%", source);
+        Assert.Contains("linear-gradient(90deg", source);
+        Assert.Contains("style=\"background:${background}\"", source);
+        Assert.DoesNotContain("<i style=\"${bg(a)}\"></i>", source);
         Assert.DoesNotContain(".inventoryTank b,.inventoryTank span{display:block}", source);
     }
 
