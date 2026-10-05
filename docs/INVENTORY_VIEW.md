@@ -83,6 +83,8 @@ Die Tank- und Pulverlagerdarstellung verwenden deshalb denselben serverseitig ar
 
 Da die PWA alte Frontend-Dateien cachen kann, wurde fuer diesen Stand die Service-Worker-Cachekennung auf `fam-pulver-v43-inventory-speed-colors-20261005` und die `process-mode.js`-Assetversion auf `20261005-inventory-speed-colors-1` angehoben. Der installierbare Korrekturstand ist Version `0.1.3`.
 
+**Praxisfreigabe 05.10.2026:** Version `0.1.3` wurde auf APP-01 mit der Android-PWA getestet. Die Farbfelder der Maschinentanks werden nun korrekt dargestellt. Der zuvor sichtbare Fehler mit leerem Farbrahmen bei einem Artikel mit vorhandenen EFA01/EFA02-Farben ist damit fuer den getesteten Fall behoben und praxisbestaetigt.
+
 
 ## Nicht mehr verwendeter JET-Indexweg
 
