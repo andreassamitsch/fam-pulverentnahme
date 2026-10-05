@@ -188,7 +188,8 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [x] Ursache des leeren Tank-Farbfelds gefunden: CSS-Spezifitaet setzte `.processSwatch` innerhalb `.inventoryTank` auf `display:block`, waehrend dieselbe Farbe in der Pulverlagerkarte korrekt war.
 - [x] Tankkarten-Swatch auf explizites Flex-Layout korrigiert; innere Farbhaelften erhalten volle Hoehe.
 - [x] PWA-Cache auf neue Generation angehoben und alte `fam-pulver-*` Cache-Generationen werden bei Aktivierung entfernt.
-- [ ] Android/PRODUCTION nach MSI-Update bestaetigen: `RP.00024` muss auf `M400-02` und `M650` Rot/Braun anzeigen; `RP.00026` muss ohne Farbfeld bleiben.
+- [x] 05.10.2026 Android/PRODUCTION nach MSI-Update auf `0.1.3`: Die Farbfelder der Maschinentanks werden korrekt dargestellt; der zuvor leere Farbrahmen bei vorhandenen EFA01/EFA02-Farben ist damit live behoben.
+- [ ] Android/PRODUCTION separat noch bestaetigen, dass ein Artikel ohne gueltige EFA01/EFA02-Farben (Referenz `RP.00026`) weiterhin **kein** leeres Farbfeld anzeigt.
 
 ## Anwendung und Betrieb
 
