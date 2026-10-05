@@ -66,13 +66,15 @@ Beide Anmeldewege setzen dieselbe ASP.NET-Core-Session:
 
 Die Session enthaelt nur die benoetigte Mitarbeiteridentitaet. Das Klartextpasswort wird nicht in IndexedDB, Transaktionsdaten oder Logs gespeichert.
 
+Die Personal-Session besitzt einen serverseitig konfigurierbaren Inaktivitaets-Timeout (5 bis 1440 Minuten, Default 480). Nur explizite Bedieneraktivitaet verlaengert die Frist; Hintergrund-/Health-Requests tun dies nicht. Das Backend erzwingt den Ablauf unabhaengig vom Client.
+
 Vor `/api/mix` prueft ein Endpoint-Filter, dass Session-Personalnummer und -Name exakt zum Request passen. Innerhalb des Buchungsablaufs wird die Person direkt vor den ersten schreibenden Oxaion-Aufrufen nochmals ueber den bestaetigten Oxaion-Personalweg gelesen. Die Session ersetzt diese fachliche Revalidierung nicht.
 
 Details siehe `docs/PERSONNEL_AUTHENTICATION.md`.
 
 ### Serverseitige UI-Freigabe
 
-Der Endpoint `/api/ui-config` liefert ausschliesslich nicht-sensitive UI-Freigaben. Aktuell wird damit `developerToolsEnabled` an die PWA uebergeben. Standard ist `false`. Der Schalter dient nur zur Sichtbarkeit von Diagnose-/Entwicklerwerkzeugen; Authentifizierung, Buchungsfreigaben und Oxaion-Revalidierung werden davon nicht beeinflusst.
+Der Endpoint `/api/ui-config` liefert ausschliesslich nicht-sensitive UI-Konfiguration. Aktuell werden damit `developerToolsEnabled`, die aktive Umgebung und der konfigurierte Personal-Inaktivitaets-Timeout an die PWA uebergeben. `developerToolsEnabled` ist standardmaessig `false`. Der Schalter dient nur zur Sichtbarkeit von Diagnose-/Entwicklerwerkzeugen; Authentifizierung, Buchungsfreigaben und Oxaion-Revalidierung werden davon nicht beeinflusst.
 
 ### Serverdienst und lokale Administrationsoberflaeche
 
