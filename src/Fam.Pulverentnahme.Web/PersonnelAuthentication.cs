@@ -64,6 +64,24 @@ internal static class PersonnelAuthenticationSession
         return true;
     }
 
+    public static int RemainingIdleSeconds(ISession session, int timeoutMinutes, DateTimeOffset now)
+    {
+        var timeout = TimeSpan.FromMinutes(RuntimeConfigurationService.ValidatePersonnelIdleTimeoutMinutes(timeoutMinutes));
+        var raw = session.GetString(LastUserActivityUtc);
+        if (!long.TryParse(raw, out var unixSeconds)) return (int)timeout.TotalSeconds;
+
+        try
+        {
+            var last = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
+            var remaining = timeout - (now - last);
+            return Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return (int)timeout.TotalSeconds;
+        }
+    }
+
     internal static bool IsIdleExpired(DateTimeOffset lastActivity, DateTimeOffset now, int timeoutMinutes) =>
         now - lastActivity >= TimeSpan.FromMinutes(RuntimeConfigurationService.ValidatePersonnelIdleTimeoutMinutes(timeoutMinutes));
 }
@@ -345,6 +363,9 @@ public static class PersonnelAuthenticationExtensions
                 environment = runtime.EnvironmentName,
                 authenticationConfigured = auth.IsConfigured,
                 idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
+                idleRemainingSeconds = PersonnelAuthenticationSession.IsAuthenticated(http.Session)
+                    ? PersonnelAuthenticationSession.RemainingIdleSeconds(http.Session, runtime.PersonnelIdleTimeoutMinutes, DateTimeOffset.UtcNow)
+                    : 0,
                 https = http.Request.IsHttps
             });
         });
@@ -379,6 +400,7 @@ public static class PersonnelAuthenticationExtensions
                     personnelNo = person.PersonnelNo,
                     fullName = person.FullName,
                     idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
+                    idleRemainingSeconds = runtime.PersonnelIdleTimeoutMinutes * 60,
                     https = http.Request.IsHttps,
                     loginMethod = "PASSWORD"
                 });
@@ -420,7 +442,8 @@ public static class PersonnelAuthenticationExtensions
             return Results.Ok(new
             {
                 authenticated = true,
-                idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes
+                idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
+                idleRemainingSeconds = runtime.PersonnelIdleTimeoutMinutes * 60
             });
         });
 
