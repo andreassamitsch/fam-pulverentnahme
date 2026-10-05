@@ -29,7 +29,7 @@ public sealed class FrontendBootstrapTests
         const string processModeUrl = "/process-mode.js?v=20261005-inventory-speed-colors-1";
         Assert.Contains(processModeUrl, index);
         Assert.Contains(processModeUrl, serviceWorker);
-        Assert.Contains("fam-pulver-v43-inventory-speed-colors-20261005", serviceWorker);
+        Assert.Contains("fam-pulver-v44-label-reprint-diag-20261005", serviceWorker);
         Assert.Contains("keys.filter(k=>k.startsWith('fam-pulver-')&&k!==CACHE)", serviceWorker);
         Assert.Contains("Etiketten drucken?", processMode);
         Assert.Contains("data-mode=\"label-reprint\"", processMode);
