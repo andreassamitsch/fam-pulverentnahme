@@ -1,6 +1,6 @@
 # FAM Pulverentnahme - Administratorhandbuch
 
-Stand: 02.10.2026
+Stand: 05.10.2026
 
 ## Zielgruppe
 
@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der aktuelle Stand 02.10.2026 ist `0.1.2`.
+Der aktuelle Release Candidate 05.10.2026 ist `0.1.3`.
 
 ### Erstinstallation
 
@@ -50,6 +50,8 @@ Die MSI veraendert keine bestehende IIS-Site, HTTPS-Bindung oder Zertifikatskonf
 Nach einem erfolgreichen Build auf `main` beziehungsweise dem aktuellen Entwicklungsbranch mit MSI-Erzeugung loescht der Workflow automatisch alle aelteren GitHub-Actions-Artefakte dieses Repositorys. Erhalten bleiben nur die Artefakte des aktuellen erfolgreichen Builds (aktuelle MSI und aktuelles STAGING-Diagnosepaket).
 
 Die Workflow-Historie bleibt erhalten; bereinigt werden die gespeicherten Build-Artefakte.
+
+Eine bereits bereitgestellte MSI-Version ist unveraenderlich. Wird nach einem installierbaren Teststand Code, Frontend, Service Worker oder Installer geaendert, muss die naechste Versionsnummer verwendet werden. Der stabile, freigegebene Stand wird nach erfolgreichem Praxistest ueber einen gruenen Pull Request nach `main` uebernommen. Details stehen in `docs/DEVELOPMENT_WORKFLOW.md`.
 
 ### Nach jedem Update pruefen
 
@@ -342,5 +344,8 @@ Bei jeder neuen MSI-Version sind vor der Bereitstellung zu pruefen:
 - `ADMIN_GUIDE.md` aktuell
 - `OPERATOR_GUIDE.md` aktuell, falls sich Bedienung oder Meldungen geaendert haben
 - `OPEN_POINTS.md` aktualisiert
+- Versionsnummer gegen `installer/Fam.Pulverentnahme.Setup.wixproj` geprueft
+- Frontend-/PWA-Aenderungen besitzen eine wirksame Asset-/Service-Worker-Cache-Aktualisierung
+- erforderlicher APP-01/Oxaion/Android-Praxistest erfolgreich, bevor der Stand als freigegeben nach `main` uebernommen wird
 
 Eine Aenderung gilt fuer den Projektstand nicht als vollstaendig dokumentiert, wenn die betroffene System-/Admin-/Bedienerdokumentation veraltet bleibt.
