@@ -74,7 +74,7 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 `main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
-Der am 06.10.2026 praxisgetestete und freigegebene Stand ist `0.1.5` mit serverseitig konfigurierbarem Inaktivitaets-Timeout fuer Bediener-Sessions. Nach erfolgreichem Merge ist `main` damit wieder der stabile Referenzstand.
+Der stabile praxisgetestete Stand auf `main` ist `0.1.5`. Aktueller Release Candidate ist `0.1.6` mit korrigierter Bedienermeldung fuer einen eindeutig leeren Tank im Vorgang `Pulver nachfuellen`.
 
 ## STAGING und PRODUCTION
 
