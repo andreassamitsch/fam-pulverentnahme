@@ -66,6 +66,12 @@ Version `0.1.5` fuehrt den serverseitig konfigurierbaren Personal-Inaktivitaets-
 
 Version `0.1.6` trennt im Vorgang `Pulver nachfuellen` den eindeutig leeren Tank sichtbar von einem mehrdeutigen Tankbestand. Bei Backendstatus `EMPTY` lautet die Bedienermeldung `Tank ist leer.`. Die geaenderten Dateien `app.js`, `submit.js` und `worker-enhancements.js` werden mit `?v=20261006-empty-replenish-tank-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v46-empty-replenish-tank-20261006`.
 
+### Tank-/Runtime-Diagnose-Cachegeneration 06.10.2026
+
+Beim Android-Test von `0.1.6` zeigte sich, dass die geladene Tankantwort vor der Meldungsauswahl durch `clearMachineInfo()` aus `machineStock` entfernt wurde. Dadurch konnte trotz vorher geladener `EMPTY`-Antwort die neue Meldung nicht verlaesslich ausgewertet werden; derselbe Effekt erklaerte den im Diagnoseexport leeren `machineStockStatus`. `0.1.7` bewahrt die gelesene Antwort deshalb lokal fuer die Entscheidung auf und protokolliert sie zusaetzlich bereinigt in `window.FamLastMachineStockDiagnostic`.
+
+`app.js` und `ui-diagnostics.js` werden mit `?v=20261006-tank-runtime-diag-1` ausgeliefert. Die App-Shell-Generation lautet `fam-pulver-v47-tank-runtime-diagnostics-20261006`. Der aktive Service Worker beantwortet fuer die Diagnose `FAM_DIAG_VERSION_REQUEST` mit seiner eigenen Cachekennung, sodass nicht nur der Serverstand, sondern der tatsaechlich steuernde Worker erkennbar ist.
+
 ### Serverumgebung und lokale PWA-Daten
 
 STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
