@@ -62,6 +62,10 @@ Fuer diese Korrektur wird `ui-diagnostics.js?v=20261005-label-reprint-diag-1` so
 
 Version `0.1.5` fuehrt den serverseitig konfigurierbaren Personal-Inaktivitaets-Timeout ein. `ui-config.js` und `personnel-auth.js` werden mit `?v=20261005-user-timeout-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v45-user-idle-timeout-20261005`. Damit erhalten installierte Android-PWAs sowohl die aktuelle Timeout-Konfiguration als auch die Benutzeraktivitaets-/Auto-Logout-Logik.
 
+### Leerer-Nachfuelltank-Cachegeneration 06.10.2026
+
+Version `0.1.6` trennt im Vorgang `Pulver nachfuellen` den eindeutig leeren Tank sichtbar von einem mehrdeutigen Tankbestand. Bei Backendstatus `EMPTY` lautet die Bedienermeldung `Tank ist leer.`. Die geaenderten Dateien `app.js`, `submit.js` und `worker-enhancements.js` werden mit `?v=20261006-empty-replenish-tank-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v46-empty-replenish-tank-20261006`.
+
 ### Serverumgebung und lokale PWA-Daten
 
 STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
