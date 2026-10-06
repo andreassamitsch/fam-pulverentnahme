@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der stabile praxisgetestete Stand ist `0.1.4`. Aktueller Release Candidate ist `0.1.5` mit serverseitig einstellbarem User Timeout bei Inaktivitaet.
+Der aktuelle am 06.10.2026 auf APP-01/Android praxisgetestete und freigegebene Stand ist `0.1.5`. Der serverseitig einstellbare User Timeout bei Inaktivitaet ist im Praxistest bestaetigt.
 
 ### Erstinstallation
 
