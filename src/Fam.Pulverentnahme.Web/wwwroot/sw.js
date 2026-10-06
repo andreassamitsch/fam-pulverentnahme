@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v46-empty-replenish-tank-20261006';
+const CACHE='fam-pulver-v47-tank-runtime-diagnostics-20261006';
 const ASSETS=[
   '/',
   '/index.html',
@@ -8,8 +8,8 @@ const ASSETS=[
   '/ui-config.js?v=20261005-user-timeout-1',
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
-  '/app.js?v=20261006-empty-replenish-tank-1',
-  '/ui-diagnostics.js?v=20261005-label-reprint-diag-1',
+  '/app.js?v=20261006-tank-runtime-diag-1',
+  '/ui-diagnostics.js?v=20261006-tank-runtime-diag-1',
   '/article-colors.js?v=20260909-single-process-mode',
   '/personnel-auth.js?v=20261005-user-timeout-1',
   '/nfc.js?v=20260903-guided-worker',
@@ -43,6 +43,13 @@ self.addEventListener('install',e=>{
 
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fam-pulver-')&&k!==CACHE).map(k=>caches.delete(k)))));
+});
+
+self.addEventListener('message',event=>{
+  if(event.data?.type!=='FAM_DIAG_VERSION_REQUEST')return;
+  const response={type:'FAM_DIAG_VERSION',cache:CACHE};
+  if(event.ports?.[0])event.ports[0].postMessage(response);
+  else event.source?.postMessage?.(response);
 });
 
 self.addEventListener('fetch',e=>{
