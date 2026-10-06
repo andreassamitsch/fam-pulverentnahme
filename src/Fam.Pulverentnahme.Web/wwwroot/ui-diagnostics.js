@@ -2,7 +2,7 @@
 
 // STAGING UI diagnostics: no passwords, tokens, request bodies or personnel data.
 (function(){
-  const VERSION='20261005-ui-diag-4';
+  const VERSION='20261006-ui-diag-5';
   const STORAGE_KEY='fam-pulver-ui-diag-v1';
   const FIRST_START_RELOAD_KEY='fam-pulver-first-controlled-start';
   const MAX_ENTRIES=220;
@@ -19,6 +19,8 @@
   let lastStateHash='';
   let blankSince=0;
   let blankReported=false;
+  let activeServiceWorkerCache='';
+  let serviceWorkerCacheKeys=[];
 
   const el=id=>document.getElementById(id);
   const text=id=>String(el(id)?.textContent||'').trim().replace(/\s+/g,' ').slice(0,220);
@@ -50,6 +52,26 @@
   }
   function firstControlledReload(){try{return sessionStorage.getItem(FIRST_START_RELOAD_KEY)==='1'}catch{return false}}
   function navigationType(){try{return performance.getEntriesByType('navigation')?.[0]?.type||''}catch{return ''}}
+  function scriptRef(name){
+    try{return [...document.scripts].map(x=>x.src||'').find(x=>x.includes('/'+name))?.replace(location.origin,'')||''}catch{return ''}
+  }
+  async function refreshRuntimeMetadata(){
+    try{
+      if(globalThis.caches?.keys)serviceWorkerCacheKeys=(await caches.keys()).filter(k=>k.startsWith('fam-pulver-')).sort();
+    }catch{}
+    try{
+      const controller=navigator.serviceWorker?.controller;
+      if(!controller)return;
+      const channel=new MessageChannel();
+      const reply=new Promise(resolve=>{
+        const timer=setTimeout(()=>resolve(null),900);
+        channel.port1.onmessage=event=>{clearTimeout(timer);resolve(event.data||null)};
+      });
+      controller.postMessage({type:'FAM_DIAG_VERSION_REQUEST'},[channel.port2]);
+      const data=await reply;
+      if(data?.type==='FAM_DIAG_VERSION')activeServiceWorkerCache=String(data.cache||'');
+    }catch{}
+  }
 
   function snapshot(){
     let auth=false,selected=false,authenticated=false,stockStatus='';
@@ -59,6 +81,11 @@
     try{stockStatus=String(typeof machineStock!=='undefined'&&machineStock?.status||'')}catch{}
     const processModeScripts=[...document.scripts].map(x=>x.src||'').filter(x=>x.includes('/process-mode.js')).map(x=>x.replace(location.origin,''));
     const diagnosticScripts=[...document.scripts].map(x=>x.src||'').filter(x=>/ui-diagnostics|replenish-router-guard|process-mode-focus-fix|process-shell/.test(x)).map(x=>x.replace(location.origin,''));
+    const appScript=scriptRef('app.js');
+    const submitScript=scriptRef('submit.js');
+    const workerEnhancementsScript=scriptRef('worker-enhancements.js');
+    const uiDiagnosticsScript=scriptRef('ui-diagnostics.js');
+    const lastMachineStockDiagnostic=window.FamLastMachineStockDiagnostic||null;
     const ids=['loginStep','processChoiceStep',...LEGACY_IDS,'tankOutProcess','labelReprintProcess','fillNewProcess','faConsumptionProcess','faAbortProcess','inventoryProcess'];
     const visibleIds=ids.filter(id=>visible(el(id)));
     const activeMode=document.querySelector('.processChoice.active')?.dataset?.mode||'';
@@ -77,8 +104,17 @@
       refreshWorkerFlow:refreshFunctionLabel(),
       processModeScripts,
       diagnosticScripts,
+      appScript,
+      submitScript,
+      workerEnhancementsScript,
+      uiDiagnosticsScript,
+      activeServiceWorkerCache,
+      serviceWorkerCacheKeys,
       machineWarehouse:String(el('oldMixWarehouse')?.value||''),
       machineStockStatus:stockStatus,
+      lastMachineStockDiagnostic,
+      stockStatusText:text('stockStatus'),
+      stockStatusClass:String(el('stockStatus')?.className||''),
       article:String(el('article')?.value||''),
       stockLoading:typeof stockLoading!=='undefined'?Boolean(stockLoading):null,
       sourceLoading:typeof sourceLoading!=='undefined'?Number(sourceLoading):null,
@@ -115,6 +151,7 @@
     }
   }
   async function copy(){
+    await refreshRuntimeMetadata();
     const value=exportText();updateManualAreas(value);
     try{
       if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);showCopyStatus('✓ Diagnose wurde in die Zwischenablage kopiert.','ok');return true}
@@ -135,8 +172,9 @@
     area=document.createElement('textarea');area.id='diagnosticManualCopy';area.className='diagnosticManualCopy hidden';area.readOnly=true;
     el('diagnosticFallback')?.appendChild(area);return area;
   }
-  function openDiagnostic(){
+  async function openDiagnostic(){
     if(window.FamUiConfig?.developerToolsEnabled!==true)return;
+    await refreshRuntimeMetadata();
     ensureUi();const modal=el('diagnosticModal');if(!modal)return;
     log('DIAGNOSTIC_OPENED',snapshot());
     const area=el('diagnosticModalText');if(area)area.value=exportText();
@@ -159,7 +197,7 @@
     if(!el('diagnosticHeaderBtn')){
       const header=document.querySelector('.workerHeader');
       if(header){
-        const button=document.createElement('button');button.id='diagnosticHeaderBtn';button.className='secondary compact diagnosticHeaderBtn developerTool';button.type='button';button.textContent='Diagnose';button.title='Diagnoseprotokoll anzeigen und kopieren';button.onclick=openDiagnostic;
+        const button=document.createElement('button');button.id='diagnosticHeaderBtn';button.className='secondary compact diagnosticHeaderBtn developerTool';button.type='button';button.textContent='Diagnose';button.title='Diagnoseprotokoll anzeigen und kopieren';button.onclick=()=>openDiagnostic().catch(()=>{});
         const dev=header.querySelector('.devSwitch');if(dev)header.insertBefore(button,dev);else header.appendChild(button);
       }
     }
@@ -204,18 +242,19 @@
     checkBlank(state);
   }
   load();
-  window.FamDiag={log,snapshot,exportText,copy,open:openDiagnostic,version:VERSION};
+  window.FamDiag={log,snapshot,exportText,copy,open:openDiagnostic,refreshRuntimeMetadata,version:VERSION};
   window.addEventListener('error',event=>log('WINDOW_ERROR',{message:safeError(event.error||event.message),file:String(event.filename||'').split('/').pop(),line:event.lineno||0,column:event.colno||0}));
   window.addEventListener('unhandledrejection',event=>log('UNHANDLED_REJECTION',{message:safeError(event.reason)}));
   window.addEventListener('online',()=>log('NETWORK_ONLINE',snapshot()));
   window.addEventListener('offline',()=>log('NETWORK_OFFLINE',snapshot()));
-  navigator.serviceWorker?.addEventListener?.('controllerchange',()=>log('SERVICE_WORKER_CONTROLLER_CHANGE',snapshot()));
+  navigator.serviceWorker?.addEventListener?.('controllerchange',()=>{refreshRuntimeMetadata().finally(()=>log('SERVICE_WORKER_CONTROLLER_CHANGE',snapshot()))});
   document.addEventListener('visibilitychange',()=>log('VISIBILITY_CHANGE',{visibility:document.visibilityState}));
   document.addEventListener('click',event=>{
     const choice=event.target?.closest?.('.processChoice');
     const action=choice?`process:${choice.dataset?.mode||''}`:event.target?.closest?.('button')?.id||'';
     if((action&&['machineScanBtn','qrScannerScanButton','qrScannerClose','addSourceBtn','bookBtn','processHomeBtn','outTankScan','fillTankScan','faTankScan','abortOrderScan','diagnosticHeaderBtn'].some(x=>action===x))||action.startsWith('process:'))log('CLICK',{action});
   },true);
+  refreshRuntimeMetadata().catch(()=>{});
   log('DIAGNOSTICS_LOADED',{version:VERSION,firstControlledReload:firstControlledReload(),serviceWorkerControlled:Boolean(navigator.serviceWorker?.controller)});
   if(firstControlledReload())log('FIRST_CONTROLLED_START_AFTER_INSTALL',snapshot());
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureUi();poll();setInterval(poll,200)});else{ensureUi();poll();setInterval(poll,200)}
