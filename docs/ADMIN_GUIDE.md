@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der stabile praxisgetestete Stand auf `main` ist `0.1.5`. Aktueller Release Candidate ist `0.1.6`; im Vorgang `Pulver nachfuellen` wird ein eindeutig leerer Tank mit `Tank ist leer.` statt als mehrdeutiger Tankbestand angezeigt.
+Der stabile praxisgetestete Stand auf `main` ist `0.1.5`. Aktueller Release Candidate ist `0.1.7`; er korrigiert die verbleibende Leertank-Anzeige und erweitert die Diagnose um PWA-/Service-Worker-Version und die letzte Tank-API-Antwort.
 
 ### Erstinstallation
 
@@ -294,6 +294,15 @@ Die normale Produktionsoberflaeche zeigt einen Verbindungsstatus in der Kopfzeil
 `Backend erreichbar` oder `Oxaion erreichbar` ist nur ein Connectivity-Signal. Buchungen werden trotzdem unmittelbar vor dem Schreiben serverseitig revalidiert.
 
 Diagnose-/Dev-Infos sind im normalen Produktionsbetrieb ausgeblendet und koennen nur serverseitig freigegeben werden.
+
+Ab `0.1.7` zeigt `Diagnose kopieren` zusaetzlich:
+
+- geladene Versionen von `app.js`, `submit.js`, `worker-enhancements.js` und `ui-diagnostics.js`;
+- die vom **aktiven** Service Worker gemeldete Cachegeneration sowie vorhandene `fam-pulver-*`-Caches;
+- den aktuell sichtbaren Text und die CSS-Klasse von `stockStatus`;
+- die letzte bereinigte Antwort von `/api/machines/{warehouse}/stock` mit HTTP-Status, fachlichem Status (`EMPTY`, `UNIQUE`, `AMBIGUOUS`, ...), Meldung, Zeilenanzahl und den fachlich relevanten Bestandsfeldern.
+
+Damit laesst sich unterscheiden, ob ein Fehler von einem alten PWA-Stand oder von einem tatsaechlich anderen Backend-/Oxaion-Ergebnis stammt. Passwoerter, Tokens, Connection Strings, Personalnummern und Mitarbeiternamen werden weiterhin nicht in das UI-Diagnoseprotokoll aufgenommen.
 
 ## 12. Transaktionen und aktuelle Persistenz
 
