@@ -74,7 +74,7 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 `main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
-Aktueller Release Candidate vom 05.10.2026 ist `0.1.4`. Er enthaelt den in `0.1.3` praxisbestaetigten Tank-Farbfeldfix und zusaetzlich die Korrektur des falschen Diagnosealarms im Vorgang `Etiketten nachdrucken`.
+Der am 06.10.2026 praxisgetestete und freigegebene Stand ist `0.1.5` mit serverseitig konfigurierbarem Inaktivitaets-Timeout fuer Bediener-Sessions. Nach erfolgreichem Merge ist `main` damit wieder der stabile Referenzstand.
 
 ## STAGING und PRODUCTION
 
@@ -184,7 +184,7 @@ Die Bedieneroberflaeche unterstuetzt aktuell:
 - Anmeldung per NFC/Personalchip
 - alternativ Personalnummer plus Passwort
 
-Nach erfolgreicher Anmeldung bleibt der Mitarbeiter kompakt in der Kopfzeile sichtbar. Eine abgelaufene Session oder ein Umgebungswechsel erzwingt eine neue Anmeldung.
+Nach erfolgreicher Anmeldung bleibt der Mitarbeiter kompakt in der Kopfzeile sichtbar. Eine abgelaufene Session oder ein Umgebungswechsel erzwingt eine neue Anmeldung. Der Inaktivitaets-Timeout wird lokal am Server konfiguriert (5 bis 1440 Minuten, Default 480); nur echte Bedienereingaben verlaengern die Frist.
 
 Vor schreibenden Materialvorgaengen werden Mitarbeiter und fachlicher Zustand serverseitig erneut validiert.
 

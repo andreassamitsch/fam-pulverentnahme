@@ -103,7 +103,8 @@ app.MapGet("/api/ui-config", (
     RuntimeConfigurationService runtime) => Results.Ok(new
 {
     developerToolsEnabled = prototype.Value.DeveloperToolsEnabled,
-    environment = runtime.EnvironmentName
+    environment = runtime.EnvironmentName,
+    personnelIdleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes
 }));
 
 app.MapGet("/api/health/oxaion", async (OxaionClient oxaion, CancellationToken ct) =>
@@ -210,7 +211,18 @@ app.MapPost("/api/personnel/nfc", async (
         http.Session.SetString(PersonnelAuthenticationSession.PersonnelNo, result.PersonnelNo);
         http.Session.SetString(PersonnelAuthenticationSession.PersonnelName, result.FullName);
         http.Session.SetString(PersonnelAuthenticationSession.Environment, runtime.EnvironmentName);
-        return Results.Ok(result);
+        PersonnelAuthenticationSession.MarkUserActivity(http.Session, DateTimeOffset.UtcNow);
+        return Results.Ok(new
+        {
+            result.SerialNumber,
+            result.Rfid,
+            result.PersonnelNo,
+            result.FullName,
+            result.SyncosName,
+            result.SyncosDescription,
+            idleTimeoutMinutes = runtime.PersonnelIdleTimeoutMinutes,
+            idleRemainingSeconds = runtime.PersonnelIdleTimeoutMinutes * 60
+        });
     }
     catch (ArgumentException ex)
     {

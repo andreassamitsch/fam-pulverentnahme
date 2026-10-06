@@ -56,7 +56,7 @@ Diese Regel verhindert, dass alte MSI-/ZIP-Artefakte den Actions-Speicher dauerh
 
 Das CI-Artefakt lautet:
 
-`FAM-Pulverentnahme-Setup-0.1.4-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.5-x64.msi`
 
 Die MSI ist eine per-machine Installation und benoetigt Administratorrechte.
 
@@ -96,6 +96,8 @@ PRODUCTION benoetigt eine zusaetzliche bewusste Bestaetigung in der Admin-Oberfl
 Die Bediener-PWA zeigt die aktive Umgebung dauerhaft als `STG` oder `PROD` in der Kopfzeile.
 
 Ein Umgebungswechsel verwirft vorhandene Mitarbeiter-Sessions. Der Bediener muss sich danach erneut anmelden.
+
+Die lokale Admin-Oberflaeche verwaltet ab `0.1.5` ausserdem den Bediener-Inaktivitaets-Timeout in Minuten (5 bis 1440, Default 480). Die Einstellung wird maschinenweit in `service-config.json` gespeichert und ohne Dienstneustart fuer nachfolgende Requests wirksam.
 
 ### Gemeinsame native SQL-Anmeldung
 

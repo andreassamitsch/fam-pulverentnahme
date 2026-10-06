@@ -1,6 +1,6 @@
 'use strict';
 
-window.FamUiConfig={developerToolsEnabled:false,environment:'STAGING'};
+window.FamUiConfig={developerToolsEnabled:false,environment:'STAGING',personnelIdleTimeoutMinutes:480};
 window.FamUiConfigReady=(async()=>{
   try{
     const response=await fetch('/api/ui-config',{cache:'no-store',credentials:'same-origin'});
@@ -8,7 +8,8 @@ window.FamUiConfigReady=(async()=>{
       const data=await response.json();
       window.FamUiConfig={
         developerToolsEnabled:data?.developerToolsEnabled===true,
-        environment:String(data?.environment||'STAGING').toUpperCase()==='PRODUCTION'?'PRODUCTION':'STAGING'
+        environment:String(data?.environment||'STAGING').toUpperCase(),
+        personnelIdleTimeoutMinutes:Number(data?.personnelIdleTimeoutMinutes)||480==='PRODUCTION'?'PRODUCTION':'STAGING'
       };
     }
   }catch{}

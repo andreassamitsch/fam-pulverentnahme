@@ -103,7 +103,9 @@ Die ASP.NET-Core-Session speichert nur die fuer die Zuordnung erforderliche Mita
 
 Passwort, transformierter Passwortwert, RFID oder Connection String werden nicht als Authentifizierungsersatz in `IndexedDB` gespeichert.
 
-Die aktuelle STAGING-Session hat einen Idle-Timeout von 480 Minuten.
+Der User-Idle-Timeout ist serverseitig konfigurierbar. Er wird lokal auf APP-01 unter `http://127.0.0.1:5081/admin` in Minuten gepflegt; zulaessig sind 5 bis 1440 Minuten. Fuer bestehende Installationen bleibt der Default 480 Minuten.
+
+Nur echte Bedieneraktivitaet verlaengert die Frist. Die PWA meldet Benutzeraktivitaet ueber `POST /api/personnel/activity`; Healthchecks, automatische Bestandsabfragen und andere Hintergrundrequests setzen die fachliche Inaktivitaetsfrist nicht zurueck. Das Backend prueft die Frist vor Requests serverseitig und verwirft eine abgelaufene Personal-Session. Die PWA besitzt zusaetzlich einen lokalen Timer fuer eine unmittelbare sichtbare Abmeldung. Beim Zurueckkehren aus dem Hintergrund wird der Sessionstatus erneut gegen das Backend geprueft.
 
 Vor einer neuen Materialbuchung verlangt `PersonnelBookingAuthorizationFilter`:
 

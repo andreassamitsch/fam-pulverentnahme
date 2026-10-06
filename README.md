@@ -48,14 +48,14 @@ Diese drei Dokumente sind Teil des verbindlichen Projektstands und werden bei re
 
 Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
 
-`FAM-Pulverentnahme-Setup-0.1.4-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.5-x64.msi`
 
 Die MSI installiert den Dienst `FAMPulverentnahme`, stoppt ihn bei einem Upgrade kontrolliert und startet ihn nach der Installation wieder. Die Anwendung lauscht im Dienstbetrieb nur lokal:
 
 - `127.0.0.1:5080` – PWA/API fuer den IIS-Reverse-Proxy
 - `127.0.0.1:5081/admin` – lokale Serverkonfiguration
 
-Nach der Installation auf APP-01 wird die Konfiguration direkt am Server ueber `http://127.0.0.1:5081/admin` gepflegt. Dort werden eine gemeinsame native SQL-Anmeldung, die STAGING-/PRODUCTION-Datenbankziele sowie Oxaion-Benutzer/-Passwort hinterlegt.
+Nach der Installation auf APP-01 wird die Konfiguration direkt am Server ueber `http://127.0.0.1:5081/admin` gepflegt. Dort werden eine gemeinsame native SQL-Anmeldung, die STAGING-/PRODUCTION-Datenbankziele, Oxaion-Benutzer/-Passwort sowie der Bediener-Inaktivitaets-Timeout hinterlegt.
 
 Syncos ist vorbelegt mit:
 

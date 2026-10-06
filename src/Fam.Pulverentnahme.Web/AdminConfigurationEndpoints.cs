@@ -124,6 +124,17 @@ small{color:#657b87}.warning{background:#fff4db;border:1px solid #e5bc62;padding
 </div>
 
 <div class="card">
+<h2>Bedienersitzung</h2>
+<div class="grid">
+<div>
+<label for="personnelIdleTimeout">User Timeout bei Inaktivität (Minuten)</label>
+<input id="personnelIdleTimeout" type="number" min="5" max="1440" step="1" value="480" inputmode="numeric">
+<small>Nach dieser Zeit ohne Bedienereingabe wird der angemeldete Mitarbeiter automatisch abgemeldet. Zulässig: 5 bis 1440 Minuten. Hintergrundabfragen verlängern das Timeout nicht.</small>
+</div>
+</div>
+</div>
+
+<div class="card">
 <div class="actions">
 <button class="btn primary" id="save">Speichern</button>
 <button class="btn secondary" id="test">Aktive Verbindungen testen</button>
@@ -148,7 +159,7 @@ function fill(c){
  set('syncosStg',c.syncosStagingDatabase);set('syncosProd',c.syncosProductionDatabase);set('syncosSchema',c.syncosSchema);
  set('oxaionDbStg',c.oxaionStagingDatabase);set('oxaionDbProd',c.oxaionProductionDatabase);
  set('oxaionStgUrl',c.oxaionStagingUrl);set('oxaionProdUrl',c.oxaionProductionUrl);set('oxaionFirm',c.oxaionFirm);set('oxaionUser',c.oxaionUser);
- $('developerTools').checked=!!c.developerToolsEnabled;
+ $('developerTools').checked=!!c.developerToolsEnabled;set('personnelIdleTimeout',c.personnelIdleTimeoutMinutes??480);
  $('sqlPasswordState').textContent=c.sqlPasswordConfigured?'Passwort ist gespeichert.':'Noch kein Passwort gespeichert.';
  $('oxaionPasswordState').textContent=c.oxaionPasswordConfigured?'Passwort ist gespeichert.':'Noch kein Passwort gespeichert.';
  $('configPath').textContent='Gespeichert unter: '+c.configPath;
@@ -166,11 +177,11 @@ $('save').onclick=async()=>{
    oxaionStagingDatabase:$('oxaionDbStg').value,oxaionProductionDatabase:$('oxaionDbProd').value,
    oxaionStagingUrl:$('oxaionStgUrl').value,oxaionProductionUrl:$('oxaionProdUrl').value,oxaionFirm:$('oxaionFirm').value,
    oxaionUser:$('oxaionUser').value,oxaionPassword:$('oxaionPassword').value||null,developerToolsEnabled:$('developerTools').checked,
-   confirmProduction:$('confirmProduction').checked
+   personnelIdleTimeoutMinutes:Number($('personnelIdleTimeout').value),confirmProduction:$('confirmProduction').checked
   };
   const saved=await json('/api/admin/config',{method:'POST',body:JSON.stringify(payload)});
   $('sqlPassword').value='';$('oxaionPassword').value='';fill(saved);
-  status('Konfiguration gespeichert und für neue Backend-Aufrufe aktiviert. Bereits angemeldete Bediener müssen sich nach einem Umgebungswechsel neu anmelden.','ok');
+  status('Konfiguration gespeichert. User Timeout: '+saved.personnelIdleTimeoutMinutes+' Minuten. Bereits angemeldete Bediener müssen sich nach einem Umgebungswechsel neu anmelden; eine Timeout-Änderung gilt ab dem nächsten Request sofort.','ok');
  }catch(e){status(e.message,'bad')}
 };
 $('test').onclick=async()=>{try{status('Verbindungen werden geprüft …');const r=await json('/api/admin/test',{method:'POST',body:'{}'});status('SYNCOS SQL: '+r.syncosSqlMessage+'\nOXAION SQL: '+r.oxaionSqlMessage+'\nOXAION HTTP: '+r.oxaionHttpMessage,r.ok?'ok':'bad')}catch(e){status(e.message,'bad')}};

@@ -43,6 +43,7 @@ public sealed record RuntimeConfigurationUpdate(
     string OxaionUser,
     string? OxaionPassword,
     bool DeveloperToolsEnabled,
+    int? PersonnelIdleTimeoutMinutes,
     bool ConfirmProduction);
 
 public sealed record RuntimeConfigurationView(
@@ -64,6 +65,7 @@ public sealed record RuntimeConfigurationView(
     string OxaionUser,
     bool OxaionPasswordConfigured,
     bool DeveloperToolsEnabled,
+    int PersonnelIdleTimeoutMinutes,
     string SelectedSyncosDatabase,
     string SelectedOxaionDatabase,
     string SelectedOxaionUrl,
@@ -81,7 +83,7 @@ public sealed record RuntimeConnectionTestResult(
 
 internal sealed class PersistedRuntimeConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public string Environment { get; set; } = RuntimeEnvironmentNames.Staging;
     public string SqlServer { get; set; } = "";
     public string SqlUser { get; set; } = "";
@@ -99,6 +101,7 @@ internal sealed class PersistedRuntimeConfiguration
     public string OxaionUser { get; set; } = "";
     public string OxaionPasswordProtected { get; set; } = "";
     public bool DeveloperToolsEnabled { get; set; }
+    public int PersonnelIdleTimeoutMinutes { get; set; } = 480;
 }
 
 public sealed class RuntimeConfigurationService
@@ -155,6 +158,14 @@ public sealed class RuntimeConfigurationService
         }
     }
 
+    public int PersonnelIdleTimeoutMinutes
+    {
+        get
+        {
+            lock (_gate) return ValidatePersonnelIdleTimeoutMinutes(_current.PersonnelIdleTimeoutMinutes);
+        }
+    }
+
     public RuntimeConfigurationView GetView()
     {
         lock (_gate) return ToView(_current, _persisted);
@@ -170,7 +181,7 @@ public sealed class RuntimeConfigurationService
 
             var next = new PersistedRuntimeConfiguration
             {
-                Version = 1,
+                Version = 2,
                 Environment = environment,
                 SqlServer = Clean(request.SqlServer),
                 SqlUser = Clean(request.SqlUser),
@@ -191,7 +202,9 @@ public sealed class RuntimeConfigurationService
                 OxaionPasswordProtected = string.IsNullOrEmpty(request.OxaionPassword)
                     ? _current.OxaionPasswordProtected
                     : Protect(request.OxaionPassword),
-                DeveloperToolsEnabled = request.DeveloperToolsEnabled
+                DeveloperToolsEnabled = request.DeveloperToolsEnabled,
+                PersonnelIdleTimeoutMinutes = ValidatePersonnelIdleTimeoutMinutes(
+                    request.PersonnelIdleTimeoutMinutes ?? _current.PersonnelIdleTimeoutMinutes)
             };
 
             ValidateRequired(next);
@@ -315,7 +328,8 @@ public sealed class RuntimeConfigurationService
             : "http://oxapp.cnc-domain.fuchshofer:11108",
         OxaionFirm = string.IsNullOrWhiteSpace(_oxaion.Firm) ? "103" : _oxaion.Firm,
         OxaionUser = _oxaion.User,
-        DeveloperToolsEnabled = _prototype.DeveloperToolsEnabled
+        DeveloperToolsEnabled = _prototype.DeveloperToolsEnabled,
+        PersonnelIdleTimeoutMinutes = Math.Clamp(_personnelAuth.SessionMinutes, 5, 1440)
     };
 
     private void Apply(PersistedRuntimeConfiguration settings)
@@ -331,6 +345,7 @@ public sealed class RuntimeConfigurationService
         _syncos.ConnectionString = syncos;
         _personnelAuth.ConnectionString = syncos;
         _personnelAuth.Enabled = true;
+        _personnelAuth.SessionMinutes = ValidatePersonnelIdleTimeoutMinutes(settings.PersonnelIdleTimeoutMinutes);
 
         var oxaionDatabase = SelectedOxaionDatabase(settings);
         _oxaionSql.ConnectionString = string.IsNullOrWhiteSpace(oxaionDatabase)
@@ -362,6 +377,7 @@ public sealed class RuntimeConfigurationService
             settings.OxaionUser,
             !string.IsNullOrWhiteSpace(settings.OxaionPasswordProtected),
             settings.DeveloperToolsEnabled,
+            ValidatePersonnelIdleTimeoutMinutes(settings.PersonnelIdleTimeoutMinutes),
             SelectedSyncosDatabase(settings),
             SelectedOxaionDatabase(settings),
             environment == RuntimeEnvironmentNames.Staging ? settings.OxaionStagingUrl : settings.OxaionProductionUrl,
@@ -385,6 +401,7 @@ public sealed class RuntimeConfigurationService
         if (string.IsNullOrWhiteSpace(settings.OxaionUser)) throw new ArgumentException("Oxaion Benutzer fehlt.");
         if (string.IsNullOrWhiteSpace(settings.OxaionPasswordProtected)) throw new ArgumentException("Oxaion Passwort fehlt.");
         if (string.IsNullOrWhiteSpace(settings.OxaionFirm)) throw new ArgumentException("Oxaion Firma fehlt.");
+        _ = ValidatePersonnelIdleTimeoutMinutes(settings.PersonnelIdleTimeoutMinutes);
         _ = ValidateIdentifier(settings.SyncosStagingDatabase, "Syncos STAGING database", false);
         _ = ValidateIdentifier(settings.SyncosProductionDatabase, "Syncos PRODUCTION database", false);
         _ = ValidateIdentifier(settings.SyncosSchema, "Syncos schema", false);
@@ -398,6 +415,13 @@ public sealed class RuntimeConfigurationService
 
         _ = NormalizeUrl(settings.OxaionStagingUrl);
         _ = NormalizeUrl(settings.OxaionProductionUrl);
+    }
+
+    internal static int ValidatePersonnelIdleTimeoutMinutes(int value)
+    {
+        if (value is < 5 or > 1440)
+            throw new ArgumentException("User Timeout muss zwischen 5 und 1440 Minuten liegen.");
+        return value;
     }
 
     private static string BuildSqlConnectionString(PersistedRuntimeConfiguration settings, string database)

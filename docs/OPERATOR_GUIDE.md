@@ -62,6 +62,8 @@ Moeglichkeiten:
 
 Nach erfolgreicher Anmeldung wird der Mitarbeitername kompakt in der Kopfzeile angezeigt.
 
+Wenn fuer die am Server eingestellte Zeit keine Bedienereingabe erfolgt, wird der Mitarbeiter automatisch abgemeldet. Die App zeigt dann `Wegen Inaktivität automatisch abgemeldet` und verlangt eine erneute Anmeldung per NFC oder Passwort. Automatische Hintergrundabfragen halten die Anmeldung nicht kuenstlich aktiv.
+
 Auf einer geoeffneten Vorgangsseite ist die Abmeldung gesperrt. Zuerst zur Vorgangsuebersicht zurueckgehen und dort abmelden.
 
 ## 5. QR-Scanner bedienen

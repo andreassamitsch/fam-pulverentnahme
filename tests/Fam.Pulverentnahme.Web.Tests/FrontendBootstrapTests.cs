@@ -29,13 +29,15 @@ public sealed class FrontendBootstrapTests
         const string processModeUrl = "/process-mode.js?v=20261005-inventory-speed-colors-1";
         Assert.Contains(processModeUrl, index);
         Assert.Contains(processModeUrl, serviceWorker);
-        Assert.Contains("fam-pulver-v44-label-reprint-diag-20261005", serviceWorker);
+        Assert.Contains("fam-pulver-v45-user-idle-timeout-20261005", serviceWorker);
         Assert.Contains("keys.filter(k=>k.startsWith('fam-pulver-')&&k!==CACHE)", serviceWorker);
         Assert.Contains("Etiketten drucken?", processMode);
         Assert.Contains("data-mode=\"label-reprint\"", processMode);
         Assert.Contains("Etiketten nachdrucken", processMode);
-        Assert.Contains("/ui-config.js?v=20261002-service-config-1", index);
-        Assert.Contains("/ui-config.js?v=20261002-service-config-1", serviceWorker);
+        Assert.Contains("/ui-config.js?v=20261005-user-timeout-1", index);
+        Assert.Contains("/ui-config.js?v=20261005-user-timeout-1", serviceWorker);
+        Assert.Contains("/personnel-auth.js?v=20261005-user-timeout-1", index);
+        Assert.Contains("/personnel-auth.js?v=20261005-user-timeout-1", serviceWorker);
     }
 
     private static string FindRepositoryRoot()
