@@ -5,7 +5,7 @@
 // intentionally rebuilds the dependent scanned source selections and would discard the user's selections.
 async function submitPreparedReplenishment(){
   if(active)return;
-  if(machineStock?.status!=='UNIQUE'||machineStock?.rows?.length!==1){alert('Maschinentank-Bestand nicht eindeutig.');return}
+  if(machineStock?.status!=='UNIQUE'||machineStock?.rows?.length!==1){alert(machineStock?.status==='EMPTY'?'Tank ist leer.':'Maschinentank-Bestand nicht eindeutig.');return}
   const ok=await refreshSelectedSources();
   if(!ok){alert('Nachfüllchargen bzw. Entnahmeorte erneut prüfen.');return}
   let r;
