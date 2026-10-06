@@ -401,7 +401,9 @@ app.MapPost("/api/mix", async (
             {
                 status = "CONFLICT",
                 stage = "MACHINE_STOCK_VALIDATION",
-                message = stock.Message + " Es wurde keine Materialbuchung gestartet.",
+                message = stock.Status == MachineStockStatuses.Empty
+                    ? "Tank ist leer. Es wurde keine Materialbuchung gestartet."
+                    : stock.Message + " Es wurde keine Materialbuchung gestartet.",
                 machineStock = stock
             }, statusCode: StatusCodes.Status409Conflict);
         }
