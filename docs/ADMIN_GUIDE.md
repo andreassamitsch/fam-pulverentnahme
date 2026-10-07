@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der stabile auf Android/STAGING praxisgetestete und freigegebene Stand auf `main` ist `0.1.7`. Aktueller Release Candidate ist `0.1.8` mit der neuen Lagerplatz-Umlagerung aus der Lageruebersicht; dieser schreibende Vorgang muss vor Freigabe noch real in STAGING getestet werden.
+Der stabile auf Android/STAGING praxisgetestete und freigegebene Stand auf `main` ist `0.1.7`. Aktueller Release Candidate ist `0.1.8` mit der neuen Lagerplatz-Umlagerung aus der Lageruebersicht und den vereinfachten Vorgangsbezeichnungen fuer Produktionspersonal; der neue schreibende Umlagerungsvorgang muss vor Freigabe noch real in STAGING getestet werden.
 
 ### Erstinstallation
 
