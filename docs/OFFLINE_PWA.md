@@ -72,6 +72,10 @@ Beim Android-Test von `0.1.6` zeigte sich, dass die geladene Tankantwort vor der
 
 `app.js` und `ui-diagnostics.js` werden mit `?v=20261006-tank-runtime-diag-1` ausgeliefert. Die App-Shell-Generation lautet `fam-pulver-v47-tank-runtime-diagnostics-20261006`. Der aktive Service Worker beantwortet fuer die Diagnose `FAM_DIAG_VERSION_REQUEST` mit seiner eigenen Cachekennung, sodass nicht nur der Serverstand, sondern der tatsaechlich steuernde Worker erkennbar ist.
 
+### Lagerplatz-Umlagerung-Cachegeneration 07.10.2026
+
+Version `0.1.8` erweitert `process-mode.js` um den bewusst gestarteten Umlagerungsvorgang aus der Pulverlagerliste. Die Ressource wird als `/process-mode.js?v=20261007-stock-relocation-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v48-stock-relocation-20261007`. Die eigentliche Umlagerung ist trotz gecachter UI online-only und wird nie aus dem Service-Worker-Cache als fachlich bestaetigt abgeleitet.
+
 ### Serverumgebung und lokale PWA-Daten
 
 STAGING und PRODUCTION sind serverseitig getrennte Betriebsumgebungen. Beim Umschalten wird die Backend-Personalsession ungueltig und die PWA muss eine erneute Anmeldung verlangen. Ein bereits laufender oder offline vorbereiteter Vorgang darf nach einem Umgebungswechsel nicht stillschweigend in der anderen Umgebung fortgesetzt werden.
