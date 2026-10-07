@@ -181,6 +181,8 @@ Wenn diese Voraussetzungen nicht erfuellt sind, darf die App keine sichere Masch
 
 Produktive Oxaion-Buchungen werden nicht lokal simuliert und nicht als erfolgreich angenommen.
 
+Die Lagerplatz-Umlagerung aus der Lageruebersicht ist ausdruecklich **online-only**: Quelle und Ziel muessen unmittelbar vor dem Schreibvorgang aktuell aus Oxaion bestaetigt werden. Ein offline sichtbarer oder zuvor geladener Lagerbestand darf zwar angezeigt werden, aber daraus wird keine Umlagerung in eine Outbox gestellt und nach Reconnect nicht automatisch gebucht. Der Bediener muss die Lageruebersicht online neu laden und die Umlagerung bewusst neu vorbereiten.
+
 Welche Prozessschritte bei gueltigem Maschinen-Cache komplett bis `PENDING_SYNC` vorbereitet werden duerfen, wird pro Buchungsszenario festgelegt. Bis dahin gilt fuer nicht eindeutig freigegebene Schritte die sichere Variante: lokal erfassen beziehungsweise zwischenspeichern, aber keine fachliche Endfreigabe vortaeuschen.
 
 ## Wiederherstellung der Verbindung
