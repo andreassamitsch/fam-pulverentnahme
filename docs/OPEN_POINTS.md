@@ -175,7 +175,7 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
   - `Pulververbrauch erfassen` — `Verbrauchtes Pulver einem Fertigungsauftrag zuordnen.`
   - `Tank entleeren` — `Pulver vollstaendig aus dem Tank ins Pulverlager zurueckgeben.`
   - `Leeren Tank befuellen` — `Leeren Tank mit neuem Pulver befuellen.`
-  - `Jobabbruch korrigieren` — `Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.`
+  - `Jobabbruch. Verbrauch korrigieren` — `Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.`
   - `Bestaende anzeigen` — `Aktuelle Tank- und Pulverlagerbestaende anzeigen.`
   - `Etiketten nachdrucken` — `Etiketten einer abgeschlossenen Tankauslagerung erneut drucken.`
   - Ziel: kurze, handlungsorientierte Begriffe; technische ERP-Begriffe wie `Korrekturbuchung`, `RP.*` und interne Mix-Chargenlogik nicht in der Menuebeschreibung verwenden, sofern sie fuer die Bedienentscheidung nicht notwendig sind.
