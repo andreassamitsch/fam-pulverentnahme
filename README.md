@@ -48,7 +48,7 @@ Diese drei Dokumente sind Teil des verbindlichen Projektstands und werden bei re
 
 Der bevorzugte APP-01-/IIS-Betrieb wird als Windows-Dienst installiert. GitHub Actions erzeugt:
 
-`FAM-Pulverentnahme-Setup-0.1.7-x64.msi`
+`FAM-Pulverentnahme-Setup-0.1.8-x64.msi`
 
 Die MSI installiert den Dienst `FAMPulverentnahme`, stoppt ihn bei einem Upgrade kontrolliert und startet ihn nach der Installation wieder. Die Anwendung lauscht im Dienstbetrieb nur lokal:
 
