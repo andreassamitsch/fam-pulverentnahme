@@ -54,6 +54,24 @@ public sealed class OperatorUiCorrectionsTests
     }
 
     [Fact]
+    public void OperatorProcessMenuUsesProductionFriendlyNamesAndDescriptions()
+    {
+        var source = ReadWebFile("process-mode.js");
+
+        Assert.Contains("<b>Tank nachfüllen</b><span>Vorhandenes Pulver im Tank ergänzen.</span>", source);
+        Assert.Contains("<b>Pulververbrauch erfassen</b><span>Verbrauchtes Pulver einem Fertigungsauftrag zuordnen.</span>", source);
+        Assert.Contains("<b>Tank entleeren</b><span>Pulver vollständig aus dem Tank ins Pulverlager zurückgeben.</span>", source);
+        Assert.Contains("<b>Leeren Tank befüllen</b><span>Leeren Tank mit neuem Pulver befüllen.</span>", source);
+        Assert.Contains("<b>Jobabbruch. Verbrauch korrigieren</b><span>Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.</span>", source);
+        Assert.Contains("<b>Bestände anzeigen</b><span>Aktuelle Tank- und Pulverlagerbestände anzeigen.</span>", source);
+        Assert.Contains("<b>Etiketten nachdrucken</b><span>Etiketten einer abgeschlossenen Tankauslagerung erneut drucken.</span>", source);
+
+        Assert.DoesNotContain("<b>Korrekturbuchung Fertigungsauftrag (Jobabbruch)</b>", source);
+        Assert.DoesNotContain("<b>Lagerbestand ansehen</b>", source);
+        Assert.DoesNotContain("<b>Pulver auf Fertigungsauftrag buchen</b>", source);
+    }
+
+    [Fact]
     public void JobAbortStartsWithFaScanAndResolvesTankFromOxaion()
     {
         var source = ReadWebFile("process-mode.js");
