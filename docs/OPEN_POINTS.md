@@ -175,7 +175,7 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
   - `Pulververbrauch erfassen` — `Verbrauchtes Pulver einem Fertigungsauftrag zuordnen.`
   - `Tank entleeren` — `Pulver vollstaendig aus dem Tank ins Pulverlager zurueckgeben.`
   - `Leeren Tank befuellen` — `Leeren Tank mit neuem Pulver befuellen.`
-  - `Jobabbruch korrigieren` — `Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.`
+  - `Jobabbruch. Verbrauch korrigieren` — `Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.`
   - `Bestaende anzeigen` — `Aktuelle Tank- und Pulverlagerbestaende anzeigen.`
   - `Etiketten nachdrucken` — `Etiketten einer abgeschlossenen Tankauslagerung erneut drucken.`
   - Ziel: kurze, handlungsorientierte Begriffe; technische ERP-Begriffe wie `Korrekturbuchung`, `RP.*` und interne Mix-Chargenlogik nicht in der Menuebeschreibung verwenden, sofern sie fuer die Bedienentscheidung nicht notwendig sind.
@@ -198,6 +198,21 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [ ] Online-Beauftragungsprozess fuer `Tank nachfuellen` und `Tank wechseln` durch Produktionsleitung beziehungsweise Stellvertretung definieren. Bis dahin gilt der bestehende organisatorische Uebergangsprozess mit muendlicher beziehungsweise papierbasierter Beauftragung; der alte vierteilige Entnahmeschein-QR ist fuer die neue Online-PWA keine verbindliche Buchungswahrheit.
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
+
+## Lagerplatz-Umlagerung aus Lageruebersicht 07.10.2026
+
+- [x] Fachliche Entscheidung: positive RP.*-Positionen mit konkretem Lagerplatz koennen direkt aus der Pulverlagerliste fuer `Umlagern` ausgewaehlt werden.
+- [x] Menge wird mit der vollstaendigen aktuell angezeigten Positionsmenge vorgeschlagen und darf vor der Buchung reduziert, aber nicht erhoeht werden.
+- [x] Artikel, Charge und Quellposition sind aus der angeklickten Lagerposition fest vorgegeben; kein freies Aendern dieser Buchungsschluessel.
+- [x] Ziellagerort/-lagerplatz werden aus Backend-/Oxaion-Treffern gewaehlt. Die exakte Quellposition ist als Ziel unzulaessig.
+- [x] Maschinentank-Lagerorte (`ULGSTP.LGLGART='02'`) sind als Umlagerungsziel verboten. UI filtert sie aus, Backend prueft die Tankdefinition zusaetzlich fail-closed.
+- [x] Technische Umsetzung verwendet den bestehenden bestaetigten `LF -> LE`-Materialtransfer: eine Position, Charge bleibt unveraendert, exakte Bewegungsverifikation nach dem Schreiben.
+- [x] Vor dem Schreiben werden Mitarbeiter, exakte Quellposition, seit Anzeige erwarteter Quellbestand, verfuegbare Menge sowie Ziel-Lagerort/-lagerplatz erneut serverseitig validiert.
+- [x] Umlagerung besitzt eigene `clientOperationId`, eigenen Transaktionsstatus und read-only Reconcile; bei `UNCERTAIN`/`MANUAL_REVIEW_REQUIRED` kein automatischer erneuter Buchungsversuch.
+- [x] Umlagerung ist online-only; keine automatische Offline-/Outbox-Buchung aus einem veralteten Lagerbestand.
+- [ ] STAGING-Livetest vor Freigabe: innerhalb desselben lagerplatzgefuehrten Lagerorts eine reale RP.*-Charge von Lagerplatz A nach Lagerplatz B umlagern; Teilmenge und volle vorgeschlagene Menge pruefen; Oxaion-Beleg muss exakt `LF` Quelle + `LE` Ziel mit gleicher Charge/Menge enthalten.
+- [ ] STAGING-Sicherheitstest: Tanklager darf in der Zielauswahl nicht erscheinen; manipulierter Request mit Tanklager als Ziel muss serverseitig abgelehnt werden.
+- [ ] STAGING-Konflikttest: Lagerbestand nach Laden der Uebersicht extern veraendern; vorbereitete Umlagerung muss wegen veraenderter erwarteter Quellmenge ohne Schreibvorgang stoppen.
 
 ## Erkennungsfarben Tankkarten 02.10.2026
 
