@@ -74,7 +74,7 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 `main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
-Der am 07.10.2026 praxisgetestete und freigegebene Stand ist `0.1.7`. Er korrigiert den Leertank-Anzeigefehler und erweitert die In-App-Diagnose um aktive PWA-/Service-Worker-Version, sichtbaren Tankstatus und die letzte bereinigte Tank-API-Antwort.
+Der stabile praxisgetestete Stand auf `main` ist `0.1.7`. Aktueller Release Candidate ist `0.1.8` mit der Lagerplatz-Umlagerung aus der Pulverlagerliste. Die neue schreibende `LF -> LE`-Anwendung bleibt bis zum realen STAGING-Test Release Candidate.
 
 ## STAGING und PRODUCTION
 
