@@ -10,7 +10,7 @@ public sealed class ReplenishmentUiDiagnosticsTests
         var webRoot = WebRoot();
         var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
 
-        Assert.Contains("/ui-diagnostics.js?v=20261005-label-reprint-diag-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", index);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", index);
         Assert.True(index.IndexOf("/process-mode.js", StringComparison.Ordinal) <
                     index.IndexOf("/replenish-router-guard.js", StringComparison.Ordinal));
@@ -39,6 +39,14 @@ public sealed class ReplenishmentUiDiagnosticsTests
         Assert.Contains("developerTool", source);
         Assert.Contains("Diagnose kopieren", source);
         Assert.Contains("serviceWorkerControlled", source);
+        Assert.Contains("activeServiceWorkerCache", source);
+        Assert.Contains("serviceWorkerCacheKeys", source);
+        Assert.Contains("lastMachineStockDiagnostic", source);
+        Assert.Contains("stockStatusText", source);
+        Assert.Contains("appScript", source);
+        Assert.Contains("submitScript", source);
+        Assert.Contains("workerEnhancementsScript", source);
+        Assert.Contains("FAM_DIAG_VERSION_REQUEST", source);
         Assert.Contains("FIRST_CONTROLLED_START_AFTER_INSTALL", source);
         Assert.Contains("navigator.clipboard", source);
         Assert.DoesNotContain("personnelNo:", source);
@@ -99,14 +107,28 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV45RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV47RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-v45-user-idle-timeout-20261005", source);
+        Assert.Contains("fam-pulver-v47-tank-runtime-diagnostics-20261006", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
-        Assert.Contains("/ui-diagnostics.js?v=20261005-label-reprint-diag-1", source);
+        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", source);
+        Assert.Contains("FAM_DIAG_VERSION_REQUEST", source);
+        Assert.Contains("FAM_DIAG_VERSION", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);
+    }
+
+    [Fact]
+    public void TankDiagnosticsPreserveLastApiResponseAfterUiStateIsCleared()
+    {
+        var app = File.ReadAllText(Path.Combine(WebRoot(), "app.js"));
+
+        Assert.Contains("window.FamLastMachineStockDiagnostic=details", app);
+        Assert.Contains("window.FamDiag?.log?.('MACHINE_STOCK_RESPONSE',details)", app);
+        Assert.Contains("const resolvedStock=machineStock", app);
+        Assert.Contains("resolvedStock?.status==='EMPTY'?'⛔ Tank ist leer.'", app);
+        Assert.Contains("return resolvedStock", app);
     }
 
     private static string WebRoot()

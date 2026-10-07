@@ -22,15 +22,15 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Ergebnisstatus:** `SUCCESS` bei bestaetigter Buchung auf die Ist-Maschine.
 - **Fehlerbehandlung:** Ohne erfolgreichen Maschinenscan stoppen; inkompatibler Bestand fuehrt in Szenario E.
 
-## Szenario C: Gewaehlte Maschine ist leer
+## Szenario C: Gewaehlte Maschine ist im Vorgang Pulver nachfuellen leer
 
-- **Trigger:** Bestandsabfrage nach Auswahl beziehungsweise Scan der tatsaechlichen Maschine liefert eindeutig keinen Pulverbestand.
+- **Trigger:** Bestandsabfrage nach Scan des Maschinentanks liefert eindeutig keinen Pulverbestand (`EMPTY`).
 - **Pruefungen:** Sicherstellen, dass das Ergebnis eindeutig ist und kein Abfragefehler als Leerbestand interpretiert wird.
-- **Bedieneranzeige:** `Maschine leer - Nachfuellen zulaessig` und die Daten der geplanten Befuellung.
-- **Backend-Aktion:** Ergebnis protokollieren und nach Bedienerbestaetigung den Nachfuellvorgang starten.
-- **Oxaion-Aktion:** Bestaetigten Bestand liefern und anschliessend die freigegebene Befuellungsbuchung ausfuehren. `TODO`: konkreten Leer-Maschinen-Ablauf fuer alle Faelle klaeren.
-- **Ergebnisstatus:** Nach Bestandspruefung weiter in `VALIDATING`; abschliessend `SUCCESS` oder spezifischer Fehlerstatus.
-- **Fehlerbehandlung:** Nicht eindeutige oder widerspruechliche Antwort wird als Szenario K behandelt.
+- **Bedieneranzeige:** `Tank ist leer.`
+- **Backend-Aktion:** Im Vorgang `Pulver nachfuellen` keine Buchung starten. Der Bediener verwendet fuer einen eindeutig leeren Tank den separaten Vorgang `Neues Pulver in Tank fuellen`.
+- **Oxaion-Aktion:** In diesem Nachfuellvorgang nur Bestand lesen; kein schreibender Oxaion-Aufruf.
+- **Ergebnisstatus:** Sicherer Vor-Buchungszustand ohne Materialbuchung.
+- **Fehlerbehandlung:** Nicht eindeutige oder widerspruechliche Antwort bleibt von `EMPTY` getrennt und wird als Szenario K behandelt.
 
 ## Szenario D: Gewaehlte Maschine enthaelt bereits passendes Pulver
 

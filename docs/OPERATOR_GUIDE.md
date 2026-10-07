@@ -126,7 +126,7 @@ Bedienablauf:
 
 Die App validiert Tank und Quellbestand direkt vor der Buchung erneut.
 
-Wenn der Tank laut Oxaion leer ist, `Pulver nachfuellen` nicht verwenden. Stattdessen `Neues Pulver in Tank fuellen` waehlen.
+Wenn der Tank laut Oxaion eindeutig leer ist, zeigt die App `Tank ist leer.`. In diesem Fall `Pulver nachfuellen` nicht verwenden, sondern `Neues Pulver in Tank fuellen` waehlen.
 
 ## 7. Pulver auf Fertigungsauftrag buchen
 

@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der aktuelle am 06.10.2026 auf APP-01/Android praxisgetestete und freigegebene Stand ist `0.1.5`. Der serverseitig einstellbare User Timeout bei Inaktivitaet ist im Praxistest bestaetigt.
+Der am 07.10.2026 auf Android/STAGING praxisgetestete und freigegebene Stand ist `0.1.7`. Die korrigierte Leertank-Anzeige und die erweiterte PWA-/Tank-Diagnose sind praxisbestaetigt.
 
 ### Erstinstallation
 
@@ -294,6 +294,15 @@ Die normale Produktionsoberflaeche zeigt einen Verbindungsstatus in der Kopfzeil
 `Backend erreichbar` oder `Oxaion erreichbar` ist nur ein Connectivity-Signal. Buchungen werden trotzdem unmittelbar vor dem Schreiben serverseitig revalidiert.
 
 Diagnose-/Dev-Infos sind im normalen Produktionsbetrieb ausgeblendet und koennen nur serverseitig freigegeben werden.
+
+Ab `0.1.7` zeigt `Diagnose kopieren` zusaetzlich:
+
+- geladene Versionen von `app.js`, `submit.js`, `worker-enhancements.js` und `ui-diagnostics.js`;
+- die vom **aktiven** Service Worker gemeldete Cachegeneration sowie vorhandene `fam-pulver-*`-Caches;
+- den aktuell sichtbaren Text und die CSS-Klasse von `stockStatus`;
+- die letzte bereinigte Antwort von `/api/machines/{warehouse}/stock` mit HTTP-Status, fachlichem Status (`EMPTY`, `UNIQUE`, `AMBIGUOUS`, ...), Meldung, Zeilenanzahl und den fachlich relevanten Bestandsfeldern.
+
+Damit laesst sich unterscheiden, ob ein Fehler von einem alten PWA-Stand oder von einem tatsaechlich anderen Backend-/Oxaion-Ergebnis stammt. Passwoerter, Tokens, Connection Strings, Personalnummern und Mitarbeiternamen werden weiterhin nicht in das UI-Diagnoseprotokoll aufgenommen.
 
 ## 12. Transaktionen und aktuelle Persistenz
 

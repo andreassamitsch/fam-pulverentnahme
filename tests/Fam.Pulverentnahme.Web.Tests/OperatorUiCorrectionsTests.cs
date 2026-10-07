@@ -122,6 +122,21 @@ public sealed class OperatorUiCorrectionsTests
     }
 
     [Fact]
+    public void ReplenishmentEmptyTankUsesDedicatedOperatorMessage()
+    {
+        var app = ReadWebFile("app.js");
+        var submit = ReadWebFile("submit.js");
+        var enhancements = ReadWebFile("worker-enhancements.js");
+
+        Assert.Contains("const resolvedStock=machineStock", app);
+        Assert.Contains("resolvedStock?.status==='EMPTY'?'⛔ Tank ist leer.'", app);
+        Assert.Contains("return resolvedStock", app);
+        Assert.Contains("machineStock?.status==='EMPTY'?'Tank ist leer.'", submit);
+        Assert.Contains("machineStock?.status==='EMPTY'?'Tank ist leer.'", enhancements);
+        Assert.DoesNotContain("Maschinentank ${warehouse} ist leer. „Pulver nachfüllen“ ist hier nicht möglich", app);
+    }
+
+    [Fact]
     public void InventoryTankRecognitionSwatchKeepsFlexLayout()
     {
         var source = ReadWebFile("process-mode.js");

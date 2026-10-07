@@ -127,7 +127,7 @@ Fuer den aktuellen STAGING-Nachfuellprozess gilt verbindlich:
 - Die aktuelle Mix-Charge und die komplette Tankmenge werden ebenfalls aus Oxaion uebernommen und nicht manuell eingegeben.
 - Nach der Artikelableitung werden die Sachmerkmale `EFA01` und `EFA02` als zweigeteiltes Farbfeld dargestellt, damit der Mitarbeiter die passende Charge physisch leichter erkennt. Diese Farben sind eine Suchhilfe und keine Buchungswahrheit.
 
-Bis der spaetere FA-/Leerbefuellungsablauf umgesetzt ist, kann ein komplett leerer Tank in diesem Nachfuellprozess keinen Artikel liefern und wird deshalb nicht automatisch freigegeben.
+Ein komplett leerer Tank kann im Vorgang `Pulver nachfuellen` keinen Artikel liefern und wird deshalb nicht freigegeben. Bei eindeutigem Leerbestand zeigt die App `Tank ist leer.`; fuer die Befuellung ist der separate Vorgang `Neues Pulver in Tank fuellen` zu verwenden.
 
 Details zu den QR-Formaten und der noch offenen Produktionsmaschinen-ID-zu-Tank-Zuordnung stehen in `docs/QR_CODE_WORKFLOW.md`.
 

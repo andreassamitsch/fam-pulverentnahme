@@ -207,7 +207,7 @@
 
   async function submitWithAppConfirmation(){
     if(active)return;
-    if(machineStock?.status!=='UNIQUE'||machineStock?.rows?.length!==1){await showBookingGuard('Maschinentank-Bestand ist nicht eindeutig. Bitte Tankbestand erneut prüfen.');return}
+    if(machineStock?.status!=='UNIQUE'||machineStock?.rows?.length!==1){await showBookingGuard(machineStock?.status==='EMPTY'?'Tank ist leer.':'Maschinentank-Bestand ist nicht eindeutig. Bitte Tankbestand erneut prüfen.');return}
     const stockOk=await refreshSelectedSources();
     if(!stockOk){await showBookingGuard('Nachfüllcharge oder Entnahmeort hat sich geändert. Bitte die markierten Angaben erneut prüfen.');return}
     let r;

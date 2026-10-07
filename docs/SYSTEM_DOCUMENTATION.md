@@ -74,7 +74,7 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 `main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
-Der am 06.10.2026 praxisgetestete und freigegebene Stand ist `0.1.5` mit serverseitig konfigurierbarem Inaktivitaets-Timeout fuer Bediener-Sessions. Nach erfolgreichem Merge ist `main` damit wieder der stabile Referenzstand.
+Der am 07.10.2026 praxisgetestete und freigegebene Stand ist `0.1.7`. Er korrigiert den Leertank-Anzeigefehler und erweitert die In-App-Diagnose um aktive PWA-/Service-Worker-Version, sichtbaren Tankstatus und die letzte bereinigte Tank-API-Antwort.
 
 ## STAGING und PRODUCTION
 
@@ -187,6 +187,8 @@ Die Bedieneroberflaeche unterstuetzt aktuell:
 Nach erfolgreicher Anmeldung bleibt der Mitarbeiter kompakt in der Kopfzeile sichtbar. Eine abgelaufene Session oder ein Umgebungswechsel erzwingt eine neue Anmeldung. Der Inaktivitaets-Timeout wird lokal am Server konfiguriert (5 bis 1440 Minuten, Default 480); nur echte Bedienereingaben verlaengern die Frist.
 
 Vor schreibenden Materialvorgaengen werden Mitarbeiter und fachlicher Zustand serverseitig erneut validiert.
+
+Die serverseitig freischaltbare In-App-Diagnose protokolliert keine Zugangsdaten oder Mitarbeiterdaten. Ab `0.1.7` enthaelt ein Diagnoseexport zusaetzlich die geladenen versionierten Frontend-Skripte, die aktive Service-Worker-Cachegeneration, vorhandene `fam-pulver-*`-Caches, den sichtbaren Text/Klassenstatus des Tankstatusfelds sowie die zuletzt vom Tank-Bestandsendpoint gelieferte bereinigte Antwort (HTTP-Status, fachlicher Status, Meldung, Zeilenanzahl sowie Artikel/Charge/Menge/Einheit der ersten Positionen).
 
 ## Bedienprozesse
 
