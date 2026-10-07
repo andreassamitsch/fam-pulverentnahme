@@ -26,10 +26,10 @@ public sealed class FrontendBootstrapTests
         var serviceWorker = File.ReadAllText(Path.Combine(webRoot, "sw.js"));
         var processMode = File.ReadAllText(Path.Combine(webRoot, "process-mode.js"));
 
-        const string processModeUrl = "/process-mode.js?v=20261007-stock-relocation-1";
+        const string processModeUrl = "/process-mode.js?v=20261007-stock-relocation-menu-2";
         Assert.Contains(processModeUrl, index);
         Assert.Contains(processModeUrl, serviceWorker);
-        Assert.Contains("fam-pulver-v48-stock-relocation-20261007", serviceWorker);
+        Assert.Contains("fam-pulver-v49-stock-relocation-menu-20261007", serviceWorker);
         Assert.Contains("keys.filter(k=>k.startsWith('fam-pulver-')&&k!==CACHE)", serviceWorker);
         Assert.Contains("Etiketten drucken?", processMode);
         Assert.Contains("data-mode=\"label-reprint\"", processMode);
