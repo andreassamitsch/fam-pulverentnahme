@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace Fam.Pulverentnahme.Web.Tests;
 
 public sealed class StockRelocationTests
