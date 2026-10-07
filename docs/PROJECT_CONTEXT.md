@@ -53,6 +53,8 @@ Verbindlich ab 02.10.2026:
 - Der Bediener-Inaktivitaets-Timeout ist ab Version `0.1.5` maschinenweit in der lokalen Serverkonfiguration einstellbar (5 bis 1440 Minuten, Default 480). Nur echte Bedieneraktivitaet verlaengert die Frist; Hintergrund-/Health-Aufrufe nicht. Nach Ablauf wird die Personal-Session serverseitig verworfen und eine neue Anmeldung verlangt.
 - Oxaion-SQL-Zugriff fuer die PWA bleibt auf dokumentierte `SELECT`-/Informationsfunktionen begrenzt.
 - Materialbuchungen, Bestandskorrekturen und sonstige ERP-Aenderungen laufen weiterhin ausschliesslich ueber Oxaion-Fachlogik/HTTP.
+- Eine Umlagerung aus der Lageruebersicht ist **keine SQL-Buchung**. Die SQL-Lageruebersicht liefert nur die angeklickte Ausgangsposition; die eigentliche Lagerplatz-Umlagerung wird als eigener serverseitiger Vorgang ueber den bereits bestaetigten Oxaion-`LF -> LE`-Materialbelegweg ausgefuehrt. Quelle, Menge und Ziel werden unmittelbar vor dem Schreiben erneut ueber bestaetigte Oxaion-HTTP-/F4-Lesewege validiert.
+- Fuer die Lagerplatz-Umlagerung sind Maschinentank-Lagerorte als Ziel verboten. Die Sperre erfolgt serverseitig anhand derselben dynamischen Tankdefinition `ULGSTP.LGLGART = '02'`, die auch fuer die Tankprozesse gilt.
 
 ## PWA und Offline-Faehigkeit
 
