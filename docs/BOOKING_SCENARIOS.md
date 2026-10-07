@@ -184,6 +184,17 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Fehlerbehandlung:** Bei unklarem Storno kein Blind-Retry und keine neue MK. Ist der Storno sicher erfolgreich, aber die neue MK unklar oder fehlgeschlagen, bleibt dieser Zwischenzustand sichtbar; der Gesamtvorgang darf nicht erneut von vorne gestartet werden.
 
 
+## Szenario R: Lagerplatz-Umlagerung aus Lageruebersicht
+
+- **Trigger:** Bediener waehlt in der Pulverlagerliste eine positive RP.*-Position mit konkretem Lagerplatz und startet `Umlagern`.
+- **Pruefungen:** Mitarbeiter-Session und Oxaion-Person erneut bestaetigen; Quellposition anhand Artikel/Lagerort/Lagerplatz/Charge erneut aus Oxaion lesen; seit Anzeige erwartete Gesamtmenge muss unveraendert sein; Umlagerungsmenge muss > 0 und <= aktuellem Quellbestand sein; Ziel darf nicht der exakten Quellposition entsprechen; Ziellagerort darf kein dynamischer Maschinentank (`LGLGART='02'`) sein; Ziellagerort/-lagerplatz muessen ueber die bestaetigten Oxaion-F4-Listen eindeutig aufloesbar sein.
+- **Bedieneranzeige:** Quelle, Artikel, Charge und aktueller Bestand; volle Quellmenge als editierbarer Mengenvorschlag; Ziellagerort und Ziellagerplatz aus Backend-Treffern; anschliessend explizite Bestaetigung.
+- **Backend-Aktion:** Eigene `clientOperationId`/Transaktion anlegen; vor dem ersten Schreibaufruf alle Pruefungen wiederholen; genau einen `TransferSpec` mit `LF` erstellen; nach der Buchung das exakte `LF/LE`-Bewegungspaar verifizieren.
+- **Oxaion-Aktion:** bestaetigten `LB20100J/LB20115J/LB20110R`-Materialbelegweg fuer eine `LF -> LE`-Position verwenden; Quelle mit Lagerort/Lagerplatz/Charge, Ziel mit Lagerort/Lagerplatz; Charge bleibt unveraendert.
+- **Ergebnisstatus:** `SUCCESS` nur nach exakter Bewegungspaar-Verifikation. Geaenderte Quelle/Zielvalidierung -> `CONFLICT`; eindeutige Ablehnung vor persistiertem Beleg -> `REJECTED`; unklarer Ausgang nach Beleganlage -> `UNCERTAIN` bzw. `MANUAL_REVIEW_REQUIRED`.
+- **Fehlerbehandlung:** niemals automatisch erneut buchen. Bei unklarem Ausgang nur den vorhandenen Beleg read-only reconciliieren. Offline keine Umlagerung starten.
+- **Freigabe:** der verwendete `LF -> LE`-Baustein ist im Projekt bestaetigt; der konkrete Lagerplatz-zu-Lagerplatz-Anwendungsfall muss vor Merge nach `main` einmal real in STAGING erfolgreich gebucht und kontrolliert werden.
+
 ## Szenario Q: Etiketten-Nachdruck
 
 - **Trigger:** Bediener benötigt nach einer eindeutig erfolgreichen Tank-Auslagerung weitere Etiketten oder der physische Drucker hat einen bereits erfolgreich an Oxaion übergebenen Druckauftrag nicht ausgegeben.
