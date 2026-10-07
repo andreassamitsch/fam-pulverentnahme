@@ -58,11 +58,30 @@ public sealed class StockRelocationTests
         var root = FindRepositoryRoot();
         var source = File.ReadAllText(Path.Combine(root, "src", "Fam.Pulverentnahme.Web", "wwwroot", "process-mode.js"));
 
-        Assert.Contains("inventoryRelocateBtn", source);
+        Assert.Contains("data-inventory-detail-index", source);
+        Assert.Contains("showInventoryPositionDetails", source);
+        Assert.Contains("Lagerplatzdetails", source);
+        Assert.Contains("inventoryDetailRelocate", source);
+        Assert.DoesNotContain("inventoryRelocateBtn", source);
+        Assert.DoesNotContain("data-relocate-index", source);
         Assert.Contains("amount:qty(row.quantityKg)", source);
         Assert.Contains("/api/stock-relocation", source);
         Assert.Contains("Charge bleibt unverändert", source);
         Assert.Contains("Tanklager werden nicht angeboten und serverseitig zusätzlich gesperrt", source);
+    }
+
+    [Fact]
+    public void InventoryDetailPopupShowsLocationDataBeforeRelocationAction()
+    {
+        var root = FindRepositoryRoot();
+        var source = File.ReadAllText(Path.Combine(root, "src", "Fam.Pulverentnahme.Web", "wwwroot", "process-mode.js"));
+
+        Assert.Contains("<span>Lagerort</span>", source);
+        Assert.Contains("<span>Lagerplatz</span>", source);
+        Assert.Contains("<span>Charge</span>", source);
+        Assert.Contains("<span>Bestand</span>", source);
+        Assert.Contains("Zum Verschieben dieser Charge auf einen anderen Lagerplatz „Umlagern“ wählen.", source);
+        Assert.Contains("Umlagerung ist nur bei einer Position mit Lagerplatz möglich.", source);
     }
 
     [Fact]
