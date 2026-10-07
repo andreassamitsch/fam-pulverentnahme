@@ -76,6 +76,8 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 Der stabile praxisgetestete Stand auf `main` ist `0.1.7`. Aktueller Release Candidate ist `0.1.8` mit der Lagerplatz-Umlagerung aus der Pulverlagerliste. Die neue schreibende `LF -> LE`-Anwendung bleibt bis zum realen STAGING-Test Release Candidate.
 
+Die Mitarbeiteransicht verwendet in `0.1.8` zusaetzlich die vereinfachten sichtbaren Vorgangsbezeichnungen `Tank nachfuellen`, `Pulververbrauch erfassen`, `Tank entleeren`, `Leeren Tank befuellen`, `Jobabbruch. Verbrauch korrigieren`, `Bestaende anzeigen` und `Etiketten nachdrucken`. Dies ist ausschliesslich eine UX-/Textaenderung; interne Prozess-IDs, Endpunkte und Buchungslogik bleiben unveraendert.
+
 ## STAGING und PRODUCTION
 
 Die aktive Umgebung wird ausschliesslich serverseitig in der lokalen Administrationsoberflaeche gewaehlt.
