@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der stabile praxisgetestete Stand auf `main` ist `0.1.5`. Aktueller Release Candidate ist `0.1.7`; er korrigiert die verbleibende Leertank-Anzeige und erweitert die Diagnose um PWA-/Service-Worker-Version und die letzte Tank-API-Antwort.
+Der am 07.10.2026 auf Android/STAGING praxisgetestete und freigegebene Stand ist `0.1.7`. Die korrigierte Leertank-Anzeige und die erweiterte PWA-/Tank-Diagnose sind praxisbestaetigt.
 
 ### Erstinstallation
 
