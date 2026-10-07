@@ -12,12 +12,12 @@ Technische Server-/Admin-Themen stehen in `docs/ADMIN_GUIDE.md`.
 
 Die App unterstuetzt aktuell folgende Vorgaenge:
 
-1. Pulver nachfuellen
-2. Pulver auf Fertigungsauftrag buchen
-3. Pulver aus Tank auslagern
-4. Neues Pulver in Tank fuellen
-5. Korrekturbuchung Fertigungsauftrag / Jobabbruch
-6. Lagerbestand ansehen
+1. Tank nachfuellen
+2. Pulververbrauch erfassen
+3. Tank entleeren
+4. Leeren Tank befuellen
+5. Jobabbruch. Verbrauch korrigieren
+6. Bestaende anzeigen
 7. Etiketten nachdrucken
 
 Die App liest aktuelle Daten aus Oxaion und prueft vor einer Buchung den Zustand nochmals serverseitig.
@@ -171,7 +171,7 @@ Dieser Vorgang wird verwendet, wenn Pulver physisch aus einem Tank entnommen und
 
 Bedienablauf:
 
-1. `Pulver aus Tank auslagern` waehlen.
+1. `Tank entleeren` waehlen.
 2. Tank scannen.
 3. Die App zeigt Artikel, Mix-Charge und Systemmenge.
 4. Pulver physisch aus dem Tank entnehmen und Netto-Pulvermenge wiegen.
@@ -197,7 +197,7 @@ Dieser Vorgang ist nur fuer einen Tank vorgesehen, den Oxaion eindeutig als leer
 
 Bedienablauf:
 
-1. `Neues Pulver in Tank fuellen` waehlen.
+1. `Leeren Tank befuellen` waehlen.
 2. Leeren Tank scannen.
 3. Erste Pulvercharge scannen.
 4. Die erste gueltige Charge bestimmt den Tankartikel.
@@ -218,7 +218,7 @@ Dieser Vorgang ist fuer einen bereits gebuchten Pulververbrauch vorgesehen, wenn
 
 Bedienablauf:
 
-1. `Korrekturbuchung Fertigungsauftrag` waehlen.
+1. `Jobabbruch. Verbrauch korrigieren` waehlen.
 2. Fertigungsauftrag scannen.
 3. Die App sucht die eindeutige urspruengliche Oxaion-Materialrueckmeldung.
 4. Tanklager und Mix-Charge werden automatisch aus dieser Originalrueckmeldung abgeleitet.
