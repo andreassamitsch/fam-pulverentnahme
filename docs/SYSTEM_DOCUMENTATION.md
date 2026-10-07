@@ -74,7 +74,7 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 `main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
-Der stabile praxisgetestete Stand auf `main` ist `0.1.8`. Aktueller Release Candidate ist `0.1.9`: Lagerpositionen in `Bestaende anzeigen` werden zuerst in einem reinen Detail-Popup geoeffnet; der Einstieg in die bereits bestaetigte Umlagerungslogik erfolgt erst dort ueber `Umlagern`.
+Der am 07.10.2026 praxisgetestete und freigegebene Stand ist `0.1.9`: Lagerpositionen in `Bestaende anzeigen` werden zuerst in einem reinen Detail-Popup geoeffnet; der Einstieg in die bereits bestaetigte Umlagerungslogik erfolgt erst dort ueber `Umlagern`.
 
 Die Mitarbeiteransicht verwendet in `0.1.8` zusaetzlich die vereinfachten sichtbaren Vorgangsbezeichnungen `Tank nachfuellen`, `Pulververbrauch erfassen`, `Tank entleeren`, `Leeren Tank befuellen`, `Jobabbruch. Verbrauch korrigieren`, `Bestaende anzeigen` und `Etiketten nachdrucken`. Dies ist ausschliesslich eine UX-/Textaenderung; interne Prozess-IDs, Endpunkte und Buchungslogik bleiben unveraendert.
 
