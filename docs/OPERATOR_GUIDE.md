@@ -220,7 +220,7 @@ Wenn der Stornoausgang unklar ist, wird die zweite Buchung nicht gestartet.
 
 ## 11. Lagerbestand ansehen
 
-`Lagerbestand` ist eine reine Informationsansicht und fuehrt keine Materialbuchung aus.
+Die Lagerliste selbst wird weiterhin rein lesend aus Oxaion angezeigt. Bei einer positiven Pulverlagerposition mit konkretem Lagerplatz kann der Bediener jedoch bewusst den separaten Vorgang `Umlagern` starten; erst dieser Vorgang fuehrt eine Materialbuchung ueber Oxaion aus.
 
 Die Ansicht zeigt:
 
@@ -234,6 +234,21 @@ Im Pulverlager werden pro Position angezeigt:
 - Lagerort / Lagerplatz
 - Charge
 - Menge
+
+### Pulver von Lagerplatz zu Lagerplatz umlagern
+
+Bei einer positiven Pulverlagerposition mit Lagerplatz erscheint `Umlagern`.
+
+1. Gewuenschte Bestandsposition auswaehlen und `Umlagern` tippen.
+2. Quelle, Artikel und Charge kontrollieren. Diese Werte werden aus der Lageruebersicht uebernommen und koennen nicht geaendert werden.
+3. Die App schlaegt die **volle aktuell angezeigte Menge** vor. Bei einer Teilumlagerung die Menge reduzieren.
+4. Ziellagerort auswaehlen. Der aktuelle Lagerort wird nach Moeglichkeit vorgeschlagen.
+5. Ziellagerplatz auswaehlen. Derselbe Quelllagerplatz kann nicht als Ziel gewaehlt werden.
+6. Zusammenfassung pruefen und `Umlagerung buchen` bestaetigen.
+
+Tanklager werden nicht als Ziel angeboten und sind auch serverseitig gesperrt. Direkt vor der Buchung liest die App die Quelle nochmals aus Oxaion und validiert das Ziel. Hat sich der Quellbestand seit der Anzeige geaendert, wird die Umlagerung gestoppt und die Lageruebersicht muss neu geladen werden.
+
+Die Charge bleibt bei dieser Umlagerung unveraendert. Bei unklarem Buchungsausgang **nicht erneut umlagern**, sondern `Status in Oxaion pruefen` verwenden.
 
 Die Tankliste wird dynamisch aus Oxaion gelesen. Neue Tanklagerorte erscheinen automatisch, wenn sie in der aktiven Oxaion-Umgebung als Lagerortart `02` gepflegt sind.
 
