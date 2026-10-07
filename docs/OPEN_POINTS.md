@@ -169,7 +169,16 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [x] 06.10.2026 Nachfuellen/Leertank technisch korrigiert: Backendstatus `EMPTY` wird im Vorgang `Pulver nachfuellen` nicht mehr als mehrdeutiger Tankbestand dargestellt, sondern mit `Tank ist leer.`. Auch die spaeteren Buchungs-Guards unterscheiden `EMPTY` explizit von `AMBIGUOUS`.
 - [x] 06.10.2026 Android-Test von `0.1.6` ausgewertet: `Tank ist leer.` erschien noch nicht. Ursache technisch nachgewiesen: `refreshMachineStock()` setzte `machineStock` ueber `clearMachineInfo()` auf `null`, bevor der `EMPTY`-Status fuer die Bedienermeldung ausgewertet wurde. Der Diagnoseexport zeigte deshalb ebenfalls `machineStockStatus:""`.
 - [x] `0.1.7` technisch umgesetzt: gelesene Tankantwort wird vor dem UI-Clear als `resolvedStock` erhalten; `EMPTY` kann dadurch sicher `Tank ist leer.` anzeigen. Diagnose erweitert um aktive Script-/Service-Worker-Version, Cachegeneration, sichtbaren `stockStatus` und letzte bereinigte Tank-API-Antwort.
-- [ ] Android/STAGING mit `0.1.7` bestaetigen: leeren Tank im Vorgang `Pulver nachfuellen` scannen. Erwartet: `Tank ist leer.`. Danach `Diagnose kopieren`; Export muss `appScript` mit `20261006-tank-runtime-diag-1`, `activeServiceWorkerCache` mit `fam-pulver-v47-tank-runtime-diagnostics-20261006`, `stockStatusText` mit `Tank ist leer.` und `lastMachineStockDiagnostic.status` = `EMPTY` zeigen.
+- [x] 07.10.2026 Android/STAGING mit `0.1.7` praxisbestaetigt: der Leertank-Fall funktioniert wie vorgesehen; `Tank ist leer.` wird korrekt angezeigt. Der Stand ist fuer die Uebernahme nach `main` freigegeben.
+- [ ] Menuebezeichnungen und Kurzbeschreibungen fuer Produktionspersonal vereinfachen. Noch **nicht umgesetzt** und vor Umsetzung mit Produktionsleitung/Bedienern bestaetigen. Aktueller Vorschlag:
+  - `Tank nachfuellen` — `Vorhandenes Pulver im Tank ergaenzen.`
+  - `Pulververbrauch erfassen` — `Verbrauchtes Pulver einem Fertigungsauftrag zuordnen.`
+  - `Tank entleeren` — `Pulver vollstaendig aus dem Tank ins Pulverlager zurueckgeben.`
+  - `Leeren Tank befuellen` — `Leeren Tank mit neuem Pulver befuellen.`
+  - `Jobabbruch korrigieren` — `Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.`
+  - `Bestaende anzeigen` — `Aktuelle Tank- und Pulverlagerbestaende anzeigen.`
+  - `Etiketten nachdrucken` — `Etiketten einer abgeschlossenen Tankauslagerung erneut drucken.`
+  - Ziel: kurze, handlungsorientierte Begriffe; technische ERP-Begriffe wie `Korrekturbuchung`, `RP.*` und interne Mix-Chargenlogik nicht in der Menuebeschreibung verwenden, sofern sie fuer die Bedienentscheidung nicht notwendig sind.
 - [x] Syncos-RFID wird als alphanumerischer String behandelt. Die Web-NFC-/Reader-Darstellung darf lediglich von Trennzeichen wie `:`, `-` oder Leerzeichen bereinigt werden; keine Dezimal-, Hex- oder Byte-Reihenfolgen-Konvertierung.
 - [x] Bei NFC-Chiperkennung erzeugt die PWA unmittelbar ein kurzes Tonsignal ueber die Browser-WebAudio-API; es wird keine Audio-Datei benoetigt. Das Tonsignal bestaetigt nur die Chiperkennung, nicht bereits die erfolgreiche Syncos-/Oxaion-Zuordnung.
 - [x] Maschinentankwahl im aktuellen STAGING-Nachfuellprozess erfolgt per QR. Der Tank-QR enthaelt ausschliesslich den Oxaion-Tanklagerort, z. B. `EOS1`, und muss gegen die gepflegte Maschinen-/Tankliste validiert werden. Die sichtbare manuelle Tankauswahl wurde aus dem normalen Ablauf entfernt.
