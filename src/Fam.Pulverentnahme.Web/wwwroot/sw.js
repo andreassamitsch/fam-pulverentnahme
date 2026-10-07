@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v48-stock-relocation-20261007';
+const CACHE='fam-pulver-v49-stock-relocation-menu-20261007';
 const ASSETS=[
   '/',
   '/index.html',
@@ -16,7 +16,7 @@ const ASSETS=[
   '/submit.js?v=20261006-empty-replenish-tank-1',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20261006-empty-replenish-tank-1',
-  '/process-mode.js?v=20261007-stock-relocation-1',
+  '/process-mode.js?v=20261007-stock-relocation-menu-2',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
