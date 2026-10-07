@@ -74,7 +74,7 @@ Beim Android-Test von `0.1.6` zeigte sich, dass die geladene Tankantwort vor der
 
 ### Lagerplatz-Umlagerung-Cachegeneration 07.10.2026
 
-Version `0.1.8` erweitert `process-mode.js` um den bewusst gestarteten Umlagerungsvorgang aus der Pulverlagerliste. Die Ressource wird als `/process-mode.js?v=20261007-stock-relocation-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v48-stock-relocation-20261007`. Die eigentliche Umlagerung ist trotz gecachter UI online-only und wird nie aus dem Service-Worker-Cache als fachlich bestaetigt abgeleitet.
+Version `0.1.8` erweitert `process-mode.js` um den bewusst gestarteten Umlagerungsvorgang aus der Pulverlagerliste und die vereinfachten, fuer Produktionspersonal abgestimmten Vorgangsbezeichnungen. Die Ressource wird final als `/process-mode.js?v=20261007-stock-relocation-menu-2` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v49-stock-relocation-menu-20261007`. Die eigentliche Umlagerung ist trotz gecachter UI online-only und wird nie aus dem Service-Worker-Cache als fachlich bestaetigt abgeleitet.
 
 ### Serverumgebung und lokale PWA-Daten
 
