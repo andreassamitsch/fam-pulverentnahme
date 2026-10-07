@@ -12,12 +12,12 @@ Technische Server-/Admin-Themen stehen in `docs/ADMIN_GUIDE.md`.
 
 Die App unterstuetzt aktuell folgende Vorgaenge:
 
-1. Pulver nachfuellen
-2. Pulver auf Fertigungsauftrag buchen
-3. Pulver aus Tank auslagern
-4. Neues Pulver in Tank fuellen
-5. Korrekturbuchung Fertigungsauftrag / Jobabbruch
-6. Lagerbestand ansehen
+1. Tank nachfuellen
+2. Pulververbrauch erfassen
+3. Tank entleeren
+4. Leeren Tank befuellen
+5. Jobabbruch. Verbrauch korrigieren
+6. Bestaende anzeigen
 7. Etiketten nachdrucken
 
 Die App liest aktuelle Daten aus Oxaion und prueft vor einer Buchung den Zustand nochmals serverseitig.
@@ -108,13 +108,27 @@ Beispiel:
 
 Die Maschinen-ID im Fertigungsauftrag-QR ist nicht automatisch identisch mit dem Oxaion-Tanklagerort.
 
-## 6. Pulver nachfuellen
+## Sichtbare Vorgangsbezeichnungen
+
+Die Mitarbeiteransicht verwendet ab Version `0.1.8` bewusst kurze, handlungsorientierte Bezeichnungen:
+
+- `Tank nachfuellen` — vorhandenes Pulver im Tank ergaenzen.
+- `Pulververbrauch erfassen` — verbrauchtes Pulver einem Fertigungsauftrag zuordnen.
+- `Tank entleeren` — Pulver vollstaendig aus dem Tank ins Pulverlager zurueckgeben.
+- `Leeren Tank befuellen` — leeren Tank mit neuem Pulver befuellen.
+- `Jobabbruch. Verbrauch korrigieren` — Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.
+- `Bestaende anzeigen` — aktuelle Tank- und Pulverlagerbestaende anzeigen.
+- `Etiketten nachdrucken` — Etiketten einer abgeschlossenen Tankauslagerung erneut drucken.
+
+Technische Buchungsbegriffe bleiben aus der Vorgangsauswahl heraus, sofern sie fuer die Bedienentscheidung nicht erforderlich sind.
+
+## 6. Tank nachfuellen
 
 Dieser Vorgang wird verwendet, wenn sich bereits Pulver im Tank befindet und weiteres Pulver desselben Artikels nachgefuellt wird.
 
 Bedienablauf:
 
-1. `Pulver nachfuellen` waehlen.
+1. `Tank nachfuellen` waehlen.
 2. Maschinentank scannen.
 3. Die App liest Artikel, aktuelle Mix-Charge und Tankbestand aus Oxaion.
 4. Nachfuellcharge scannen.
@@ -126,15 +140,15 @@ Bedienablauf:
 
 Die App validiert Tank und Quellbestand direkt vor der Buchung erneut.
 
-Wenn der Tank laut Oxaion eindeutig leer ist, zeigt die App `Tank ist leer.`. In diesem Fall `Pulver nachfuellen` nicht verwenden, sondern `Neues Pulver in Tank fuellen` waehlen.
+Wenn der Tank laut Oxaion eindeutig leer ist, zeigt die App `Tank ist leer.`. In diesem Fall `Tank nachfuellen` nicht verwenden, sondern `Leeren Tank befuellen` waehlen.
 
-## 7. Pulver auf Fertigungsauftrag buchen
+## 7. Pulververbrauch erfassen
 
 Dieser Vorgang bucht den tatsaechlichen kumulierten Pulververbrauch auf einen Fertigungsauftrag.
 
 Bedienablauf:
 
-1. `Pulver auf Fertigungsauftrag buchen` waehlen.
+1. `Pulververbrauch erfassen` waehlen.
 2. Maschinentank scannen.
 3. Fertigungsauftrag-QR scannen.
 4. Die App prueft, ob der Rohmaterialartikel des Auftrags zum Tankartikel passt.
@@ -151,13 +165,13 @@ Wichtig:
 - Die Differenz darf nicht groesser als der aktuelle Tankbestand sein.
 - Wenn Artikel, Materialposition oder Tankzustand nicht mehr passen, stoppt die App vor der Buchung.
 
-## 8. Pulver aus Tank auslagern
+## 8. Tank entleeren
 
 Dieser Vorgang wird verwendet, wenn Pulver physisch aus einem Tank entnommen und auf einen Lagerort/Lagerplatz zurueckgelagert wird.
 
 Bedienablauf:
 
-1. `Pulver aus Tank auslagern` waehlen.
+1. `Tank entleeren` waehlen.
 2. Tank scannen.
 3. Die App zeigt Artikel, Mix-Charge und Systemmenge.
 4. Pulver physisch aus dem Tank entnehmen und Netto-Pulvermenge wiegen.
@@ -177,13 +191,13 @@ Bei `Ja` die gewuenschte positive ganze Etikettenanzahl eingeben und bestaetigen
 
 Ein Druckfehler macht die erfolgreiche Materialauslagerung nicht rueckgaengig.
 
-## 9. Neues Pulver in Tank fuellen
+## 9. Leeren Tank befuellen
 
 Dieser Vorgang ist nur fuer einen Tank vorgesehen, den Oxaion eindeutig als leer bestaetigt.
 
 Bedienablauf:
 
-1. `Neues Pulver in Tank fuellen` waehlen.
+1. `Leeren Tank befuellen` waehlen.
 2. Leeren Tank scannen.
 3. Erste Pulvercharge scannen.
 4. Die erste gueltige Charge bestimmt den Tankartikel.
@@ -198,13 +212,13 @@ Die App entscheidet anhand der finalen Quellenliste, ob eine vorhandene Mix-Char
 
 Bei einer gescannten Charge mit falschem Artikel wird diese Charge verworfen. Bereits korrekt erfasste Daten bleiben erhalten.
 
-## 10. Korrekturbuchung Fertigungsauftrag / Jobabbruch
+## 10. Jobabbruch. Verbrauch korrigieren
 
 Dieser Vorgang ist fuer einen bereits gebuchten Pulververbrauch vorgesehen, wenn der Druckjob abbricht und der tatsaechliche Verbrauch kleiner ist als die urspruenglich gebuchte Menge.
 
 Bedienablauf:
 
-1. `Korrekturbuchung Fertigungsauftrag` waehlen.
+1. `Jobabbruch. Verbrauch korrigieren` waehlen.
 2. Fertigungsauftrag scannen.
 3. Die App sucht die eindeutige urspruengliche Oxaion-Materialrueckmeldung.
 4. Tanklager und Mix-Charge werden automatisch aus dieser Originalrueckmeldung abgeleitet.
@@ -218,9 +232,9 @@ Die App storniert zuerst die urspruengliche Rueckmeldung und bucht erst danach d
 
 Wenn der Stornoausgang unklar ist, wird die zweite Buchung nicht gestartet.
 
-## 11. Lagerbestand ansehen
+## 11. Bestaende anzeigen
 
-`Lagerbestand` ist eine reine Informationsansicht und fuehrt keine Materialbuchung aus.
+Die Lagerliste selbst wird weiterhin rein lesend aus Oxaion angezeigt. Bei einer positiven Pulverlagerposition mit konkretem Lagerplatz kann der Bediener jedoch bewusst den separaten Vorgang `Umlagern` starten; erst dieser Vorgang fuehrt eine Materialbuchung ueber Oxaion aus.
 
 Die Ansicht zeigt:
 
@@ -234,6 +248,21 @@ Im Pulverlager werden pro Position angezeigt:
 - Lagerort / Lagerplatz
 - Charge
 - Menge
+
+### Pulver von Lagerplatz zu Lagerplatz umlagern
+
+Bei einer positiven Pulverlagerposition mit Lagerplatz erscheint `Umlagern`.
+
+1. Gewuenschte Bestandsposition auswaehlen und `Umlagern` tippen.
+2. Quelle, Artikel und Charge kontrollieren. Diese Werte werden aus der Lageruebersicht uebernommen und koennen nicht geaendert werden.
+3. Die App schlaegt die **volle aktuell angezeigte Menge** vor. Bei einer Teilumlagerung die Menge reduzieren.
+4. Ziellagerort auswaehlen. Der aktuelle Lagerort wird nach Moeglichkeit vorgeschlagen.
+5. Ziellagerplatz auswaehlen. Derselbe Quelllagerplatz kann nicht als Ziel gewaehlt werden.
+6. Zusammenfassung pruefen und `Umlagerung buchen` bestaetigen.
+
+Tanklager werden nicht als Ziel angeboten und sind auch serverseitig gesperrt. Direkt vor der Buchung liest die App die Quelle nochmals aus Oxaion und validiert das Ziel. Hat sich der Quellbestand seit der Anzeige geaendert, wird die Umlagerung gestoppt und die Lageruebersicht muss neu geladen werden.
+
+Die Charge bleibt bei dieser Umlagerung unveraendert. Bei unklarem Buchungsausgang **nicht erneut umlagern**, sondern `Status in Oxaion pruefen` verwenden.
 
 Die Tankliste wird dynamisch aus Oxaion gelesen. Neue Tanklagerorte erscheinen automatisch, wenn sie in der aktiven Oxaion-Umgebung als Lagerortart `02` gepflegt sind.
 

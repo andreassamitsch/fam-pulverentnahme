@@ -50,6 +50,21 @@ public sealed record TankOutLabelReprintCandidate(
     bool ReprintBlocked,
     string ReprintBlockReason);
 
+public sealed record StockRelocationRequest(
+    string ClientOperationId,
+    string PersonnelNo,
+    string PersonnelName,
+    string Article,
+    string ArticleText,
+    string SourceWarehouse,
+    string SourceWarehouseText,
+    string SourceStorageBin,
+    string Batch,
+    decimal ExpectedSourceQuantityKg,
+    decimal QuantityKg,
+    string TargetWarehouse,
+    string TargetStorageBin) : ISeparatePersonnelRequest;
+
 public sealed record FillNewRequest(
     string ClientOperationId,
     string PersonnelNo,

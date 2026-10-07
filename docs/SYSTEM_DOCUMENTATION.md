@@ -74,7 +74,9 @@ Der CI-Workflow haelt den GitHub-Actions-Artefaktspeicher bewusst klein: Nach ei
 
 `main` ist der stabile, getestete und freigegebene Integrationsstand. Installierbare Aenderungen werden auf Feature-/Fix-/Release-Branches vorbereitet, erhalten eine eindeutige neue MSI-Version und werden nach gruenem CI sowie erforderlichem Praxistest per Pull Request nach `main` uebernommen. Eine bereits bereitgestellte MSI-Version wird nicht mit anderem Inhalt wiederverwendet.
 
-Der am 07.10.2026 praxisgetestete und freigegebene Stand ist `0.1.7`. Er korrigiert den Leertank-Anzeigefehler und erweitert die In-App-Diagnose um aktive PWA-/Service-Worker-Version, sichtbaren Tankstatus und die letzte bereinigte Tank-API-Antwort.
+Der am 07.10.2026 praxisgetestete und freigegebene Stand ist `0.1.8`. Die Lagerplatz-Umlagerung aus der Pulverlagerliste wurde in Android/STAGING erfolgreich bestaetigt.
+
+Die Mitarbeiteransicht verwendet in `0.1.8` zusaetzlich die vereinfachten sichtbaren Vorgangsbezeichnungen `Tank nachfuellen`, `Pulververbrauch erfassen`, `Tank entleeren`, `Leeren Tank befuellen`, `Jobabbruch. Verbrauch korrigieren`, `Bestaende anzeigen` und `Etiketten nachdrucken`. Dies ist ausschliesslich eine UX-/Textaenderung; interne Prozess-IDs, Endpunkte und Buchungslogik bleiben unveraendert.
 
 ## STAGING und PRODUCTION
 
@@ -219,6 +221,8 @@ Die Lageruebersicht besteht aus zwei Bereichen:
 1. Maschinentanks: dynamisch aus Oxaion `ULGSTP`, jeweils mit aktuellem Tankzustand.
 2. Pulverlager: RP.*-Bestandspositionen mit Lagerort/Lagerplatz, Charge und Menge.
 
+Die Lagerliste selbst bleibt rein lesend. Bei einer positiven RP.*-Position mit konkretem Lagerplatz kann der Bediener jedoch bewusst `Umlagern` starten. Diese Aktion ist ein separater Oxaion-HTTP-Materialvorgang mit eigener `clientOperationId`; sie schreibt nicht per SQL. Quelle/Charge bleiben fix, die volle Positionsmenge wird vorgeschlagen und kann reduziert werden. Ziel-Lagerort/-lagerplatz werden serverseitig validiert; dynamische Maschinentanks sind als Ziel verboten. Vor dem Schreiben wird die exakte Quelle erneut aus Oxaion gelesen und die seit Anzeige erwartete Gesamtmenge verglichen. Die Buchung verwendet eine `LF -> LE`-Position und gilt erst nach exakter Bewegungspaar-Verifikation als erfolgreich.
+
 Bei vorhandenen Oxaion-Sachmerkmalen koennen `EFA01` und `EFA02` als Erkennungsfarben angezeigt werden. Dieselbe Farbdarstellung wird in Maschinentank- und Pulverlagerkarten verwendet. Ein am 02.10.2026 in PRODUCTION nachgewiesener Tankkarten-CSS-Fehler wurde behoben; `RP.00024` liefert `FF0000 / 833C0C` (Rot/Braun) und muss in Tank- und Lagerkarte identisch erscheinen. Artikel ohne gepflegte gueltige EFA-Werte, z. B. der bestaetigte Gegenfall `RP.00026`, zeigen bewusst kein Farbfeld. Die Farben sind nur eine visuelle Bedienhilfe und keine Buchungsfreigabe.
 
 ## Buchungssicherheit
@@ -232,6 +236,7 @@ Grundregeln:
 - eine bereits erfolgreiche Operation wird nicht erneut gebucht;
 - bei unklarem Oxaion-Ausgang niemals blind erneut buchen;
 - Quellen-, Tank-, FA- und Mitarbeiterdaten werden vor dem Schreiben revalidiert;
+- bei Lagerplatz-Umlagerungen werden Quelle, unveraenderter Ausgangsbestand, Menge, Nicht-Tank-Ziel und Ziel-Lagerplatz vor dem Schreiben erneut validiert;
 - bei Konflikten wird sicher gestoppt statt ein Wert angenommen.
 
 Wichtige serverseitige Status sind unter anderem:

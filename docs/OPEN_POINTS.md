@@ -170,7 +170,7 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [x] 06.10.2026 Android-Test von `0.1.6` ausgewertet: `Tank ist leer.` erschien noch nicht. Ursache technisch nachgewiesen: `refreshMachineStock()` setzte `machineStock` ueber `clearMachineInfo()` auf `null`, bevor der `EMPTY`-Status fuer die Bedienermeldung ausgewertet wurde. Der Diagnoseexport zeigte deshalb ebenfalls `machineStockStatus:""`.
 - [x] `0.1.7` technisch umgesetzt: gelesene Tankantwort wird vor dem UI-Clear als `resolvedStock` erhalten; `EMPTY` kann dadurch sicher `Tank ist leer.` anzeigen. Diagnose erweitert um aktive Script-/Service-Worker-Version, Cachegeneration, sichtbaren `stockStatus` und letzte bereinigte Tank-API-Antwort.
 - [x] 07.10.2026 Android/STAGING mit `0.1.7` praxisbestaetigt: der Leertank-Fall funktioniert wie vorgesehen; `Tank ist leer.` wird korrekt angezeigt. Der Stand ist fuer die Uebernahme nach `main` freigegeben.
-- [ ] Menuebezeichnungen und Kurzbeschreibungen fuer Produktionspersonal vereinfachen. Noch **nicht umgesetzt** und vor Umsetzung mit Produktionsleitung/Bedienern bestaetigen. Aktueller Vorschlag:
+- [x] 07.10.2026 Menuebezeichnungen und Kurzbeschreibungen fuer Produktionspersonal fuer `0.1.8` umgesetzt:
   - `Tank nachfuellen` — `Vorhandenes Pulver im Tank ergaenzen.`
   - `Pulververbrauch erfassen` — `Verbrauchtes Pulver einem Fertigungsauftrag zuordnen.`
   - `Tank entleeren` — `Pulver vollstaendig aus dem Tank ins Pulverlager zurueckgeben.`
@@ -178,7 +178,7 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
   - `Jobabbruch. Verbrauch korrigieren` — `Pulververbrauch nach einem abgebrochenen Druckjob berichtigen.`
   - `Bestaende anzeigen` — `Aktuelle Tank- und Pulverlagerbestaende anzeigen.`
   - `Etiketten nachdrucken` — `Etiketten einer abgeschlossenen Tankauslagerung erneut drucken.`
-  - Ziel: kurze, handlungsorientierte Begriffe; technische ERP-Begriffe wie `Korrekturbuchung`, `RP.*` und interne Mix-Chargenlogik nicht in der Menuebeschreibung verwenden, sofern sie fuer die Bedienentscheidung nicht notwendig sind.
+  - Die Aenderung betrifft nur sichtbare Bedienertexte; interne Prozess-IDs und Buchungslogik bleiben unveraendert.
 - [x] Syncos-RFID wird als alphanumerischer String behandelt. Die Web-NFC-/Reader-Darstellung darf lediglich von Trennzeichen wie `:`, `-` oder Leerzeichen bereinigt werden; keine Dezimal-, Hex- oder Byte-Reihenfolgen-Konvertierung.
 - [x] Bei NFC-Chiperkennung erzeugt die PWA unmittelbar ein kurzes Tonsignal ueber die Browser-WebAudio-API; es wird keine Audio-Datei benoetigt. Das Tonsignal bestaetigt nur die Chiperkennung, nicht bereits die erfolgreiche Syncos-/Oxaion-Zuordnung.
 - [x] Maschinentankwahl im aktuellen STAGING-Nachfuellprozess erfolgt per QR. Der Tank-QR enthaelt ausschliesslich den Oxaion-Tanklagerort, z. B. `EOS1`, und muss gegen die gepflegte Maschinen-/Tankliste validiert werden. Die sichtbare manuelle Tankauswahl wurde aus dem normalen Ablauf entfernt.
@@ -198,6 +198,22 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [ ] Online-Beauftragungsprozess fuer `Tank nachfuellen` und `Tank wechseln` durch Produktionsleitung beziehungsweise Stellvertretung definieren. Bis dahin gilt der bestehende organisatorische Uebergangsprozess mit muendlicher beziehungsweise papierbasierter Beauftragung; der alte vierteilige Entnahmeschein-QR ist fuer die neue Online-PWA keine verbindliche Buchungswahrheit.
 - [ ] Kompatibilitaetsregeln fuer vorhandenes Pulver und Mix-Chargen ueber die aktuelle Artikelgleichheit hinaus festlegen
 - [ ] Reihenfolge, Atomaritaet und Verhalten bei Teilfehlern des Pulverwechsels festlegen
+
+## Lagerplatz-Umlagerung aus Lageruebersicht 07.10.2026
+
+- [x] Fachliche Entscheidung: positive RP.*-Positionen mit konkretem Lagerplatz koennen direkt aus der Pulverlagerliste fuer `Umlagern` ausgewaehlt werden.
+- [x] Menge wird mit der vollstaendigen aktuell angezeigten Positionsmenge vorgeschlagen und darf vor der Buchung reduziert, aber nicht erhoeht werden.
+- [x] Artikel, Charge und Quellposition sind aus der angeklickten Lagerposition fest vorgegeben; kein freies Aendern dieser Buchungsschluessel.
+- [x] Ziellagerort/-lagerplatz werden aus Backend-/Oxaion-Treffern gewaehlt. Die exakte Quellposition ist als Ziel unzulaessig.
+- [x] Maschinentank-Lagerorte (`ULGSTP.LGLGART='02'`) sind als Umlagerungsziel verboten. UI filtert sie aus, Backend prueft die Tankdefinition zusaetzlich fail-closed.
+- [x] Technische Umsetzung verwendet den bestehenden bestaetigten `LF -> LE`-Materialtransfer: eine Position, Charge bleibt unveraendert, exakte Bewegungsverifikation nach dem Schreiben.
+- [x] Vor dem Schreiben werden Mitarbeiter, exakte Quellposition, seit Anzeige erwarteter Quellbestand, verfuegbare Menge sowie Ziel-Lagerort/-lagerplatz erneut serverseitig validiert.
+- [x] Umlagerung besitzt eigene `clientOperationId`, eigenen Transaktionsstatus und read-only Reconcile; bei `UNCERTAIN`/`MANUAL_REVIEW_REQUIRED` kein automatischer erneuter Buchungsversuch.
+- [x] Umlagerung ist online-only; keine automatische Offline-/Outbox-Buchung aus einem veralteten Lagerbestand.
+- [x] 07.10.2026 Android/STAGING: reale Lagerplatz-Umlagerung aus der Lageruebersicht vom Benutzer erfolgreich bestaetigt; der neue Vorgang funktioniert im Praxistest.
+- [ ] Erweiterten STAGING-Detailtest bei Gelegenheit nachholen: volle vorgeschlagene Menge und reduzierte Teilmenge jeweils pruefen und den Oxaion-Beleg auf exakt `LF` Quelle + `LE` Ziel mit gleicher Charge/Menge kontrollieren.
+- [ ] STAGING-Sicherheitstest: Tanklager darf in der Zielauswahl nicht erscheinen; manipulierter Request mit Tanklager als Ziel muss serverseitig abgelehnt werden.
+- [ ] STAGING-Konflikttest: Lagerbestand nach Laden der Uebersicht extern veraendern; vorbereitete Umlagerung muss wegen veraenderter erwarteter Quellmenge ohne Schreibvorgang stoppen.
 
 ## Erkennungsfarben Tankkarten 02.10.2026
 

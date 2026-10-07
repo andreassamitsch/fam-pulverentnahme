@@ -54,6 +54,8 @@ Die WebApp verwendet ab 02.10.2026 eine gemeinsame native SQL-Anmeldung fuer Syn
 - keine Oxaion-Zugangsdaten, Syncos-/Oxaion-SQL-Connection-Strings, Passworttransformationen, Buchungsschluessel oder vertrauenswuerdige Buchungslogik im Frontend
 - Nachfuellquellen werden nicht als freie Lagerort-/Lagerplatz-/Chargenschluessel eingegeben, sondern aus den vom Backend gelieferten aktuellen Oxaion-Bestandspositionen bestimmt
 - dieselbe Chargennummer darf auf mehreren unterschiedlichen positiven Bestandspositionen verwendet werden; Duplicate Prevention bezieht sich auf die exakte Kombination aus Lagerort, internem Lagerplatz und Charge
+- in der Lageruebersicht kann eine positive RP.*-Position mit konkretem Lagerplatz bewusst fuer `Umlagern` ausgewaehlt werden; Artikel, Charge und Quelle sind dabei fix, die aktuelle volle Positionsmenge wird vorgeschlagen und kann reduziert werden
+- Ziellagerort/-lagerplatz werden nur aus Backend-Treffern gewaehlt; dynamische Maschinentank-Lagerorte werden nicht angeboten und serverseitig zusaetzlich blockiert
 
 Der Browser-/Geraetespeicher ist nur ein Zwischenpuffer. Er ist nicht die fachlich fuehrende Datenhaltung.
 
@@ -130,6 +132,7 @@ Die Outbox muss einen Browser-Neustart und eine kurze Offline-Phase ueberstehen.
 - sichere technische Protokollierung ohne Secrets
 - Uebersetzung technischer und fachlicher Oxaion-Ergebnisse in klare Bedienermeldungen
 - `GET /api/inventory/rp-stock`: rein lesende RP.*-Lagerbestandsansicht ueber die separate Laufzeitverbindung `OxaionSql__ConnectionString`; Details in `docs/INVENTORY_VIEW.md`
+- `POST /api/stock-relocation`: eigener idempotenter Buchungsvorgang fuer eine Lagerplatz-Umlagerung aus der Lageruebersicht. Vor dem Schreiben werden Personal, exakte Quellposition/Charge/Bestand, Nicht-Tank-Ziel und Ziel-Lagerplatz erneut bestaetigt; die Buchung verwendet genau eine bestaetigte `LF -> LE`-Transferposition und wird danach auf das exakte Bewegungspaar verifiziert
 - dynamische Maschinentankdefinition aus Oxaion SQL `ULGSTP`: aktive Firma plus `LGLGART = '02'`; Lagerortcode aus `LGLAGO`, Bezeichnung aus `LGBEZC`. Keine statische EOS1/EOS2-Whitelist. Details in `docs/MACHINE_TANK_DEFINITION.md`
 - lesender Maschinenbestand aus der bestaetigten `LB30230R`-Auflistung `Chargen pro Lagerort`; Details in `docs/OXAION_MACHINE_STOCK_LOOKUP.md`
 - der Maschinenbestand ist nicht von einem gespeicherten Oxaion-Filter abhaengig: das Backend liest die vollstaendige `LB30230R`-Liste des Lagerorts und wertet direkt die bestaetigte Bedingung `LLAWEP.LALABE != 0` aus
@@ -161,6 +164,7 @@ Der direkte SQL-Zugriff auf Oxaion ist auf genau die dokumentierte rein lesende 
 - Die Oxaion-SQL-Verbindung verwendet dieselbe native SQL-Anmeldung wie Syncos, aber einen eigenen, umgebungsabhaengigen Oxaion-Datenbankkatalog.
 - Die Katalognamen fuer Oxaion STAGING und PRODUCTION werden lokal konfiguriert und nicht im Code angenommen.
 - keine `INSERT`, `UPDATE`, `DELETE`, `MERGE` oder andere schreibende ERP-Manipulationen
+- die neue Lagerplatz-Umlagerung nutzt die SQL-Bestandsansicht nur als Bediener-Einstieg. Der schreibende Vorgang laeuft ausschliesslich ueber Oxaion HTTP/Fachlogik und den bestaetigten Materialbelegweg.
 
 Die SQL-Verbindung ist kein Ersatz fuer Oxaion HTTP/Fachlogik und darf nie fuer Materialbuchungen verwendet werden.
 

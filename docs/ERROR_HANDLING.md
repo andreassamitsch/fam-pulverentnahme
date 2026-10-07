@@ -186,6 +186,26 @@ Ein App-Update darf weder einen laufenden Vorgang abbrechen noch noch nicht sync
 
 Details stehen in `docs/OFFLINE_PWA.md`.
 
+## Lagerplatz-Umlagerung
+
+Die Umlagerung aus der Lageruebersicht ist ein eigener schreibender Vorgang und folgt denselben Idempotenz- und Unklarheitsregeln wie die anderen Materialbelege.
+
+Vor Anlage des Oxaion-Belegs muss das Backend fail-closed pruefen:
+
+- angemeldeter Mitarbeiter noch exakt in Oxaion bestaetigt;
+- Quelle exakt anhand Artikel, Lagerort, internem Lagerplatz und Charge vorhanden;
+- der aktuell gelesene Quellbestand entspricht noch dem Bestand, auf dessen Basis die Umlagerung vorbereitet wurde;
+- gewuenschte Menge > 0 und weiterhin verfuegbar;
+- Quelle und Ziel sind nicht dieselbe Lagerplatzposition;
+- Ziellagerort ist **kein** dynamisch definierter Maschinentank;
+- Ziellagerort/-lagerplatz sind ueber die bestaetigten Oxaion-F4-Schluessel eindeutig.
+
+Scheitert eine dieser Pruefungen, gilt `CONFLICT` beziehungsweise ein eindeutiger Vor-Buchungsfehler; es wird kein schreibender Materialbeleg gestartet.
+
+Nach Anlage einer Belegnummer darf ein spaeterer FCOD, Timeout oder Transportabbruch nicht als Beweis fuer "nicht gebucht" interpretiert werden. Der Vorgang geht je nach Kenntnisstand in `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`. Der Bediener sieht **Nicht erneut buchen** und kann nur die bestehende Operation ueber die read-only Statuspruefung reconciliieren. Eine Reconcile-Aktion erzeugt keine neue LF/LE-Position.
+
+Die Umlagerung ist aktuell ein Online-Vorgang. Ein offline vorbereiteter oder aus einem veralteten Bestands-Snapshot abgeleiteter Transfer darf nicht automatisch synchronisiert und gebucht werden.
+
 ## Manuelle Nachbearbeitung
 
 Eine manuelle Nachbearbeitung benoetigt mindestens:

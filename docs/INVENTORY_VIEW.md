@@ -73,6 +73,23 @@ Die Informationsseite ist zweigeteilt:
 1. **Maschinentanks** ganz oben: alle dynamisch aus der aktiven Oxaion-SQL-Datenbank gelesenen Tanklagerorte der Firma mit `ULGSTP.LGLGART = '02'`. Bei eindeutigem Bestand werden Artikel, Bezeichnung, Mix-Charge, Menge und EFA01/EFA02-Erkennungsfarben angezeigt. Leere Tanks werden explizit als `Tank leer` dargestellt. Uneindeutige oder nicht lesbare Tankzustaende werden als Klaerungsfall sichtbar gemacht. Eine statische `MachineTanks:Warehouses`-Liste wird nicht mehr verwendet.
 2. **Pulverlager** darunter: pro Artikel eine flache Liste der tatsaechlichen Bestandspositionen. Jede Zeile zeigt `Lagerort / Lagerplatz` (beziehungsweise nur den Lagerort, wenn kein Lagerplatz existiert), darunter die Charge und rechts die Menge. Eine zusaetzliche Lagerort-Kopfzeile mit nochmals separaten Chargen-/Mengenzeilen wird bewusst nicht dargestellt.
 
+### Lagerplatz-Umlagerung aus der Pulverlagerliste
+
+Ab dem neuen Umlagerungs-Release kann eine positive RP.*-Bestandsposition mit **konkretem Lagerplatz** direkt in der Pulverlagerliste mit `Umlagern` ausgewaehlt werden. Die reine SQL-Lageransicht bleibt dabei unveraendert read-only; der Klick startet einen separaten, schreibenden Backend-Vorgang.
+
+Verbindlicher Ablauf:
+
+- Quelle, Artikel und Charge stammen fest aus der angeklickten Bestandsposition und sind nicht frei editierbar.
+- Die aktuell angezeigte volle Positionsmenge wird als Umlagerungsmenge vorgeschlagen. Der Bediener darf sie vor der Bestaetigung reduzieren, aber nicht erhoehen.
+- Als Ziel sind nur lagerplatzgefuehrte, aktive Oxaion-Lagerorte/Lagerplaetze zulaessig. Standardmaessig wird der aktuelle Lagerort vorgeschlagen, damit eine typische Lagerplatz-zu-Lagerplatz-Umlagerung mit wenig Eingaben moeglich ist.
+- Die exakt gleiche Quell-/Zielposition ist unzulaessig.
+- **Maschinentank-Lagerorte sind als Ziel ausgeschlossen.** Die UI filtert sie aus; das Backend prueft die dynamische Tankdefinition unmittelbar vor der Buchung nochmals und lehnt manipulierte Requests ab.
+- Vor der ersten schreibenden Oxaion-Aktion liest das Backend die exakte Quellposition ueber den bestaetigten Oxaion-HTTP-Bestandsweg erneut. Artikel, Lagerort, Lagerplatz, Charge und die seit der Anzeige erwartete Gesamtmenge muessen noch uebereinstimmen; ausserdem muss die gewuenschte Teilmenge weiterhin verfuegbar sein.
+- Ziel-Lagerort und Ziel-Lagerplatz werden vor dem Schreiben erneut ueber die bestaetigten Oxaion-F4-Listen validiert.
+- Die Buchung verwendet genau eine `LF -> LE`-Position. Die Charge bleibt unveraendert. Nach dem Schreiben muss das erwartete LF-/LE-Bewegungspaar mit Quelle, Ziel, Charge und Menge exakt im Oxaion-Beleg vorhanden sein.
+
+Der vorhandene `LF -> LE`-Baustein ist technisch bereits fuer die FAM-Materialtransfers bestaetigt. Der konkrete neue Anwendungsfall **Lagerplatz -> anderer Lagerplatz** bleibt vor Freigabe fuer `main` noch mit einer realen STAGING-Umlagerung zu bestaetigen.
+
 Die bereits bestaetigte Erkennungsfarbenlogik aus `docs/OXAION_ARTICLE_RECOGNITION_COLORS.md` wird artikelweise wiederverwendet. Der Sachmerkmalsabruf erfolgt in einem frischen, vom Tank-/Lagerlisten-Kontext getrennten Oxaion-App-Tunnel. Fuer denselben Artikel wird das aufgeloeste Farbergebnis sowohl bei Maschinentanks als auch im Pulverlager verwendet. Kann kein gueltiger HEX-Wert gelesen werden, zeigt die PWA kein leeres Farbfeld. Farben sind nur visuelle Erkennungshilfe und keine Buchungsfreigabe.
 
 ### Korrektur 05.10.2026: Farbfeld in Maschinentank-Karten
@@ -100,3 +117,5 @@ Gruende:
 ## Sicherheitsgrenze
 
 Diese Entscheidung ist **keine Freigabe fuer direkte Oxaion-Buchungen per SQL**. Schreibende Statements gegen Oxaion-Tabellen bleiben fuer die PWA unzulaessig.
+
+Auch die aus der Lageruebersicht gestartete Umlagerung ist technisch ein separater Oxaion-HTTP-/Materialbelegvorgang; SQL liefert nur die read-only Ausgangsanzeige.

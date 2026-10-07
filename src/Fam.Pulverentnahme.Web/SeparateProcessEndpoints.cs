@@ -22,6 +22,7 @@ public static class SeparateProcessFeatureExtensions
         services.AddSingleton<InventoryService>();
         services.AddSingleton<InventoryOverviewService>();
         services.AddSingleton<TargetLocationLookupService>();
+        services.AddSingleton<StockRelocationService>();
         return services;
     }
 
@@ -102,6 +103,76 @@ public static class SeparateProcessFeatureExtensions
             try { return Results.Ok(await service.SearchStorageBinsAsync(warehouse, q, ct)); }
             catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
             catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/stock-relocation/target-warehouses", async (
+            string? q,
+            HttpContext http,
+            TargetLocationLookupService targets,
+            MachineTankService tanks,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try
+            {
+                var rows = await targets.SearchWarehousesAsync(q, null, ct);
+                var tankWarehouses = (await tanks.ReadOptionsAsync(ct))
+                    .Select(x => x.Warehouse)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return Results.Ok(rows.Where(x => !tankWarehouses.Contains(x.Warehouse)).ToArray());
+            }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/stock-relocation/target-storage-bins", async (
+            string warehouse,
+            string? q,
+            HttpContext http,
+            TargetLocationLookupService targets,
+            MachineTankService tanks,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try
+            {
+                if (await tanks.IsAllowedAsync(warehouse, ct))
+                    return Results.BadRequest(new { error="Umlagerung in ein Tanklager ist nicht zulässig." });
+                return Results.Ok(await targets.SearchStorageBinsAsync(warehouse, q, ct));
+            }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapPost("/api/stock-relocation", async (
+            StockRelocationRequest request,
+            HttpContext http,
+            StockRelocationService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionMatches(http, request, out var auth)) return auth!;
+            try { return OperationResult(await service.ExecuteAsync(request, ct)); }
+            catch (ProcessConflictException ex) { return Results.Json(new { status="CONFLICT", message=ex.Message }, statusCode:409); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+        });
+        endpoints.MapGet("/api/stock-relocation/{id}", async (
+            string id,
+            HttpContext http,
+            StockRelocationService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            return await service.GetAsync(id, ct) is { } tx ? Results.Ok(tx.ToResponse()) : Results.NotFound();
+        });
+        endpoints.MapPost("/api/stock-relocation/{id}/reconcile", async (
+            string id,
+            HttpContext http,
+            StockRelocationService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return OperationResult(await service.ReconcileAsync(id, ct)); }
+            catch (KeyNotFoundException) { return Results.NotFound(); }
         });
 
         endpoints.MapPost("/api/tank-out", async (TankOutRequest request, HttpContext http, TankOutService service, CancellationToken ct) =>
