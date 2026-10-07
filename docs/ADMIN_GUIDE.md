@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der stabile auf `main` praxisgetestete und freigegebene Stand ist `0.1.8`. Aktueller Release Candidate ist `0.1.9`; dort wird in `Bestaende anzeigen` eine Pulverlagerposition zuerst ueber `Lagerplatzdetails` geoeffnet und der Button `Umlagern` nur noch in diesem Popup angeboten.
+Der am 07.10.2026 auf Android/STAGING praxisgetestete und freigegebene Stand ist `0.1.9`. In `Bestaende anzeigen` wird eine Pulverlagerposition zuerst ueber `Lagerplatzdetails` geoeffnet; der Button `Umlagern` wird nur noch in diesem Popup angeboten.
 
 ### Erstinstallation
 
