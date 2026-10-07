@@ -75,10 +75,11 @@ Die Informationsseite ist zweigeteilt:
 
 ### Lagerplatz-Umlagerung aus der Pulverlagerliste
 
-Ab dem neuen Umlagerungs-Release kann eine positive RP.*-Bestandsposition mit **konkretem Lagerplatz** direkt in der Pulverlagerliste mit `Umlagern` ausgewaehlt werden. Die reine SQL-Lageransicht bleibt dabei unveraendert read-only; der Klick startet einen separaten, schreibenden Backend-Vorgang.
+Ab Version `0.1.9` ist die Pulverlagerzeile selbst antippbar. Der erste Tipp oeffnet ein reines Detail-Popup `Lagerplatzdetails` mit Artikel, Artikelbezeichnung, Lagerort, Lagerplatz, Charge und Bestand. Der Button `Umlagern` wird **erst in diesem Popup** angezeigt und nur dann, wenn die Position fuer eine Umlagerung zulaessig ist. Die reine SQL-Lageransicht bleibt dabei unveraendert read-only; erst der bewusst im Detail-Popup gestartete Umlagerungsvorgang fuehrt in den separaten schreibenden Backend-Prozess.
 
 Verbindlicher Ablauf:
 
+- Die angeklickte Lagerposition wird zuerst nur als Detailansicht geoeffnet. Das bloße Oeffnen des Popups erzeugt keine Buchung und laedt noch keine Ziellagerplaetze.
 - Quelle, Artikel und Charge stammen fest aus der angeklickten Bestandsposition und sind nicht frei editierbar.
 - Die aktuell angezeigte volle Positionsmenge wird als Umlagerungsmenge vorgeschlagen. Der Bediener darf sie vor der Bestaetigung reduzieren, aber nicht erhoehen.
 - Als Ziel sind nur lagerplatzgefuehrte, aktive Oxaion-Lagerorte/Lagerplaetze zulaessig. Standardmaessig wird der aktuelle Lagerort vorgeschlagen, damit eine typische Lagerplatz-zu-Lagerplatz-Umlagerung mit wenig Eingaben moeglich ist.
