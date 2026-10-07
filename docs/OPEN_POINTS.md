@@ -210,7 +210,8 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [x] Vor dem Schreiben werden Mitarbeiter, exakte Quellposition, seit Anzeige erwarteter Quellbestand, verfuegbare Menge sowie Ziel-Lagerort/-lagerplatz erneut serverseitig validiert.
 - [x] Umlagerung besitzt eigene `clientOperationId`, eigenen Transaktionsstatus und read-only Reconcile; bei `UNCERTAIN`/`MANUAL_REVIEW_REQUIRED` kein automatischer erneuter Buchungsversuch.
 - [x] Umlagerung ist online-only; keine automatische Offline-/Outbox-Buchung aus einem veralteten Lagerbestand.
-- [ ] STAGING-Livetest vor Freigabe: innerhalb desselben lagerplatzgefuehrten Lagerorts eine reale RP.*-Charge von Lagerplatz A nach Lagerplatz B umlagern; Teilmenge und volle vorgeschlagene Menge pruefen; Oxaion-Beleg muss exakt `LF` Quelle + `LE` Ziel mit gleicher Charge/Menge enthalten.
+- [x] 07.10.2026 Android/STAGING: reale Lagerplatz-Umlagerung aus der Lageruebersicht vom Benutzer erfolgreich bestaetigt; der neue Vorgang funktioniert im Praxistest.
+- [ ] Erweiterten STAGING-Detailtest bei Gelegenheit nachholen: volle vorgeschlagene Menge und reduzierte Teilmenge jeweils pruefen und den Oxaion-Beleg auf exakt `LF` Quelle + `LE` Ziel mit gleicher Charge/Menge kontrollieren.
 - [ ] STAGING-Sicherheitstest: Tanklager darf in der Zielauswahl nicht erscheinen; manipulierter Request mit Tanklager als Ziel muss serverseitig abgelehnt werden.
 - [ ] STAGING-Konflikttest: Lagerbestand nach Laden der Uebersicht extern veraendern; vorbereitete Umlagerung muss wegen veraenderter erwarteter Quellmenge ohne Schreibvorgang stoppen.
 
