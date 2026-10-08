@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v50-inventory-details-20261007';
+const CACHE='fam-pulver-v51-pb-powder-20261008';
 const ASSETS=[
   '/',
   '/index.html',
@@ -16,13 +16,13 @@ const ASSETS=[
   '/submit.js?v=20261006-empty-replenish-tank-1',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20261006-empty-replenish-tank-1',
-  '/process-mode.js?v=20261007-inventory-details-1',
+  '/process-mode.js?v=20261008-pb-powder-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
-  '/process-shell.js?v=20261001-jobabort-colors-1',
+  '/process-shell.js?v=20261008-pb-powder-1',
   '/header-user-menu.js?v=20260909-header-user-2',
-  '/process-ux-optimizations.js?v=20261001-operator-ui-1',
+  '/process-ux-optimizations.js?v=20261008-pb-powder-1',
   '/process-hotfix-20260909.js?v=20261001-operator-ui-1',
   '/manifest.webmanifest',
   '/icons/fam-pulver-master.svg',
