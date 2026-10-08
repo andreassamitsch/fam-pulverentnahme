@@ -140,3 +140,17 @@ Die Scan-Schritte akzeptieren bewusst unterschiedliche Codeformen:
 Dadurch wird beispielsweise ein Fertigungsauftrag oder Entnahmeschein im Chargen-Schritt nicht stillschweigend als Charge akzeptiert.
 
 Kamera- und NFC-Funktionen benötigen auf Android einen sicheren Browserkontext. Für den vorgesehenen PWA-Betrieb gilt deshalb weiterhin HTTPS.
+
+## 5. Chargenherkunft als reine Auskunft (0.1.11)
+
+Der eigenstaendige Vorgang `Chargenherkunft anzeigen` verwendet denselben bestehenden Kamera-Scanner und exakt das bereits dokumentierte Chargenetikett-Format `Artikel+++Charge`:
+
+```text
+RP.00010+++84671
+PB.00001+++KUNDENCHARGE
+```
+
+Ein Fertigungsauftrag-QR mit drei Teilen und ein historischer Entnahmeschein-QR mit vier Teilen werden in diesem Auskunftsschritt abgelehnt. Die Kamera startet wie gewohnt ohne sofort aktive Erkennung; der Bediener stellt den Zoom ein und startet bewusst `Scannen`. Manuelle Artikel-/Chargeneingabe ist gleichwertig verfuegbar.
+
+Der Auskunftsschritt fragt ausschliesslich `GET /api/charge-origin` ab und erzeugt keine Materialbuchung. Er funktioniert nur mit Oxaion-Verbindung. Bei der Chargenherkunft aus den Maschinentank-/Lagerplatzdetails ist kein erneuter Scan noetig.
+
