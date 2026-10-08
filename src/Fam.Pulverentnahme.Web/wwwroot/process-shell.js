@@ -113,6 +113,7 @@
   }
 
   function clearProcessDisplay(clearLegacy=false){
+    window.FamChargeOriginUi?.reset?.();
     for(const id of ['outWarehouse','outStorageBin','outWarehouseLookup','outStorageBinLookup','faConsumptionAmount','abortActualAmount'])if(el(id))el(id).value='';
     for(const id of ['outTankData','fillTankData','fillArticlePanel','faTankData','faOrderData','abortOrderData']){
       const node=el(id);if(node){node.innerHTML='';node.classList.add('hidden')}
