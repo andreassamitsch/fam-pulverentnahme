@@ -101,3 +101,15 @@ Daher gilt:
 - keine Objekt-ID erfinden oder aus einem nicht bestaetigten Schema ableiten;
 - zuerst STAGING testen, ob `US17490J` mit Artikel+Charge ohne `POOBID/FIOBID` funktioniert;
 - falls Oxaion die Objekt-ID zwingend benoetigt, den dazugehoerigen bestaetigten Oxaion-Leseweg separat ermitteln und dokumentieren.
+
+## Bedienoberflaeche ab Version 0.1.11
+
+Die im STAGING vom Bediener erfolgreich gepruefte read-only Oxaion-API bleibt die einzige Quelle. Hinzu kommen zwei Einstiege:
+
+1. `Bestaende anzeigen`: Bei eindeutig belegten Maschinentanks ist die Tankkarte anklickbar und zeigt `Maschinentankdetails`. Die Pulverlagerzeile zeigt weiterhin `Lagerplatzdetails`. In beiden Detailansichten gibt es `Chargenherkunft anzeigen`. Artikel und Charge werden unveraenderbar aus der geklickten Oxaion-Bestandsposition uebernommen.
+2. Eigenstaendiger Vorgang `Chargenherkunft anzeigen`: ein Chargenetikett `Artikel+++Charge` ueber den vorhandenen Kamera-QR-Scanner scannen oder Artikelnummer und Charge manuell eingeben. Zugelassen sind `RP.*` und `PB.*` (Kundenbeistellung).
+
+Der Scanner oeffnet zuerst die Kamera und aktiviert die Erkennung erst nach bewusster Auswahl `Scannen`. Es erfolgt nur `GET /api/charge-origin`. Das Frontend zeigt die eindeutigen Grundchargen mit Artikel und optionalen von Oxaion gelieferten Metadaten wie Lieferant, Bestellung und Wareneingang. Keine Grundchargen oder ein HTTP-Fehler ergeben eine deutliche Warnung, nicht eine Buchungsfreigabe.
+
+Chargenherkunft ist online-only, erzeugt keine Buchung, keine Outbox und keinen lokalen Herkunfts-Cache. `objectId` wird nicht aus der UI erfunden oder geraten; der Einstieg ohne `objectId` wurde durch den Benutzer am 08.10.2026 fuer den Testfall erfolgreich bestaetigt. Weitere Material- und Artikelkombinationen sind im STAGING zu testen.
+
