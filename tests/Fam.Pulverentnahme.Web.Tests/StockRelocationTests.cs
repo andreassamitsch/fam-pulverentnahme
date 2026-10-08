@@ -33,6 +33,28 @@ public sealed class StockRelocationTests
     }
 
     [Fact]
+    public void CustomerSuppliedPbArticleMayUseExistingValidatedRelocation()
+    {
+        var request = Request() with { Article = "PB.00001" };
+
+        StockRelocationService.Validate(request);
+
+        var spec = Assert.Single(StockRelocationService.BuildTransferSpecs(request));
+        Assert.Equal("PB.00001", spec.Article);
+        Assert.Equal("LF", spec.BookingKey);
+    }
+
+    [Fact]
+    public void RelocationRejectsArticlesOutsideBothPowderGroups()
+    {
+        var request = Request() with { Article = "VK.00001" };
+
+        var ex = Assert.Throws<ArgumentException>(() => StockRelocationService.Validate(request));
+
+        Assert.Contains("RP.*- und PB.*-", ex.Message);
+    }
+
+    [Fact]
     public void RejectsIdenticalSourceAndTargetPosition()
     {
         var request = Request() with { TargetStorageBin = "REGPL1F01" };
