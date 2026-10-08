@@ -180,8 +180,8 @@ public sealed class StockRelocationService
             || string.IsNullOrWhiteSpace(request.TargetStorageBin))
             throw new ArgumentException("Quelle, Charge, Ziellagerort, Ziellagerplatz und Mitarbeiter sind erforderlich.");
 
-        if (!request.Article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Nur RP.* Pulverartikel dürfen aus der Lagerübersicht umgelagert werden.");
+        if (!PowderArticleRules.IsPowderArticle(request.Article))
+            throw new ArgumentException("Nur RP.*- und PB.*-Pulverartikel dürfen aus der Lagerübersicht umgelagert werden.");
 
         var expected = RoundKg(request.ExpectedSourceQuantityKg);
         var amount = RoundKg(request.QuantityKg);
