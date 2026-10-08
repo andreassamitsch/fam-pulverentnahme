@@ -300,3 +300,12 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Gemeinsamen Android-/APP-01-STAGING-Praxistest des UI-Einstiegs (Tankdetails, Lagerdetails, QR-Scan, manuelle Eingabe, Oxaion-Ausfall) durchfuehren.
 - [ ] Kunden-/Auftragszuordnung und erlaubte Verwendungszwecke fuer PB.* fachlich bestaetigen, bevor PB-Material produktiv gebucht wird.
 
+## Android-STAGING-Fix Chargenherkunft 0.1.12
+
+- [x] 08.10.2026: Fehler in 0.1.11 reproduziert: eigener Vorgang `Chargenherkunft anzeigen` reagiert weder auf `Chargenetikett scannen` noch auf `Chargenherkunft ermitteln` (Handler vor der dynamischen Form-Erzeugung gebunden).
+- [x] 0.1.12: idempotente Handler-Bindung unmittelbar nach `process-mode/ensureUi` implementiert; Herkunft-CSS wird unabhaengig von der Form-Erzeugung geladen.
+- [x] Grundchargen in separaten, lesbaren Karten; verbrauchende Fertigungsauftraege werden nicht als Herkunft angezeigt, fehlende Beschaffungsfelder bleiben ausgeblendet.
+- [x] Rote `Schliessen`-Buttons in Bestandsdetails und Herkunftsfenster; `Zurueck zu Details` im Herkunftsfenster bleibt separat.
+- [x] Node-Laufzeittest fuer spaete Handler-Bindung, QR-Scan, manuelle RP-/PB-Suche und keine Anzeige eines verbrauchenden FA angelegt.
+- [ ] 0.1.12 auf Android/APP-01 in STAGING testen: Scanner, manuelle Suche, Kartenlayout, Zurueck/Schliessen und reiner Online-Oxaion-Zugriff.
+- [ ] Fachliche Kunden-/Auftragsbindung fuer `PB.*` bleibt offen und muss vor produktivem Beistellpulververbrauch geklaert werden.
