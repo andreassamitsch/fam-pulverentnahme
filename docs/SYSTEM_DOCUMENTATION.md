@@ -323,3 +323,8 @@ Die seit `0.1.10` vorhandene read-only API `GET /api/charge-origin` wurde vom Be
 
 Die Kunden-/Auftragsbindung von PB-Beistellchargen bleibt vor produktiven PB-Materialbuchungen fachlich offen. Android-/STAGING-Praxistests der neuen UI und PB-Artikelgruppe stehen aus. MSI-Version `0.1.11` wird separat von der bereits bereitgestellten `0.1.10` gebaut.
 
+## Version 0.1.12 – Chargenherkunft Bedienkorrektur
+
+Nach dem Android-STAGING-Test von `0.1.11` wurde die spaete Erzeugung des eigenstaendigen Chargenherkunft-Panels als Ursache fuer die funktionslosen Scan-/Abfragebuttons und die unformatierte Herkunft gefunden. `0.1.12` bindet beide Buttons idempotent nach Erzeugung der dynamischen Felder, injiziert das einheitliche Herkunfts-CSS bereits bei Script-Ladung und zeigt die Grundchargen in getrennten Karten.
+
+Der als `productionOrder` gelieferte Fertigungsauftrag wird in der sichtbaren Herkunft aus Sicherheitsgruenden ausgeblendet, da er auch der verbrauchende Fertigungsauftrag sein kann. Nicht vorhandene Bestellung/Wareneingang bleiben unbefuellt; es werden keine Werte abgeleitet. Dialoge haben eigene rote `Schliessen`-Buttons sowie bei Herkunft aus Bestandsdetails getrennt `Zurueck zu Details`. Backend und PB-Artikelkreis bleiben gegenueber 0.1.11 unveraendert. PWA-Cache: `fam-pulver-v53-charge-origin-ui-fix-20261008`. MSI: `FAM-Pulverentnahme-Setup-0.1.12-x64.msi`.
