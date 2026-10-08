@@ -1,10 +1,10 @@
-# RP.* Lagerbestandsansicht
+# RP.* / PB.* Lagerbestandsansicht
 
 Stand: 05.10.2026
 
 ## Fachliches Ziel
 
-Die PWA zeigt alle aktuellen Chargenbestaende der Pulverartikel `RP.*` fuer Firma `103` beziehungsweise die konfigurierte Oxaion-Firma an.
+Die PWA zeigt alle aktuellen Chargenbestaende der Pulverartikel `RP.*` und `PB.*` (Kundenbeistellung) fuer Firma `103` beziehungsweise die konfigurierte Oxaion-Firma an.
 
 Angezeigt werden mindestens:
 
@@ -45,7 +45,7 @@ Wichtig:
 - Ein zusaetzlicher INNER JOIN auf `LLPLAP` oder `ULGSTP` darf eine reale, nicht-null Bestandszeile nicht aus der Informationsansicht herausfiltern.
 - `OXAION.UTLSTP` liefert die Mengeneinheit.
 - `OXAION.UPOSTP` ergaenzt Chargen-/Artikelbezeichnung beziehungsweise Chargendatum.
-- nur `RP.%`
+- nur `RP.%` oder `PB.%`
 - Charge darf nicht leer sein
 - Bestand `<> 0`
 
@@ -56,7 +56,7 @@ Die Korrektur vom 01.10.2026 reagiert auf den Android-/Oxaion-Befund, dass `RP.0
 - `OXAION.LLAWEP` liefert Lagerort, Artikel, Charge und Bestand `LALABE`.
 - Lagerplatz bleibt leer.
 - `OXAION.UTLSTP` und `OXAION.UPOSTP` ergaenzen Einheit/Bezeichnung/Chargendatum.
-- nur `RP.%`
+- nur `RP.%` oder `PB.%`
 - Charge darf nicht leer sein
 - Bestand `<> 0`
 - `LAGRKZ <> 'J'` bleibt als vorhandenes Kennzeichen bestehen.
@@ -71,7 +71,7 @@ Damit zeigt die Informationsansicht fuer lagerplatzgefuehrte Bestaende die konkr
 Die Informationsseite ist zweigeteilt:
 
 1. **Maschinentanks** ganz oben: alle dynamisch aus der aktiven Oxaion-SQL-Datenbank gelesenen Tanklagerorte der Firma mit `ULGSTP.LGLGART = '02'`. Bei eindeutigem Bestand werden Artikel, Bezeichnung, Mix-Charge, Menge und EFA01/EFA02-Erkennungsfarben angezeigt. Leere Tanks werden explizit als `Tank leer` dargestellt. Uneindeutige oder nicht lesbare Tankzustaende werden als Klaerungsfall sichtbar gemacht. Eine statische `MachineTanks:Warehouses`-Liste wird nicht mehr verwendet.
-2. **Pulverlager** darunter: pro Artikel eine flache Liste der tatsaechlichen Bestandspositionen. Jede Zeile zeigt `Lagerort / Lagerplatz` (beziehungsweise nur den Lagerort, wenn kein Lagerplatz existiert), darunter die Charge und rechts die Menge. Eine zusaetzliche Lagerort-Kopfzeile mit nochmals separaten Chargen-/Mengenzeilen wird bewusst nicht dargestellt.
+2. **Pulverlager** darunter: pro Artikel (RP.* oder PB.*) eine flache Liste der tatsaechlichen Bestandspositionen. Jede Zeile zeigt `Lagerort / Lagerplatz` (beziehungsweise nur den Lagerort, wenn kein Lagerplatz existiert), darunter die Charge und rechts die Menge. Eine zusaetzliche Lagerort-Kopfzeile mit nochmals separaten Chargen-/Mengenzeilen wird bewusst nicht dargestellt.
 
 ### Lagerplatz-Umlagerung aus der Pulverlagerliste
 
@@ -120,3 +120,11 @@ Gruende:
 Diese Entscheidung ist **keine Freigabe fuer direkte Oxaion-Buchungen per SQL**. Schreibende Statements gegen Oxaion-Tabellen bleiben fuer die PWA unzulaessig.
 
 Auch die aus der Lageruebersicht gestartete Umlagerung ist technisch ein separater Oxaion-HTTP-/Materialbelegvorgang; SQL liefert nur die read-only Ausgangsanzeige.
+
+## PB-Kundenbeistellpulver ab 08.10.2026
+
+`PB.*` ist ein eigener Oxaion-Artikelkreis fuer vom Kunden beigestelltes Pulver; Beispiel `PB.00001` (`AlSi10Mg`). Die read-only Abfrage liest `PB.%` zusaetzlich zu `RP.%` aus `LLPWEP` und `LLAWEP`. Bestehende Regeln fuer Firma, Chargennummer, Bestand, Lagerplatz-Deduplizierung und negative Bestaende bleiben gleich.
+
+Die PWA kennzeichnet PB-Bestaende als `Kundenbeistellung`. Diese Kennzeichnung ist keine Eigentums-/Verwendungsfreigabe. Die konkrete Verknuepfung der Charge zum Kunden/Fertigungsauftrag und ggf. Einschraenkungen fuer Maschinen/Tank und Umlagerungen bleiben vor PB-Produktiveinsatz zu bestaetigen; siehe `docs/OPEN_POINTS.md`.
+
+Technische neue API-Bezeichnung: `/api/inventory/powder-stock`. Der bestehende `/api/inventory/rp-stock`-Endpoint bleibt aus Kompatibilitaetsgruenden zunaechst bestehen und liefert ebenfalls beide Artikelgruppen. Die `/api/inventory/overview`-Antwort verwendet die gemeinsame Quelle.
