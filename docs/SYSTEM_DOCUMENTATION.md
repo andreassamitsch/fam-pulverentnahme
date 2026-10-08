@@ -282,3 +282,20 @@ Diese Systemdokumentation ist Teil des verbindlichen Projektstands.
 Bei jeder Aenderung an Architektur, Hosting, Schnittstellen, Datenquellen, Sicherheitsregeln, Umgebungskonfiguration oder Benutzerprozessen muss im selben Arbeitsschritt geprueft werden, ob diese Datei sowie `ADMIN_GUIDE.md` und `OPERATOR_GUIDE.md` angepasst werden muessen.
 
 Die Dokumentation darf nicht erst nachtraeglich oder nur im Chat aktualisiert werden. Dauerhaft relevante Aenderungen gehoeren ins Repository.
+
+## Chargenherkunft
+
+Ab 08.10.2026 besitzt das Backend einen read-only Herkunftsservice fuer Oxaion-Chargen.
+
+Endpoint:
+
+`GET /api/charge-origin/base-batches?article=<Artikel>&batch=<Charge>`
+
+Der Aufruf ist nur mit angemeldeter Mitarbeiter-Session zulaessig. Das Backend verwendet die vorhandene Oxaion-HTTP-/App-Tunnel-Verbindung und die durch Transaktionsmitschnitt bestaetigte Standardfunktion `US17490J / US17476R`. Unterbaeume werden ueber die von Oxaion gelieferten `PESSID/PEMPOS`-Schluessel rekursiv gelesen.
+
+Die Antwort wird auf eindeutige terminale Grundchargen reduziert; Oxaion bleibt fuer die Herkunftsauflösung fuehrend. Es gibt fuer diese Funktion keinen eigenen SQL-Nachbau der Chargenbeziehungen.
+
+Der technische Einstieg mit `POOBID/FIOBID=0` muss vor einer Bedienerfreigabe in STAGING bestaetigt werden. Ein optionaler `objectId`-Queryparameter dient bis dahin ausschliesslich der technischen Diagnose und ist kein vorgesehenes Bedienfeld.
+
+Details: `docs/CHARGE_ORIGIN.md`.
+
