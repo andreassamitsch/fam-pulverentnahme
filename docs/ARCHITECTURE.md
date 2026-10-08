@@ -298,3 +298,8 @@ Die Frontend-Prozessnavigation (`process-mode.js`) stellt die reine Auskunft `ch
 
 Artikel und Charge aus Bestandsdetails werden unveraendert uebernommen, ohne frei editierbare Buchungsmaske. Eine Versions-/Request-Kennung verhindert die Anzeige einer spaet eintreffenden Antwort nach Moduswechsel. Herkunftsergebnisse werden nicht im Service-Worker oder in IndexedDB zwischengespeichert. Die Oxaion-API wurde in `0.1.10` bereits unabhaengig davon realisiert; `0.1.11` fuegt Oberflaeche und PB-Artikelkreis hinzu.
 
+### Chargenherkunft-UI Initialisierung (0.1.12)
+
+Die PWA erzeugt die Vorgangspanels dynamisch. `DOMContentLoaded` bedeutet daher nicht, dass `chargeOriginProcess` bereits existiert. `process-mode.js/ensureUi()` ruft nach Erstellen der Felder explizit `FamChargeOriginUi.bind()` auf. Der Bindevorgang ist ueber `dataset.originBound` idempotent, die von Dialog und Formular gemeinsam benoetigten Stile werden schon bei Modulladung einmal angelegt. Ein Node-Laufzeittest im CI simuliert die Reihenfolge DOMContentLoaded -> Panel erst spaeter -> Binden -> Scan/Suche.
+
+Im UI werden die Oxaion-Felder Lieferant/Bestellung/Lieferschein/Wareneingang optional angezeigt. Der Backendwert `productionOrder` wird bewusst nicht visualisiert, solange aus dem Herkunftsbaum nicht nachgewiesen ist, ob er erzeugend oder verbrauchend ist. Der Lese-Endpunkt bleibt unveraendert und ist nicht gecacht.
