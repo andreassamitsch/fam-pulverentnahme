@@ -39,7 +39,7 @@ Fuer Materialbuchungen soll nach Moeglichkeit die vorhandene Oxaion BDE-/PPS-Log
 
 ### Rein lesende Oxaion-SQL-Lagerbestandsansicht
 
-Fuer die allgemeine Informationsansicht der RP.*-Chargenbestaende ist ab 08.09.2026 ein direkter **rein lesender** SQL-Zugriff des Backends auf die Oxaion-Datenbank freigegeben. Diese Ausnahme gilt nur fuer die in `docs/INVENTORY_VIEW.md` dokumentierte Bestandsabfrage und ist keine Freigabe fuer ERP-Buchungen per SQL.
+Fuer die allgemeine Informationsansicht der RP.*- und PB.*-Chargenbestaende ist ab 08.09.2026 ein direkter **rein lesender** SQL-Zugriff des Backends auf die Oxaion-Datenbank freigegeben. Diese Ausnahme gilt nur fuer die in `docs/INVENTORY_VIEW.md` dokumentierte Bestandsabfrage und ist keine Freigabe fuer ERP-Buchungen per SQL.
 
 Verbindlich ab 02.10.2026:
 
@@ -523,3 +523,14 @@ Verbindliche Entscheidung ab 08.10.2026:
 - Die beim Oxaion-UI-Einstieg sichtbare interne `POOBID/FIOBID` wird niemals erfunden. Ihr technischer Ermittlungspfad aus Artikel+Charge ist noch nicht im Mitschnitt enthalten und bleibt bis zum STAGING-Test offen.
 - Details: `docs/CHARGE_ORIGIN.md`.
 
+## Pulverartikelkreise RP.* und PB.* (08.10.2026)
+
+Neue verbindliche fachliche Information:
+
+- `RP.*`: bisheriger Pulverartikelkreis.
+- `PB.*`: vom Kunden beigestelltes Pulver. Beispiel `PB.00001` mit Artikelbezeichnung `AlSi10Mg`.
+- Beide Artikelkreise muessen in FAM-Lageranzeige, QR-/Artikelnummernerkennung und bestehenden Pulverprozessen grundsaetzlich als Pulverartikel erkannt werden.
+- Die Artikelidentitaet bleibt dabei strikt: `PB.00001` ist trotz gleicher Pulverbezeichnung kein Synonym fuer einen `RP.*`-Artikel. Der bestehende exakte Artikelvergleich bei Scans, Materialquellen und Fertigungsauftraegen darf nicht aufgeweicht werden.
+- `PB.*` wird in der Lageransicht als `Kundenbeistellung` gekennzeichnet. Diese Kennzeichnung allein bestaetigt keine Entnahmeberechtigung.
+- Buchungsprogramme, Buchungsschluessel und Oxaion-Revalidierung bleiben unveraendert; keine Buchungen per SQL.
+- Noch offen: Wie die Kunden-/Auftragsbindung der Beistellcharge technisch aus Oxaion geprueft wird, um eine unerlaubte Verwendung fuer einen anderen Kunden oder Auftrag zu verhindern. Keine Kundenzuordnung anhand der Artikelbezeichnung oder der Artikelgruppe erfinden. Vor produktivem PB-Einsatz ist diese fachliche Freigabe zu klaeren.
