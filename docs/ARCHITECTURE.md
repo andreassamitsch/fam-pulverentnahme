@@ -284,3 +284,10 @@ PWA / API
 
 Der Endpoint lautet `GET /api/charge-origin`. Der Dienst verwirft Ergebnisse ohne den im Mitschnitt bestaetigten `STOP`-Marker und begrenzt Tiefe, Knotenzahl und Gesamtzeilen fail-closed. Die interne UPOST-`POOBID/FIOBID` ist optional und wird nur weitergegeben, wenn sie bekannt ist; es wird kein Ersatzwert erzeugt. Details siehe `docs/CHARGE_ORIGIN.md`.
 
+### Pulverartikel RP und PB
+
+Die FAM-Pulverartikelkreise `RP.*` (bisheriges Pulver) und `PB.*` (kundenseitig beigestelltes Pulver) werden an der technischen Artikelkreisgrenze gemeinsam erkannt. Die allgemeine, read-only Lager-SQL-Abfrage umfasst beide Praefixe (jeweils fuer `LLPWEP` und `LLAWEP`); die Backend-Verarbeitung validiert beide mit `PowderArticleRules`.
+
+Der bisherige reine Lagerlese-Endpunkt `/api/inventory/rp-stock` bleibt aus Kompatibilitaetsgruenden erhalten. Neuer neutraler Name: `/api/inventory/powder-stock`. Beide liefern dieselbe RP/PB-Pulverauswahl; `/api/inventory/overview` nutzt die gemeinsame Lesequelle.
+
+Artikelvergleich und vorhandene Oxaion-HTTP-Revalidierung bleiben exakt und unveraendert. Eine PB-Kundenbindung ist fachlich offen und kann nicht allein durch Artikelgruppe oder gleicher Pulverbezeichnung ersetzt werden.
