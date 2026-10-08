@@ -141,7 +141,7 @@ Schreibende ERP-Aktionen erfolgen ausschliesslich ueber bestaetigte Oxaion-HTTP-
 
 Direktes SQL ist ausschliesslich fuer dokumentierte Informationsfunktionen freigegeben, zum Beispiel:
 
-- RP.*-Lagerbestandsansicht
+- RP.*-/PB.*-Lagerbestandsansicht
 - Lagerort-/Lagerplatzauswahl als Bedienhilfe
 - dynamische Maschinentankdefinition
 
@@ -219,9 +219,9 @@ Der Tank-QR wird dynamisch gegen Oxaion `ULGSTP / LGLGART = '02'` validiert. Lag
 Die Lageruebersicht besteht aus zwei Bereichen:
 
 1. Maschinentanks: dynamisch aus Oxaion `ULGSTP`, jeweils mit aktuellem Tankzustand.
-2. Pulverlager: RP.*-Bestandspositionen mit Lagerort/Lagerplatz, Charge und Menge.
+2. Pulverlager: RP.*- und PB.*-Bestandspositionen mit Lagerort/Lagerplatz, Charge und Menge.
 
-Die Lagerliste selbst bleibt rein lesend. Ab `0.1.9` oeffnet ein Tipp auf eine RP.*-Position zuerst `Lagerplatzdetails`; bei einer positiven Position mit konkretem Lagerplatz kann der Bediener dort bewusst `Umlagern` starten. Diese Aktion ist ein separater Oxaion-HTTP-Materialvorgang mit eigener `clientOperationId`; sie schreibt nicht per SQL. Quelle/Charge bleiben fix, die volle Positionsmenge wird vorgeschlagen und kann reduziert werden. Ziel-Lagerort/-lagerplatz werden serverseitig validiert; dynamische Maschinentanks sind als Ziel verboten. Vor dem Schreiben wird die exakte Quelle erneut aus Oxaion gelesen und die seit Anzeige erwartete Gesamtmenge verglichen. Die Buchung verwendet eine `LF -> LE`-Position und gilt erst nach exakter Bewegungspaar-Verifikation als erfolgreich.
+Die Lagerliste selbst bleibt rein lesend. Ab `0.1.9` oeffnet ein Tipp auf eine RP.*- oder PB.*-Position zuerst `Lagerplatzdetails`; bei einer positiven Position mit konkretem Lagerplatz kann der Bediener dort bewusst `Umlagern` starten. Diese Aktion ist ein separater Oxaion-HTTP-Materialvorgang mit eigener `clientOperationId`; sie schreibt nicht per SQL. Quelle/Charge bleiben fix, die volle Positionsmenge wird vorgeschlagen und kann reduziert werden. Ziel-Lagerort/-lagerplatz werden serverseitig validiert; dynamische Maschinentanks sind als Ziel verboten. Vor dem Schreiben wird die exakte Quelle erneut aus Oxaion gelesen und die seit Anzeige erwartete Gesamtmenge verglichen. Die Buchung verwendet eine `LF -> LE`-Position und gilt erst nach exakter Bewegungspaar-Verifikation als erfolgreich.
 
 Bei vorhandenen Oxaion-Sachmerkmalen koennen `EFA01` und `EFA02` als Erkennungsfarben angezeigt werden. Dieselbe Farbdarstellung wird in Maschinentank- und Pulverlagerkarten verwendet. Ein am 02.10.2026 in PRODUCTION nachgewiesener Tankkarten-CSS-Fehler wurde behoben; `RP.00024` liefert `FF0000 / 833C0C` (Rot/Braun) und muss in Tank- und Lagerkarte identisch erscheinen. Artikel ohne gepflegte gueltige EFA-Werte, z. B. der bestaetigte Gegenfall `RP.00026`, zeigen bewusst kein Farbfeld. Die Farben sind nur eine visuelle Bedienhilfe und keine Buchungsfreigabe.
 
@@ -298,3 +298,15 @@ Ab Version `0.1.10` ist ein eigener read-only Backend-Leseweg fuer die Oxaion-Ch
 
 Details siehe `docs/CHARGE_ORIGIN.md`.
 
+## Kundenbeistellpulver PB.*
+
+Ab dem nach `0.1.10` vorbereiteten Folgestand erkennt die WebApp neben `RP.*` auch `PB.*`-Pulverartikel (Kundenbeistellung, z. B. `PB.00001` / `AlSi10Mg`).
+
+- Die allgemeine Oxaion-SQL-Lageransicht bleibt rein lesend und filtert beide Artikelgruppen.
+- Die Lageruebersicht kennzeichnet PB-Positionen explizit als `Kundenbeistellung`.
+- Die Scanner-/Bedienlogik erkennt beide Artikelpraefixe; ein PB-Artikel wird niemals wegen gleicher Bezeichnung als RP-Artikel behandelt.
+- Die vorhandene Oxaion-HTTP-Revalidierung, Buchungsschluessel und Idempotenz werden nicht geaendert.
+- Neuer Informationsendpoint `/api/inventory/powder-stock`; alter `/api/inventory/rp-stock` bleibt als Kompatibilitaetsalias.
+- Verbindliche Kunden-/Auftragsbindung der beigestellten Charge ist **nicht** durch die Artikelgruppe technisch bewiesen und muss vor produktiver PB-Verwendung fachlich geklaert werden.
+
+Details in `docs/PROJECT_CONTEXT.md`, `docs/INVENTORY_VIEW.md` und `docs/OPEN_POINTS.md`.
