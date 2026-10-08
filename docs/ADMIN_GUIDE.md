@@ -377,3 +377,7 @@ Eine Aenderung gilt fuer den Projektstand nicht als vollstaendig dokumentiert, w
 Der neue Pulverartikelkreis `PB.*` umfasst kundenseitig beigestellte Pulverchargen. Bei einer fehlenden PB-Position die aktive STAGING-/PRODUCTION-Oxaion-SQL-Datenbank und den read-only Bestand in `OXAION.LLPWEP` und `OXAION.LLAWEP` pruefen. Die Lageransicht muss sowohl `RP.%` als auch `PB.%` enthalten.
 
 Die Test-/API-Strecke `/api/inventory/powder-stock` ist die neue neutrale Bezeichnung; `/api/inventory/rp-stock` bleibt kompatibel. Vor Freigabe produktiver PB-Buchungen muss die Kundenzuordnung und zulaessige Auftragsverwendung ueber Oxaion fachlich nachgewiesen werden.
+
+### Version 0.1.13 – Oxaion-Chargenherkunft-Zusatzspalten
+
+Die MSI `FAM-Pulverentnahme-Setup-0.1.13-x64.msi` erweitert nur den bestehenden read-only Oxaion-Herkunfts-Parser und die Darstellung. In der aktiven Oxaion-Sicht zum Programm `US17476R` muessen die Spalten `PONR.POCHNL`, `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` und `UPOVEP.PELFDT` fuer Lieferantencharge, Lieferantenname und Lieferdatum eingeblendet sein. Fehlen sie, bleiben die Zusatzfelder leer. Es werden keine neuen Oxaion-Transaktionen/SQL-Zugriffe und keine Geheimnisse benoetigt. APP-01-/Android-STAGING-Test vor der Freigabe; bestehendes Windows-Dienst/IIS-/DPAPI-Setup bleibt unveraendert.
