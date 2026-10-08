@@ -303,3 +303,9 @@ Artikel und Charge aus Bestandsdetails werden unveraendert uebernommen, ohne fre
 Die PWA erzeugt die Vorgangspanels dynamisch. `DOMContentLoaded` bedeutet daher nicht, dass `chargeOriginProcess` bereits existiert. `process-mode.js/ensureUi()` ruft nach Erstellen der Felder explizit `FamChargeOriginUi.bind()` auf. Der Bindevorgang ist ueber `dataset.originBound` idempotent, die von Dialog und Formular gemeinsam benoetigten Stile werden schon bei Modulladung einmal angelegt. Ein Node-Laufzeittest im CI simuliert die Reihenfolge DOMContentLoaded -> Panel erst spaeter -> Binden -> Scan/Suche.
 
 Im UI werden die Oxaion-Felder Lieferant/Bestellung/Lieferschein/Wareneingang optional angezeigt. Der Backendwert `productionOrder` wird bewusst nicht visualisiert, solange aus dem Herkunftsbaum nicht nachgewiesen ist, ob er erzeugend oder verbrauchend ist. Der Lese-Endpunkt bleibt unveraendert und ist nicht gecacht.
+
+### US17476R-Zusatzspalten aus bestehendem Herkunftsbaum (0.1.13)
+
+Neue read-only Spalten in `US17476R *FIRSTLIST`: `PONR.POCHNL` (externe Charge), `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` (Lieferantenname), `UPOVEP.PELFDT` (Lieferdatum). Der bestehende HTTP-Transaktionsablauf bleibt gleich, ebenso die Rekursion ueber `PESSID`/`PEMPOS`.
+
+Der Backend-Parser speichert optionale Zusatzfelder pro Herkunftszeile. Beim Zusammenfassen der terminalen Grundchargen wird die externe Charge ueber alle Zeilen derselben Artikel-/Chargenkombination eindeutig aggregiert (auch wenn sie nur bei verbrauchenden FA-Zeilen steht). Lieferantenname und ISO-Lieferdatum `yyyy-MM-dd` werden dagegen nur aus einer eindeutig passenden Wareneingangszeile uebernommen. Mehrere abweichende Wareneingaenge oder widerspruechliche Werte duerfen keine zufaellige Lieferdatum-/Lieferantenname-Zuordnung erzeugen. Die PWA zeigt das Lieferdatum als `TT.MM.JJJJ`; Bestelldatum ist bewusst ausgeschlossen. API bleibt `GET /api/charge-origin`, ohne weiteren Oxaion-Aufruf.
