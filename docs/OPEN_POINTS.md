@@ -289,3 +289,14 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [x] Exakte Oxaion-Artikelidentitaet wird weiter geprueft; gleiche Pulverbezeichnung fuehrt nicht zur Gleichsetzung von `RP.*` und `PB.*`.
 - [ ] Oxaion-Fachregel fuer die eindeutige Kunden-/Auftragsbindung von PB-Beistellchargen und die zulaessigen Verbrauchs- und Tankvorgaenge verbindlich klaeren und in der Backend-Revalidierung nachweisen. Bis dahin PB nicht allein aufgrund Artikelgruppe/gleicher Bezeichnung als kundenuebergreifend frei verfuegbar behandeln.
 - [ ] Realen STAGING-Test mit `PB.00001` oder anderer PB-Charge: Lager-/Tankdarstellung, Scan, Entnahmeort-/Bestandsleseweg, Materialtransfer und ggf. FA-Verbrauch anhand nachgewiesener Kunden-/Auftragszuordnung pruefen.
+
+## Chargenherkunft UI und PB-Kombirelease 0.1.11
+
+- [x] API `GET /api/charge-origin` in `0.1.10` vom Bediener erfolgreich getestet (08.10.2026).
+- [x] Eigener Vorgang `Chargenherkunft anzeigen` mit bestehendem Kamera-Scanner und manueller Eingabe fuer Artikel und Charge implementiert.
+- [x] `Chargenherkunft anzeigen` direkt aus den Details der Pulverlagercharge und einem eindeutig gefuellten Maschinentank implementiert.
+- [x] UI-Ergebnisliste fuer eindeutige Grundchargen und die vorhandenen Metadaten aus Oxaion implementiert; Online-only, read-only, kein Offline-Herkunftscache.
+- [x] Vorbereitete RP.*-/PB.*-Artikelkreis-Erweiterung in denselben Release-Branch `release/0.1.11` aufgenommen, ohne `0.1.10` rueckwirkend zu veraendern.
+- [ ] Gemeinsamen Android-/APP-01-STAGING-Praxistest des UI-Einstiegs (Tankdetails, Lagerdetails, QR-Scan, manuelle Eingabe, Oxaion-Ausfall) durchfuehren.
+- [ ] Kunden-/Auftragszuordnung und erlaubte Verwendungszwecke fuer PB.* fachlich bestaetigen, bevor PB-Material produktiv gebucht wird.
+
