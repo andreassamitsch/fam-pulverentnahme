@@ -51,7 +51,7 @@ public sealed class ChargeOriginUiTests
         Assert.Contains("'Wareneingang'", origin);
         Assert.Contains("requestVersion", origin);
         Assert.Contains("Keine Grundchargen ermittelt", origin);
-        Assert.Contains("'PB.", origin.Replace("^(RP|PB)", "PB.")); // PB prefix is explicitly supported.
+        Assert.Contains("^(RP|PB)", origin); // PB prefix is explicitly supported.
         Assert.DoesNotContain("localStorage", origin);
         Assert.DoesNotContain("indexedDB", origin);
         Assert.DoesNotContain("method:'POST'", origin);
