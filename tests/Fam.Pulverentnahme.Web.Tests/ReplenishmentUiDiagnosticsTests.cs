@@ -107,11 +107,11 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV51RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV52RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-v51-pb-powder-20261008", source);
+        Assert.Contains("fam-pulver-v52-charge-origin-pb-20261008", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", source);
         Assert.Contains("FAM_DIAG_VERSION_REQUEST", source);
