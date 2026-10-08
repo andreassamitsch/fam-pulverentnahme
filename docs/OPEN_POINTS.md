@@ -211,6 +211,8 @@ Details zu den nach den Android-Tests umgesetzten Korrekturen stehen in `docs/ST
 - [x] Umlagerung besitzt eigene `clientOperationId`, eigenen Transaktionsstatus und read-only Reconcile; bei `UNCERTAIN`/`MANUAL_REVIEW_REQUIRED` kein automatischer erneuter Buchungsversuch.
 - [x] Umlagerung ist online-only; keine automatische Offline-/Outbox-Buchung aus einem veralteten Lagerbestand.
 - [x] 07.10.2026 Android/STAGING: reale Lagerplatz-Umlagerung aus der Lageruebersicht vom Benutzer erfolgreich bestaetigt; der neue Vorgang funktioniert im Praxistest.
+- [x] 07.10.2026 UX-Entscheidung fuer `0.1.9`: `Umlagern` wird nicht mehr direkt in jeder Lagerzeile angezeigt. Ein Tipp auf die Pulverlagerposition oeffnet zuerst `Lagerplatzdetails` mit Artikel, Bezeichnung, Lagerort, Lagerplatz, Charge und Bestand; nur dort wird bei zulaessigen Positionen `Umlagern` angeboten.
+- [x] 07.10.2026 Android/STAGING mit `0.1.9` praxisbestaetigt: Pulverlagerzeile antippen, `Lagerplatzdetails` anzeigen und `Umlagern` erst aus dem Popup starten funktioniert wie vorgesehen.
 - [ ] Erweiterten STAGING-Detailtest bei Gelegenheit nachholen: volle vorgeschlagene Menge und reduzierte Teilmenge jeweils pruefen und den Oxaion-Beleg auf exakt `LF` Quelle + `LE` Ziel mit gleicher Charge/Menge kontrollieren.
 - [ ] STAGING-Sicherheitstest: Tanklager darf in der Zielauswahl nicht erscheinen; manipulierter Request mit Tanklager als Ziel muss serverseitig abgelehnt werden.
 - [ ] STAGING-Konflikttest: Lagerbestand nach Laden der Uebersicht extern veraendern; vorbereitete Umlagerung muss wegen veraenderter erwarteter Quellmenge ohne Schreibvorgang stoppen.

@@ -26,7 +26,7 @@ Regulaere Releases werden als MSI bereitgestellt:
 
 `FAM-Pulverentnahme-Setup-<Version>-x64.msi`
 
-Der am 07.10.2026 auf Android/STAGING praxisgetestete und freigegebene Stand ist `0.1.8`. Die Lagerplatz-Umlagerung aus der Lageruebersicht funktioniert im Praxistest; die vereinfachten Vorgangsbezeichnungen sind Bestandteil desselben Stands.
+Der am 07.10.2026 auf Android/STAGING praxisgetestete und freigegebene Stand ist `0.1.9`. In `Bestaende anzeigen` wird eine Pulverlagerposition zuerst ueber `Lagerplatzdetails` geoeffnet; der Button `Umlagern` wird nur noch in diesem Popup angeboten.
 
 ### Erstinstallation
 

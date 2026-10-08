@@ -234,7 +234,7 @@ Wenn der Stornoausgang unklar ist, wird die zweite Buchung nicht gestartet.
 
 ## 11. Bestaende anzeigen
 
-Die Lagerliste selbst wird weiterhin rein lesend aus Oxaion angezeigt. Bei einer positiven Pulverlagerposition mit konkretem Lagerplatz kann der Bediener jedoch bewusst den separaten Vorgang `Umlagern` starten; erst dieser Vorgang fuehrt eine Materialbuchung ueber Oxaion aus.
+Die Lagerliste selbst wird weiterhin rein lesend aus Oxaion angezeigt. Eine Pulverlagerposition kann angetippt werden, um zuerst `Lagerplatzdetails` anzuzeigen. Erst in diesem Detailfenster kann bei einer zulaessigen positiven Position mit Lagerplatz bewusst `Umlagern` gestartet werden; erst dieser Vorgang fuehrt eine Materialbuchung ueber Oxaion aus.
 
 Die Ansicht zeigt:
 
@@ -251,14 +251,14 @@ Im Pulverlager werden pro Position angezeigt:
 
 ### Pulver von Lagerplatz zu Lagerplatz umlagern
 
-Bei einer positiven Pulverlagerposition mit Lagerplatz erscheint `Umlagern`.
-
-1. Gewuenschte Bestandsposition auswaehlen und `Umlagern` tippen.
-2. Quelle, Artikel und Charge kontrollieren. Diese Werte werden aus der Lageruebersicht uebernommen und koennen nicht geaendert werden.
-3. Die App schlaegt die **volle aktuell angezeigte Menge** vor. Bei einer Teilumlagerung die Menge reduzieren.
-4. Ziellagerort auswaehlen. Der aktuelle Lagerort wird nach Moeglichkeit vorgeschlagen.
-5. Ziellagerplatz auswaehlen. Derselbe Quelllagerplatz kann nicht als Ziel gewaehlt werden.
-6. Zusammenfassung pruefen und `Umlagerung buchen` bestaetigen.
+1. Gewuenschte Pulverlagerposition antippen.
+2. Im Popup `Lagerplatzdetails` Artikel, Bezeichnung, Lagerort, Lagerplatz, Charge und Bestand kontrollieren.
+3. Wenn die Position umlagerbar ist, `Umlagern` tippen. Bei Negativbestand, fehlendem Lagerplatz oder nicht freigegebener Einheit wird der Button nicht angeboten und stattdessen ein Hinweis angezeigt.
+4. Quelle, Artikel und Charge bleiben aus der Lagerposition fest vorgegeben und koennen nicht geaendert werden.
+5. Die App schlaegt die **volle aktuell angezeigte Menge** vor. Bei einer Teilumlagerung die Menge reduzieren.
+6. Ziellagerort auswaehlen. Der aktuelle Lagerort wird nach Moeglichkeit vorgeschlagen.
+7. Ziellagerplatz auswaehlen. Derselbe Quelllagerplatz kann nicht als Ziel gewaehlt werden.
+8. Zusammenfassung pruefen und `Umlagerung buchen` bestaetigen.
 
 Tanklager werden nicht als Ziel angeboten und sind auch serverseitig gesperrt. Direkt vor der Buchung liest die App die Quelle nochmals aus Oxaion und validiert das Ziel. Hat sich der Quellbestand seit der Anzeige geaendert, wird die Umlagerung gestoppt und die Lageruebersicht muss neu geladen werden.
 
