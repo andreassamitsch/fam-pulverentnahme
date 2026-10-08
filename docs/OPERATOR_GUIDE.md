@@ -388,3 +388,20 @@ Neben den bisherigen `RP.*`-Pulverartikeln kann die PWA auch `PB.*`-Artikel vera
 - Beim Scannen gelten dieselben Artikel-/Chargenregeln wie bei RP; insbesondere muss der **exakte Oxaion-Artikel** uebereinstimmen.
 - Ein PB-Artikel darf niemals allein wegen gleicher Pulverbezeichnung durch einen RP-Artikel ersetzt werden.
 - Kundenbeistellung bedeutet nicht, dass das Pulver fuer alle Auftraege freigegeben ist. Die verbindliche Kunden-/Auftragszuordnung ist vor dem produktiven Einsatz organisatorisch/fachlich zu klaeren.
+
+## Chargenherkunft anzeigen (ab 0.1.11)
+
+Dieser Vorgang ist eine **reine Online-Auskunft**. Es wird weder Material bewegt noch eine Buchung vorbereitet.
+
+**Ohne vorhandene Bestandsposition:** `Vorgang auswaehlen` -> `Chargenherkunft anzeigen`.
+
+1. `Chargenetikett scannen` antippen; die Kamera oeffnet sich. Mit Zoom ausrichten und erst danach `Scannen` antippen.
+2. Ein QR-Code muss exakt `Artikel+++Charge` enthalten, z. B. `RP.00010+++84671` oder `PB.00001+++KUNDENCHARGE`.
+3. Alternativ `Artikelnummer` und `Chargennummer` von Hand eintragen und `Chargenherkunft ermitteln` antippen.
+4. Das System fragt die Oxaion-Herkunft online ab und zeigt die eindeutigen Grundchargen an. Sofern geliefert, stehen darunter Lieferant, Bestellung, Lieferschein, Wareneingang und Fertigungsauftrag.
+5. Bei keiner Grundcharge oder einem Fehler die eingebenen Werte bzw. die Oxaion-Verbindung pruefen. Es ist keine Materialbuchung erfolgt.
+
+**Aus Bestaenden:** `Bestaende anzeigen` -> belegten Maschinentank oder Pulverlagerposition antippen -> `Chargenherkunft anzeigen`. Artikel und Charge werden direkt aus der angezeigten Position verwendet; keine neue Eingabe und kein Scan erforderlich. `Zurueck zu Details` fuehrt wieder ins jeweilige Detailfenster.
+
+Bei PB.* handelt es sich um Kundenbeistellpulver. Die reine Herkunftsanzeige bestaetigt **nicht**, dass diese Charge fuer einen beliebigen Auftrag verwendet werden darf.
+
