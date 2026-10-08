@@ -88,7 +88,7 @@ public sealed class ChargeOriginService
                 throw new InvalidOperationException($"Oxaion charge origin exceeded the safety limit of {MaxExpandedNodes} expandable nodes.");
 
             IReadOnlyDictionary<string, string> input;
-            if (!node.Pempos.Contains('.', StringComparison.Ordinal))
+            if (!node.Pempos.Contains('.'))
             {
                 // The first tree expansion in the captured transaction repeats the UPOST/header
                 // context and adds the tree key.
@@ -266,7 +266,9 @@ public sealed class ChargeOriginService
         IReadOnlyDictionary<string, string> left,
         IReadOnlyDictionary<string, string> right)
     {
-        var result = new Dictionary<string, string>(left, StringComparer.Ordinal);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var pair in left)
+            result[pair.Key] = pair.Value ?? "";
         foreach (var pair in right)
             result[pair.Key] = pair.Value ?? "";
         return result;
