@@ -534,3 +534,14 @@ Neue verbindliche fachliche Information:
 - `PB.*` wird in der Lageransicht als `Kundenbeistellung` gekennzeichnet. Diese Kennzeichnung allein bestaetigt keine Entnahmeberechtigung.
 - Buchungsprogramme, Buchungsschluessel und Oxaion-Revalidierung bleiben unveraendert; keine Buchungen per SQL.
 - Noch offen: Wie die Kunden-/Auftragsbindung der Beistellcharge technisch aus Oxaion geprueft wird, um eine unerlaubte Verwendung fuer einen anderen Kunden oder Auftrag zu verhindern. Keine Kundenzuordnung anhand der Artikelbezeichnung oder der Artikelgruppe erfinden. Vor produktivem PB-Einsatz ist diese fachliche Freigabe zu klaeren.
+
+## Chargenherkunft in der FAM-Bedienoberflaeche (08.10.2026)
+
+Ab Version `0.1.11` wird die bereits ueber Oxaion HTTP implementierte reine Chargenherkunft-Auskunft in der PWA angeboten: einerseits direkt in den Details einer konkreten Pulverlagercharge bzw. eines eindeutig gefuellten Maschinentanks, andererseits als eigenstaendiger Vorgang `Chargenherkunft anzeigen` mit Scanner fuer `Artikel+++Charge` oder manueller Artikel-/Chargeneingabe.
+
+- Die Herkunft bleibt read-only, online-only und basiert ausschliesslich auf `/api/charge-origin` und der bestehenden Oxaion-Fachlogik `US17490J` / `US17476R`.
+- Die PWA zeigt eindeutige Grundchargen und deren vorhandene Herkunftsangaben; die vollstaendige technische Rekursion verbleibt im Backend.
+- RP.* und PB.* sind als getrennte Pulverartikelkreise akzeptiert. Eine gleiche Werkstoffbezeichnung erlaubt keine Vermischung der Artikel oder kundenuebergreifende PB-Verwendung.
+- Die Kunden-/Auftragsbindung von PB-Kundenbeistellung ist fachlich weiterhin offen und wird nicht durch die Chargenherkunft-Anzeige freigegeben.
+- Das neue UI wird gemeinsam mit der PB-Artikelkreis-Erweiterung in `0.1.11` getestet. Die bereitgestellte `0.1.10` MSI bleibt unveraendert.
+
