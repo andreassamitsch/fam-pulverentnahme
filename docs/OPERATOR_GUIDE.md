@@ -405,3 +405,10 @@ Dieser Vorgang ist eine **reine Online-Auskunft**. Es wird weder Material bewegt
 
 Bei PB.* handelt es sich um Kundenbeistellpulver. Die reine Herkunftsanzeige bestaetigt **nicht**, dass diese Charge fuer einen beliebigen Auftrag verwendet werden darf.
 
+## Chargenherkunft ab 0.1.12 – Bedienung
+
+**Eigener Vorgang:** `Chargenherkunft anzeigen` oeffnen. Entweder `Chargenetikett scannen` antippen, Kamera ausrichten und bewusst `Scannen` starten oder Artikel und Charge von Hand eingeben und `Chargenherkunft ermitteln` waehlen.
+
+**Aus der Bestandsansicht:** Tank oder Lagerposition antippen, dann `Chargenherkunft anzeigen`. Das Herkunftsfenster bietet `Zurueck zu Details` (zurueck ins Lagerplatz-/Tankdetail) und einen roten `Schliessen`-Button (Dialog vollstaendig schliessen). In den Bestandsdetails ist `Schliessen` ebenfalls rot.
+
+Die Grundchargen werden als einzelne, klar voneinander getrennte Karten mit Artikel/Charge und den vorhandenen Angaben zu Lieferant, Bestellung, Lieferschein und Wareneingang angezeigt. Ohne diese Felder bleibt die Karte leerer; ein **verbrauchender Fertigungsauftrag wird nicht als Herkunft ausgegeben**. Ist Oxaion nicht erreichbar, erscheint eine Fehlermeldung statt eines vermeintlich aktuellen Offline-Ergebnisses.
