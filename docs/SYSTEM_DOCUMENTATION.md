@@ -1,6 +1,6 @@
 # FAM Pulverentnahme - Systemdokumentation
 
-Stand: 05.10.2026
+Stand: 08.10.2026
 
 ## Zweck und Zielgruppe
 
@@ -272,6 +272,7 @@ Wichtige Endpunkte:
 - `/api/health/oxaion` - Oxaion-Erreichbarkeit
 - `/api/machines` - aktuell dynamisch ermittelte Tanklagerorte
 - `/api/inventory/overview` - Lageruebersicht
+- `/api/charge-origin` - read-only Oxaion-Chargenherkunft und gefilterte Grundchargen
 
 Die PWA zeigt den Verbindungszustand in der Kopfzeile. Ein gruener Zustand ist nur ein Erreichbarkeitshinweis; die eigentliche Buchungsfreigabe erfolgt immer durch die serverseitige Revalidierung.
 
@@ -282,3 +283,18 @@ Diese Systemdokumentation ist Teil des verbindlichen Projektstands.
 Bei jeder Aenderung an Architektur, Hosting, Schnittstellen, Datenquellen, Sicherheitsregeln, Umgebungskonfiguration oder Benutzerprozessen muss im selben Arbeitsschritt geprueft werden, ob diese Datei sowie `ADMIN_GUIDE.md` und `OPERATOR_GUIDE.md` angepasst werden muessen.
 
 Die Dokumentation darf nicht erst nachtraeglich oder nur im Chat aktualisiert werden. Dauerhaft relevante Aenderungen gehoeren ins Repository.
+
+## Chargenherkunft
+
+Ab Version `0.1.10` ist ein eigener read-only Backend-Leseweg fuer die Oxaion-Chargenherkunft enthalten.
+
+- Endpoint: `GET /api/charge-origin?article=<Artikel>&batch=<Charge>&objectId=<optional>`
+- Oxaion-Fachlogik: `US17490J` mit Usage `CH`, danach `US17476R`.
+- Unterbaeume werden ausschliesslich ueber die von Oxaion gelieferten `PESSID`-/`PEMPOS`-Schluessel und `SUBTREES=TRUE` rekursiv gelesen.
+- Die WebApp bildet keine eigene Chargenherkunft aus Oxaion-SQL-Tabellen nach.
+- Ausgegeben werden eindeutige Grundchargen; Zwischen-/Mixchargen mit vorhandenem Unterbaum werden ausgefiltert.
+- Ein fehlender Oxaion-`STOP`-Marker oder ueberschrittene Sicherheitsgrenzen fuehren zu einem Fehler statt zu einer vermeintlich vollstaendigen Teilantwort.
+- `POOBID/FIOBID` wird nur verwendet, wenn eine bestaetigte interne Objekt-ID vorhanden ist. Die Ermittlung dieser ID allein aus Artikel+Charge ist noch per STAGING-Livetest beziehungsweise weiterem bestaetigten Oxaion-Leseweg zu klaeren.
+
+Details siehe `docs/CHARGE_ORIGIN.md`.
+
