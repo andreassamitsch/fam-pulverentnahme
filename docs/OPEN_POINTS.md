@@ -309,3 +309,13 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [x] Node-Laufzeittest fuer spaete Handler-Bindung, QR-Scan, manuelle RP-/PB-Suche und keine Anzeige eines verbrauchenden FA angelegt.
 - [ ] 0.1.12 auf Android/APP-01 in STAGING testen: Scanner, manuelle Suche, Kartenlayout, Zurueck/Schliessen und reiner Online-Oxaion-Zugriff.
 - [ ] Fachliche Kunden-/Auftragsbindung fuer `PB.*` bleibt offen und muss vor produktivem Beistellpulververbrauch geklaert werden.
+
+## Chargenherkunft Zusatzspalten 0.1.13 (08.10.2026)
+
+- [x] Fachentscheidung: **Externe Chargennummer**, **Lieferantenname**, **Lieferdatum**; **kein Bestelldatum**.
+- [x] Originaler Transaktionsmitschnitt mit erweiterter Oxaion-Sicht ausgewertet; die drei Datenfelder sind bereits in `US17476R *FIRSTLIST` nachgewiesen. Keine weiteren Oxaion-Detailaufrufe erforderlich.
+- [x] Backend liest `PONR.POCHNL`, `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` und `UPOVEP.PELFDT`.
+- [x] Zusatzdaten fuer eindeutige Grundchargen mit sicheren Zuordnungsregeln aggregiert; fehlende/mehrdeutige Werte bleiben leer. Lieferdatum nur aus Wareneingangszeilen mit eindeutigem WE-Bezug.
+- [x] Anzeige in PWA-Grundchargenkarten, ohne Verbrauchs-FA und ohne Bestelldatum. ISO-Datum wird als `TT.MM.JJJJ` dargestellt; PWA-Cache und MSI-Version auf 0.1.13 angehoben.
+- [ ] Realen Android-/APP-01-STAGING-Test von 0.1.13 durchfuehren und bestaetigen, dass die neuen Spalten in der aktiven Oxaion-Sicht vorhanden sind, insbesondere `52993` (externe Charge), `84671` (06.05.2024) und `87911` (21.06.2024).
+- [ ] Kunden-/Auftragsbindung von `PB.*` vor produktiver Materialverwendung fachlich klaeren.
