@@ -46,6 +46,13 @@ public sealed class ChargeOriginUiTests
 
         Assert.Contains("Array.isArray(data.baseBatches)", origin);
         Assert.Contains("item?.batch", origin);
+        Assert.DoesNotContain("['productionOrder','Fertigungsauftrag']", origin);
+        Assert.Contains("function ensureStyle()", origin);
+        Assert.Contains("dataset.originBound", origin);
+        Assert.Contains("function closeOriginModal(returnToDetails=false)", origin);
+        Assert.Contains("id=\\\"chargeOriginClose\\\"", origin);
+        Assert.Contains("originCloseButton", origin);
+        Assert.Contains("window.FamChargeOriginUi?.bind?.()", WebFile("process-mode.js"));
         Assert.Contains("'Lieferant'", origin);
         Assert.Contains("'Bestellung'", origin);
         Assert.Contains("'Wareneingang'", origin);
@@ -68,11 +75,11 @@ public sealed class ChargeOriginUiTests
         Assert.Contains("'charge-origin':'chargeOriginProcess'", diag);
         Assert.Contains("'chargeOriginProcess'", diag);
         Assert.Contains("window.FamChargeOriginUi?.reset?.()", shell);
-        Assert.Contains("fam-pulver-v52-charge-origin-pb-20261008", sw);
+        Assert.Contains("fam-pulver-v53-charge-origin-ui-fix-20261008", sw);
         foreach (var url in new[]
         {
-            "/charge-origin-ui.js?v=20261008-charge-origin-1",
-            "/process-mode.js?v=20261008-charge-origin-1",
+            "/charge-origin-ui.js?v=20261008-origin-ui-fix-2",
+            "/process-mode.js?v=20261008-origin-ui-fix-2",
             "/ui-diagnostics.js?v=20261008-charge-origin-1"
         })
         {
