@@ -111,7 +111,7 @@ public sealed class ReplenishmentUiDiagnosticsTests
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-v52-charge-origin-pb-20261008", source);
+        Assert.Contains("fam-pulver-v53-charge-origin-ui-fix-20261008", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
         Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", source);
         Assert.Contains("FAM_DIAG_VERSION_REQUEST", source);
