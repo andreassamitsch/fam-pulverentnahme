@@ -2,7 +2,7 @@
 
 // STAGING UI diagnostics: no passwords, tokens, request bodies or personnel data.
 (function(){
-  const VERSION='20261006-ui-diag-5';
+  const VERSION='20261008-charge-origin-ui-diag-1';
   const STORAGE_KEY='fam-pulver-ui-diag-v1';
   const FIRST_START_RELOAD_KEY='fam-pulver-first-controlled-start';
   const MAX_ENTRIES=220;
@@ -12,7 +12,8 @@
     'fill-new':'fillNewProcess',
     'fa-consumption':'faConsumptionProcess',
     'fa-abort-correction':'faAbortProcess',
-    'inventory':'inventoryProcess'
+    'inventory':'inventoryProcess',
+    'charge-origin':'chargeOriginProcess'
   };
   const LEGACY_IDS=['machineStep','sourcesSection','bookingStep','result'];
   let entries=[];
@@ -86,7 +87,7 @@
     const workerEnhancementsScript=scriptRef('worker-enhancements.js');
     const uiDiagnosticsScript=scriptRef('ui-diagnostics.js');
     const lastMachineStockDiagnostic=window.FamLastMachineStockDiagnostic||null;
-    const ids=['loginStep','processChoiceStep',...LEGACY_IDS,'tankOutProcess','labelReprintProcess','fillNewProcess','faConsumptionProcess','faAbortProcess','inventoryProcess'];
+    const ids=['loginStep','processChoiceStep',...LEGACY_IDS,'tankOutProcess','labelReprintProcess','fillNewProcess','faConsumptionProcess','faAbortProcess','inventoryProcess','chargeOriginProcess'];
     const visibleIds=ids.filter(id=>visible(el(id)));
     const activeMode=document.querySelector('.processChoice.active')?.dataset?.mode||'';
     const expectedPanelId=PROCESS_PANELS[activeMode]||'';
