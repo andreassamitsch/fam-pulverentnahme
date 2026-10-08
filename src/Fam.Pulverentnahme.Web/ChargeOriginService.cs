@@ -15,7 +15,10 @@ public sealed record ChargeOriginRow(
     string GoodsReceipt,
     string SessionKey,
     string PositionKey,
-    bool HasSubtrees);
+    bool HasSubtrees,
+    string SupplierName = "",
+    string ExternalBatch = "",
+    string DeliveryDate = "");
 
 public sealed record ChargeOriginBaseBatch(
     string Article,
@@ -24,7 +27,10 @@ public sealed record ChargeOriginBaseBatch(
     string PurchaseOrder,
     string DeliveryNote,
     string ProductionOrder,
-    string GoodsReceipt);
+    string GoodsReceipt,
+    string SupplierName = "",
+    string ExternalBatch = "",
+    string DeliveryDate = "");
 
 public sealed record ChargeOriginResult(
     string Article,
@@ -231,7 +237,10 @@ public sealed class ChargeOriginService
                 string.Equals(
                     row.Attribute("SUBTREES")?.Value,
                     "TRUE",
-                    StringComparison.OrdinalIgnoreCase)));
+                    StringComparison.OrdinalIgnoreCase),
+                Text(row, "T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1"),
+                Text(row, "PONR.POCHNL"),
+                Text(row, "UPOVEP.PELFDT")));
         }
 
         return result;
@@ -254,10 +263,47 @@ public sealed class ChargeOriginService
             .GroupBy(BatchKey, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
-                var best = group
+                var groupRows = group.ToList();
+                // The supplier, document and delivery date belong to one Oxaion
+                // goods-receipt row, never to unrelated FA-consumption rows.
+                // If there are several distinct receipts, do not silently pick
+                // a delivery date or supplier name for one arbitrary receipt.
+                var receiptRows = groupRows
+                    .Where(x => !string.IsNullOrWhiteSpace(x.GoodsReceipt))
+                    .ToList();
+                var uniqueReceipt = UniqueValue(receiptRows.Select(x => x.GoodsReceipt));
+                var receiptCandidates = uniqueReceipt.Length > 0
+                    ? receiptRows.Where(x => string.Equals(
+                        x.GoodsReceipt, uniqueReceipt,
+                        StringComparison.OrdinalIgnoreCase)).ToList()
+                    : new List<ChargeOriginRow>();
+
+                var best = (receiptCandidates.Count > 0 ? receiptCandidates : groupRows)
                     .OrderByDescending(MetadataScore)
                     .ThenByDescending(x => x.Level)
                     .First();
+
+                // PONR.POCHNL is a property of the original batch. In the
+                // captured trace it appears on consumption rows for charge 52993,
+                // whereas supplier name / delivery date appear on goods-receipt
+                // rows for charges 84671 and 87911.
+                var externalBatch = UniqueValue(groupRows.Select(x => x.ExternalBatch));
+                var supplierName = uniqueReceipt.Length > 0
+                    ? UniqueValue(receiptCandidates
+                        .Where(x => string.Equals(x.Supplier, best.Supplier, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => x.SupplierName))
+                    : "";
+                var deliveryDate = uniqueReceipt.Length > 0
+                    ? UniqueValue(receiptCandidates
+                        .Where(x => string.Equals(x.Supplier, best.Supplier, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => x.DeliveryDate))
+                    : "";
+                if (!System.DateOnly.TryParseExact(
+                        deliveryDate, "yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None,
+                        out _))
+                    deliveryDate = "";
 
                 return new ChargeOriginBaseBatch(
                     best.Article,
@@ -266,7 +312,10 @@ public sealed class ChargeOriginService
                     best.PurchaseOrder,
                     best.DeliveryNote,
                     best.ProductionOrder,
-                    best.GoodsReceipt);
+                    best.GoodsReceipt,
+                    supplierName,
+                    externalBatch,
+                    deliveryDate);
             })
             .OrderBy(x => x.Article, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Batch, StringComparer.OrdinalIgnoreCase)
@@ -294,6 +343,17 @@ public sealed class ChargeOriginService
 
     private static string BatchKey(ChargeOriginRow row) =>
         $"{row.Article}\u001f{row.Batch}";
+
+    private static string UniqueValue(IEnumerable<string> values)
+    {
+        var distinct = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(2)
+            .ToArray();
+        return distinct.Length == 1 ? distinct[0] : "";
+    }
 
     private static int MetadataScore(ChargeOriginRow row) =>
         Score(row.Supplier)
