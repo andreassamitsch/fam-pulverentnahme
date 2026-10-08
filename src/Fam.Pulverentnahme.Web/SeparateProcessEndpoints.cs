@@ -21,6 +21,7 @@ public static class SeparateProcessFeatureExtensions
         services.AddSingleton<InventoryCorrectionService>();
         services.AddSingleton<InventoryService>();
         services.AddSingleton<InventoryOverviewService>();
+        services.AddSingleton<ChargeOriginService>();
         services.AddSingleton<TargetLocationLookupService>();
         services.AddSingleton<StockRelocationService>();
         return services;
@@ -54,6 +55,28 @@ public static class SeparateProcessFeatureExtensions
             }
             catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
             catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+        });
+
+        endpoints.MapGet("/api/charge-origin/base-batches", async (
+            string article,
+            string batch,
+            long? objectId,
+            HttpContext http,
+            ChargeOriginService service,
+            CancellationToken ct) =>
+        {
+            if (!SessionAuthenticated(http, out var auth)) return auth!;
+            try { return Results.Ok(await service.ReadBaseBatchesAsync(article, batch, objectId, ct)); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { error=ex.Message }); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Results.Json(new
+                {
+                    status="CHARGE_ORIGIN_UNAVAILABLE",
+                    message="Chargenherkunft konnte nicht sicher aus Oxaion gelesen werden.",
+                    technicalMessage=ex.Message
+                }, statusCode:503);
+            }
         });
 
         endpoints.MapGet("/api/fa-material", async (string orderNo, string article, HttpContext http, FaMaterialService service, CancellationToken ct) =>
