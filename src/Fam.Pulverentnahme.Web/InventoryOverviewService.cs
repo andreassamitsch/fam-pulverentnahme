@@ -3,7 +3,7 @@ namespace Fam.Pulverentnahme.Web;
 /// <summary>
 /// Read-only overview for the operator inventory page.
 ///
-/// The general RP.* stock SQL is the leading source for this information-only view. Machine tank
+/// The general RP.*/PB.* stock SQL is the leading source for this information-only view. Machine tank
 /// warehouses are still defined dynamically by Oxaion ULGSTP / LGLGART=02, but their displayed
 /// stock is derived from the same SQL result instead of opening one serial LB30230R HTTP session
 /// per tank. Productive tank/booking processes continue to use their confirmed Oxaion HTTP paths.
@@ -33,7 +33,7 @@ public sealed class InventoryOverviewService
     {
         // Both are read-only SQL queries against the same active Oxaion environment and can safely
         // overlap. This also guarantees that STAGING/PRODUCTION selection applies consistently.
-        var stockTask = _inventory.ReadRpStockAsync(ct);
+        var stockTask = _inventory.ReadPowderStockAsync(ct);
         var optionsTask = _machineTanks.ReadOptionsAsync(ct);
 
         var stock = await stockTask;
