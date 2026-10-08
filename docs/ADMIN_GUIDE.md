@@ -255,7 +255,7 @@ Der am 02.10.2026 bestaetigte PRD-Snapshot enthaelt `EOS1`, `EOS2`, `M400-01`, `
 Die Lageruebersicht verwendet:
 
 - Maschinentanks aus `ULGSTP / LGLGART = '02'`;
-- RP.*-Pulverlagerbestand aus den dokumentierten Oxaion-SQL-Lesewegen;
+- RP.*- und PB.*-Pulverlagerbestand aus den dokumentierten Oxaion-SQL-Lesewegen;
 - Artikel-Erkennungsfarben `EFA01`/`EFA02` ueber Oxaion HTTP-Sachmerkmale.
 
 Wenn die App andere Lagerdaten als eine direkte SQL-Abfrage zeigt, zuerst kontrollieren:
@@ -371,3 +371,9 @@ Bei jeder neuen MSI-Version sind vor der Bereitstellung zu pruefen:
 - erforderlicher APP-01/Oxaion/Android-Praxistest erfolgreich, bevor der Stand als freigegeben nach `main` uebernommen wird
 
 Eine Aenderung gilt fuer den Projektstand nicht als vollstaendig dokumentiert, wenn die betroffene System-/Admin-/Bedienerdokumentation veraltet bleibt.
+
+### PB-Kundenbeistellungen
+
+Der neue Pulverartikelkreis `PB.*` umfasst kundenseitig beigestellte Pulverchargen. Bei einer fehlenden PB-Position die aktive STAGING-/PRODUCTION-Oxaion-SQL-Datenbank und den read-only Bestand in `OXAION.LLPWEP` und `OXAION.LLAWEP` pruefen. Die Lageransicht muss sowohl `RP.%` als auch `PB.%` enthalten.
+
+Die Test-/API-Strecke `/api/inventory/powder-stock` ist die neue neutrale Bezeichnung; `/api/inventory/rp-stock` bleibt kompatibel. Vor Freigabe produktiver PB-Buchungen muss die Kundenzuordnung und zulaessige Auftragsverwendung ueber Oxaion fachlich nachgewiesen werden.
