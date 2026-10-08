@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v51-pb-powder-20261008';
+const CACHE='fam-pulver-v52-charge-origin-pb-20261008';
 const ASSETS=[
   '/',
   '/index.html',
@@ -9,14 +9,15 @@ const ASSETS=[
   '/connectivity-status.js?v=20260909-connectivity-1',
   '/qr-scanner.js?v=20260904-zoom-before-preview',
   '/app.js?v=20261006-tank-runtime-diag-1',
-  '/ui-diagnostics.js?v=20261006-tank-runtime-diag-1',
+  '/ui-diagnostics.js?v=20261008-charge-origin-1',
   '/article-colors.js?v=20260909-single-process-mode',
   '/personnel-auth.js?v=20261005-user-timeout-1',
   '/nfc.js?v=20260903-guided-worker',
   '/submit.js?v=20261006-empty-replenish-tank-1',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20261006-empty-replenish-tank-1',
-  '/process-mode.js?v=20261008-pb-powder-1',
+  '/process-mode.js?v=20261008-charge-origin-1',
+  '/charge-origin-ui.js?v=20261008-charge-origin-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',
