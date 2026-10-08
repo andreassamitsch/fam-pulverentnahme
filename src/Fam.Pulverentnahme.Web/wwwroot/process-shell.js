@@ -152,7 +152,7 @@
     const panel=el('fillArticlePanel');
     if(!panel||panel.classList.contains('hidden'))return '';
     const text=panel.querySelector('b')?.textContent||panel.textContent||'';
-    return text.match(/RP\.[A-Z0-9._-]+/i)?.[0]||'';
+    return text.match(/(?:RP|PB)\.[A-Z0-9._-]+/i)?.[0]||'';
   }
 
   function fillTankWarehouse(){
