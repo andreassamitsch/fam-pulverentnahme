@@ -326,3 +326,7 @@ Die neue Chargenherkunft-UI ist lediglich eine gecachte App-Shell: Die eigentlic
 Die neuen versionierten URLs fuer `process-mode.js` und `charge-origin-ui.js` lauten `?v=20261008-origin-ui-fix-2`. Sie stehen identisch in `index.html` und `sw.js`. Die neue Service-Worker-Cachegeneration heisst `fam-pulver-v53-charge-origin-ui-fix-20261008`. Nach dem Update werden die veralteten `fam-pulver-*`-Caches beim Worker-Aktivieren entfernt, ohne IndexedDB-/Outbox-Daten anzutasten.
 
 Die Herkunftsdaten bleiben ausschliesslich online ueber das Backend/Oxaion verfuegbar. Das Nachladen von JavaScript oder CSS aus dem App-Shell-Cache ist keine fachliche Offline-Freigabe. Die Handler-Bindung des spaet angelegten eigenen Auskunftsvorgangs wird zusaetzlich in einem Node-Laufzeittest geprueft.
+
+### PWA-Cache 0.1.13 – Grundchargen-Lieferanteninformationen
+
+`charge-origin-ui.js` wird nach der UI-Erweiterung in `index.html` und `sw.js` mit `?v=20261008-supplier-lot-date-1` geladen. Die neue Cachegeneration ist `fam-pulver-v54-origin-metadata-20261008`; die vorherigen `fam-pulver-*`-Generationen werden wie bisher auf Aktivierung entfernt. Alle eigentlichen Herkunftsdaten kommen unveraendert ausschliesslich online per `GET /api/charge-origin`; kein Cache, keine Outbox und keine Offline-Buchungsfreigabe.
