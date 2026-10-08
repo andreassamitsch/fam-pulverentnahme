@@ -264,3 +264,23 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 Nach erfolgreicher Materialauslagerung wird der optionale Lageretikettendruck als eigene Backend-Operation ausgeführt. Das Backend prüft dazu die eindeutige LE-Zielbewegung des bereits gebuchten Lagerbelegs und verwendet anschließend ausschließlich die im JET-Mitschnitt vom 29.09.2026 bestätigten Oxaion-Druckprogramme. Materialbuchung und Druckstatus bleiben getrennt; die aktuelle Druckerwarteschlange wird aus Oxaion gelesen und nicht fest im Frontend oder Backend hinterlegt.
 
 Für spätere Nachdrucke liefert ein authentifizierter read-only Endpoint die aus dem WebApp-Transaktionsspeicher abgeleiteten erfolgreichen Tank-Out-Kandidaten samt Druckhistorien-Summe und Sperrstatus. Der Nachdruck selbst verwendet denselben schreibenden Druckservice wie der unmittelbare Druck. Ein priorer `UNCERTAIN`-/`MANUAL_REVIEW_REQUIRED`-Druck derselben Tank-Out-ID wird serverseitig als Sperre behandelt. Materialbewegungen werden dabei nicht wiederholt.
+
+### Chargenherkunft
+
+Die Chargenherkunft ist eine rein lesende Oxaion-HTTP-Funktion. Das Backend rekonstruiert die Herkunft nicht selbst per SQL.
+
+Datenfluss:
+
+```text
+PWA / API
+  -> ChargeOriginService
+  -> Oxaion App-Tunnel
+  -> US17490J *LOADUSGI / *USGPARAMS (TX_USAGE=CH)
+  -> US17476R *GETHDR
+  -> US17476R *FIRSTLIST
+  -> rekursives Aufklappen von SUBTREES ueber PESSID + PEMPOS
+  -> Backend-Filter auf eindeutige Grundchargen
+```
+
+Der Endpoint lautet `GET /api/charge-origin`. Der Dienst verwirft Ergebnisse ohne den im Mitschnitt bestaetigten `STOP`-Marker und begrenzt Tiefe, Knotenzahl und Gesamtzeilen fail-closed. Die interne UPOST-`POOBID/FIOBID` ist optional und wird nur weitergegeben, wenn sie bekannt ist; es wird kein Ersatzwert erzeugt. Details siehe `docs/CHARGE_ORIGIN.md`.
+
