@@ -412,3 +412,9 @@ Bei PB.* handelt es sich um Kundenbeistellpulver. Die reine Herkunftsanzeige bes
 **Aus der Bestandsansicht:** Tank oder Lagerposition antippen, dann `Chargenherkunft anzeigen`. Das Herkunftsfenster bietet `Zurueck zu Details` (zurueck ins Lagerplatz-/Tankdetail) und einen roten `Schliessen`-Button (Dialog vollstaendig schliessen). In den Bestandsdetails ist `Schliessen` ebenfalls rot.
 
 Die Grundchargen werden als einzelne, klar voneinander getrennte Karten mit Artikel/Charge und den vorhandenen Angaben zu Lieferant, Bestellung, Lieferschein und Wareneingang angezeigt. Ohne diese Felder bleibt die Karte leerer; ein **verbrauchender Fertigungsauftrag wird nicht als Herkunft ausgegeben**. Ist Oxaion nicht erreichbar, erscheint eine Fehlermeldung statt eines vermeintlich aktuellen Offline-Ergebnisses.
+
+## Chargenherkunft mit Lieferanteninformationen ab 0.1.13
+
+Im Vorgang `Chargenherkunft anzeigen` oder im Detailfenster einer Lager-/Tankcharge werden die eindeutigen Grundchargen angezeigt. Zu jeder Grundcharge werden zusaetzlich (falls von der aktiven Oxaion-Sicht geliefert) der **Lieferantenname**, die **Externe Charge / Charge Lieferant** und das **Lieferdatum** im Format `TT.MM.JJJJ` dargestellt. Die bisherige Lieferantennummer, Bestellnummer und Wareneingangsnummer bleiben erhalten. Ein **Bestelldatum** gibt es bewusst nicht.
+
+Fehlen die Daten fuer eine Grundcharge oder sind sie nicht eindeutig, werden die betreffenden Felder weggelassen. Die Anzeige ist eine reine Online-Auskunft ohne Buchung; das Datum darf nicht ohne Beleg als Lieferdatum angenommen werden. Falls eine Oxaion-Umgebung die neuen Felder nicht liefert, prueft die IT die Sichtkonfiguration und Oxaion-Verbindung.

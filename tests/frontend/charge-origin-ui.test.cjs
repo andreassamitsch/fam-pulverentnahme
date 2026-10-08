@@ -67,8 +67,11 @@ const context = {
           article: 'PB.00001',
           batch: 'KUNDE_123',
           supplier: '3001399 000',
+          supplierName: 'IMR metal powder technologies GmbH',
+          externalBatch: 'WZ_17551102+WZ_1761113_m4p_BS2',
           purchaseOrder: '',
-          goodsReceipt: '',
+          goodsReceipt: 'FA24WE00027',
+          deliveryDate: '2024-05-06',
           productionOrder: 'FA23FI00006'
         }]
       }
@@ -113,6 +116,13 @@ async function tick() {
   assert.match(status.textContent, /1 Grundcharge aus Oxaion ermittelt/);
   assert.match(output.innerHTML, /KUNDE_123/);
   assert.match(output.innerHTML, /Lieferant/);
+  assert.match(output.innerHTML, /IMR metal powder technologies GmbH/);
+  assert.match(output.innerHTML, /Lieferantenname/);
+  assert.match(output.innerHTML, /Externe Charge/);
+  assert.match(output.innerHTML, /WZ_17551102/);
+  assert.match(output.innerHTML, /Lieferdatum/);
+  assert.match(output.innerHTML, /06\.05\.2024/);
+  assert.doesNotMatch(output.innerHTML, /Bestelldatum/);
   assert.doesNotMatch(output.innerHTML, /FA23FI00006|Fertigungsauftrag/,
     'A consuming production order must not be presented as a base-batch origin');
 

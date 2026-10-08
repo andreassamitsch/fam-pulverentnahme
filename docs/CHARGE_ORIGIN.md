@@ -120,3 +120,34 @@ Der 0.1.11-STAGING-Test vom 08.10.2026 zeigte: Aufruf der Herkunft aus einem Pul
 Ab `0.1.12` wird `FamChargeOriginUi.bind()` direkt nach `ensureUi()` aufgerufen, idempotent; die Styles werden unabhaengig davon einmal bei Modulladung registriert. Ein neuer JavaScript-Laufzeittest bildet genau die vorher fehlerhafte asynchrone DOM-Reihenfolge nach und prueft sowohl Kamera-Scan als auch manuelle Abfrage.
 
 UI-Aenderungen: eigenstaendige, deutlich abgegrenzte Grundchargenkarten mit lesbaren Beschriftungen, flexibler Darstellung auf Android und optionalen Beschaffungsdaten. Der mit `ChargeOriginBaseBatch.ProductionOrder` vom Oxaion-Read-Service gelieferte FA wird **in der UI nicht angezeigt**, weil der Datensatz einen verbrauchenden statt den Ursprungs-FA enthalten kann. Ohne beschaffungsbezogene Felder wird kein Ersatzwert erdacht. `Zurueck zu Details` stellt das jeweilige Tank-/Lagerdetail wieder her; der neue rote `Schliessen`-Button schliesst die Herkunft vollstaendig. In den Bestandsdetails ist der bestehende `Schliessen`-Button ebenfalls rot. Es wurden keine Backend-/Buchungsaufrufe geaendert.
+
+## Version 0.1.13 – Herkunftszusatzdaten ohne neue Oxaion-Transaktionen
+
+Neue Quelle: 112 XML-Dateien aus `Chargenherkunft mit Lieferant, L-Charge und Datum.7z` (08.10.2026). Der Mitschnitt belegt, dass alle gewuenschten Zusatzdaten direkt mit denselben `US17476R *FIRSTLIST`-Antworten zurueckkommen. Die Spalten wurden vom Anwender in der Oxaion-Sicht hinzugefuegt:
+
+| Oxaion XML-Feld | Sichtbeschriftung | API-Feld | UI-Feld |
+| --- | --- | --- | --- |
+| `PONR.POCHNL` | Charge Lieferant | `externalBatch` | Externe Charge |
+| `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` | Lieferant | `supplierName` | Lieferantenname |
+| `UPOVEP.PELFDT` | Lieferdatum | `deliveryDate` | Lieferdatum |
+
+Die vorhandenen Felder `supplier`, `purchaseOrder`, `goodsReceipt` usw. bleiben erhalten. **Kein Bestelldatum:** Der Anwender hat die Anforderung explizit gestrichen. `UPOVEP.PELFDT` ist das von Oxaion als Lieferdatum beschriftete Feld. Es wird nicht als Einkaufsbestelldatum oder ungeprueft als Wareneingangs-Buchungsdatum umgedeutet.
+
+Verifizierte Beispielzeilen:
+- Grundcharge `84671`: `supplier=3001399 000`, `supplierName=IMR metal powder technologies GmbH`, `goodsReceipt=FA24WE00027`, `deliveryDate=2024-05-06`.
+- Grundcharge `87911`: gleicher Lieferant, `goodsReceipt=FA24WE00038`, `deliveryDate=2024-06-21`.
+- Grundcharge `52993`: `externalBatch=WZ_17551102+WZ_1761113_m4p_BS2` in Verbrauchszeilen, jedoch weder Wareneingang noch Lieferdatum in diesen Zeilen.
+
+Zusammenfuehrung: Die externe Charge wird nur bei eindeutigem Wert fuer dieselbe Artikel-/Chargenkombination ausgegeben. Lieferantenname und Lieferdatum werden nur aus einer eindeutig identifizierten Wareneingangsreferenz derselben Grundcharge und passend zur Lieferantenkennung verwendet. Bei widerspruechlichen Wareneingaengen, abweichenden Daten oder fehlendem/ungueltigem ISO-Datum bleiben diese optionalen Werte leer. Eine FA-Verbrauchszeile darf kein Lieferdatum vortaeuschen. Das bisherige Vollstaendigkeits-/Doppelbuchungs-Sicherheitskonzept wird nicht geaendert.
+
+Die Oxaion-Sichtkonfiguration mit den neuen Spalten muss auf der produktiv abgefragten Oxaion-Umgebung verfuegbar sein. Falls sie dort fehlt, funktionieren die Herkunftsdaten weiter, die drei Felder bleiben leer. Das Frontend zeigt ISO-Lieferdaten als `TT.MM.JJJJ` an. Keine weiteren Oxaion-Transaktionen, kein zusaetzlicher SQL-Leseweg.
+
+Automatisierte Tests decken 84671, 87911, 52993, fehlende und kollidierende Felder ab. Der reale Android-/APP-01-Test der `0.1.13` ist vor Merge erforderlich.
+
+## Betrieb/Freigabe 0.1.13: stabile technische Oxaion-Sicht
+
+Am 08.10.2026 wurde im produktiven Test die Ursache fuer fehlende Zusatzfelder identifiziert: `US17476R *FIRSTLIST` liefert die Spalten gemaess der individuellen Oxaion-Sicht des **serverseitig konfigurierten HTTP-Benutzers**. Die drei Felder sind nur in der entsprechenden Sicht dieses Benutzers vorhanden. Der Anwender hat diese benutzerabhaengige Betriebsweise fuer Version `0.1.13` ausdruecklich freigegeben; der technische Benutzer soll unveraendert bleiben. Die getrennte Anmeldung eines PWA-Produktionsmitarbeiters beeinflusst die HTTP-Kennung nicht.
+
+Verbindlicher Betriebscheck bei geplanter/ungeplanter Aenderung der Oxaion-HTTP-Kennung, deren Rechten oder Sicht: Fuer `US17476R` muessen `PONR.POCHNL`, `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` und `UPOVEP.PELFDT` in der tatsaechlich aktiven Ansicht verfuegbar sein. Danach die Herkunft einer bekannten Grundcharge mit einem tatsaechlich vorhandenen Zusatzwert in der FAM-PWA pruefen. Ohne die Spalten gibt das vorhandene Backend weiterhin die Grundchargen zurueck, laesst aber die betreffenden Zusatzwerte leer. Diese bewusst akzeptierte Einschraenkung ist **keine** automatische Laufzeit-Konfigurationspruefung.
+
+Weitere Absicherung durch eine feste Oxaion-Fachauskunft oder eine automatische Pruefung der gelieferten Spalten kann spaeter separat entschieden werden. Am getesteten `0.1.13`-Code und an der bestehenden MSI wird fuer diese Betriebsentscheidung nichts geaendert.

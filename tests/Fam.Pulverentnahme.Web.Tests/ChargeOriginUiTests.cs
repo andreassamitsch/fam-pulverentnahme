@@ -54,6 +54,11 @@ public sealed class ChargeOriginUiTests
         Assert.Contains("originCloseButton", origin);
         Assert.Contains("window.FamChargeOriginUi?.bind?.()", WebFile("process-mode.js"));
         Assert.Contains("'Lieferant'", origin);
+        Assert.Contains("'supplierName','Lieferantenname'", origin);
+        Assert.Contains("'externalBatch','Externe Charge'", origin);
+        Assert.Contains("'deliveryDate','Lieferdatum'", origin);
+        Assert.Contains("formatDeliveryDate", origin);
+        Assert.DoesNotContain("Bestelldatum", origin);
         Assert.Contains("'Bestellung'", origin);
         Assert.Contains("'Wareneingang'", origin);
         Assert.Contains("requestVersion", origin);
@@ -75,10 +80,10 @@ public sealed class ChargeOriginUiTests
         Assert.Contains("'charge-origin':'chargeOriginProcess'", diag);
         Assert.Contains("'chargeOriginProcess'", diag);
         Assert.Contains("window.FamChargeOriginUi?.reset?.()", shell);
-        Assert.Contains("fam-pulver-v53-charge-origin-ui-fix-20261008", sw);
+        Assert.Contains("fam-pulver-v54-origin-metadata-20261008", sw);
         foreach (var url in new[]
         {
-            "/charge-origin-ui.js?v=20261008-origin-ui-fix-2",
+            "/charge-origin-ui.js?v=20261008-supplier-lot-date-1",
             "/process-mode.js?v=20261008-origin-ui-fix-2",
             "/ui-diagnostics.js?v=20261008-charge-origin-1"
         })
