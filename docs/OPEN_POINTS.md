@@ -309,3 +309,15 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [x] Node-Laufzeittest fuer spaete Handler-Bindung, QR-Scan, manuelle RP-/PB-Suche und keine Anzeige eines verbrauchenden FA angelegt.
 - [ ] 0.1.12 auf Android/APP-01 in STAGING testen: Scanner, manuelle Suche, Kartenlayout, Zurueck/Schliessen und reiner Online-Oxaion-Zugriff.
 - [ ] Fachliche Kunden-/Auftragsbindung fuer `PB.*` bleibt offen und muss vor produktivem Beistellpulververbrauch geklaert werden.
+
+## Zusatzdaten Chargenherkunft – externe Charge und Datumsfelder (08.10.2026)
+
+- [x] Android-STAGING-Test `0.1.12`: Chargenherkunft-Oberflaeche funktionsfaehig und lesbar; freigegeben und in `main` uebernommen (PR #25).
+- [x] Originale `US17476R *FIRSTLIST`-Mitschnitte auf externe Chargennummer, Wareneingangsdatum und Bestelldatum geprueft: keine dieser Informationen enthalten.
+- [x] Fachliche Oxaion-Dokumentation bestaetigt `Externe Charge` auf Wareneingangspositionen, Datum im Wareneingang und Bestelldatum in Einkaufsbelegen. Dies ist noch kein bestaetigter HTTP-Detailaufruf.
+- [ ] Exakte Oxaion-HTTP-Transaktionen fuer die Zusatzfelder durch Mitschnitt von konkreter Grundcharge/Wareneingangsposition und zugehoeriger Einkaufsbestellung ermitteln, inklusive Artikel-/Chargen-/Belegpositions-Abgleich.
+- [ ] Backend-Enrichment fuer **Externe Chargennummer**, **Wareneingangsdatum** und **Bestelldatum** nur auf Basis bestaetigter read-only Oxaion-Daten implementieren. Bei fehlender/mehrdeutiger Referenz optionale Werte leer lassen.
+- [ ] Keine Verwechslung von Eingangsdatum, Lieferdatum oder spaeterem Materialbewegungsdatum; keine Verwechslung von Einkaufsbestelldatum und Fertigungsauftragsdatum.
+- [ ] Nach Implementierung UI-Karten aktualisieren, Testfaelle fuer Grundchargen ohne WE/Bestellung bzw. mehrfachen WE/Bestellpositionen anlegen, PWA-Cache aktualisieren und fuer die neue MSI-Version einen realen APP-01-/Oxaion-Test absolvieren.
+
+Details siehe `docs/CHARGE_ORIGIN.md`.
