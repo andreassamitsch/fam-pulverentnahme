@@ -3,7 +3,7 @@
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
     <InstallerPlatform>x64</InstallerPlatform>
-    <ProductVersion>0.1.10</ProductVersion>
+    <ProductVersion>0.1.11</ProductVersion>
     <OutputName>FAM-Pulverentnahme-Setup-$(ProductVersion)-x64</OutputName>
     <DefineConstants>PublishDir=$(PublishDir);ProductVersion=$(ProductVersion)</DefineConstants>
   </PropertyGroup>
