@@ -60,7 +60,7 @@
           'Oxaion konnte die Chargenherkunft nicht lesen. Bitte Verbindung prüfen und erneut versuchen.');
       }
       const body=resultHtml(response.body,query);
-      render('ok',response.body.baseBatches.length+
+      render(response.body.baseBatches.length?'ok':'warn',response.body.baseBatches.length+
         ' Grundcharge(n) aus Oxaion ermittelt.',body);
     }catch(error){
       if(ticket===requestVersion)render('bad',
