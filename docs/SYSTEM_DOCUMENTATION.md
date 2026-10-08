@@ -1,6 +1,6 @@
 # FAM Pulverentnahme - Systemdokumentation
 
-Stand: 05.10.2026
+Stand: 08.10.2026
 
 ## Zweck und Zielgruppe
 
@@ -141,7 +141,7 @@ Schreibende ERP-Aktionen erfolgen ausschliesslich ueber bestaetigte Oxaion-HTTP-
 
 Direktes SQL ist ausschliesslich fuer dokumentierte Informationsfunktionen freigegeben, zum Beispiel:
 
-- RP.*-Lagerbestandsansicht
+- RP.*-/PB.*-Lagerbestandsansicht
 - Lagerort-/Lagerplatzauswahl als Bedienhilfe
 - dynamische Maschinentankdefinition
 
@@ -219,9 +219,9 @@ Der Tank-QR wird dynamisch gegen Oxaion `ULGSTP / LGLGART = '02'` validiert. Lag
 Die Lageruebersicht besteht aus zwei Bereichen:
 
 1. Maschinentanks: dynamisch aus Oxaion `ULGSTP`, jeweils mit aktuellem Tankzustand.
-2. Pulverlager: RP.*-Bestandspositionen mit Lagerort/Lagerplatz, Charge und Menge.
+2. Pulverlager: RP.*- und PB.*-Bestandspositionen mit Lagerort/Lagerplatz, Charge und Menge.
 
-Die Lagerliste selbst bleibt rein lesend. Ab `0.1.9` oeffnet ein Tipp auf eine RP.*-Position zuerst `Lagerplatzdetails`; bei einer positiven Position mit konkretem Lagerplatz kann der Bediener dort bewusst `Umlagern` starten. Diese Aktion ist ein separater Oxaion-HTTP-Materialvorgang mit eigener `clientOperationId`; sie schreibt nicht per SQL. Quelle/Charge bleiben fix, die volle Positionsmenge wird vorgeschlagen und kann reduziert werden. Ziel-Lagerort/-lagerplatz werden serverseitig validiert; dynamische Maschinentanks sind als Ziel verboten. Vor dem Schreiben wird die exakte Quelle erneut aus Oxaion gelesen und die seit Anzeige erwartete Gesamtmenge verglichen. Die Buchung verwendet eine `LF -> LE`-Position und gilt erst nach exakter Bewegungspaar-Verifikation als erfolgreich.
+Die Lagerliste selbst bleibt rein lesend. Ab `0.1.9` oeffnet ein Tipp auf eine RP.*- oder PB.*-Position zuerst `Lagerplatzdetails`; bei einer positiven Position mit konkretem Lagerplatz kann der Bediener dort bewusst `Umlagern` starten. Diese Aktion ist ein separater Oxaion-HTTP-Materialvorgang mit eigener `clientOperationId`; sie schreibt nicht per SQL. Quelle/Charge bleiben fix, die volle Positionsmenge wird vorgeschlagen und kann reduziert werden. Ziel-Lagerort/-lagerplatz werden serverseitig validiert; dynamische Maschinentanks sind als Ziel verboten. Vor dem Schreiben wird die exakte Quelle erneut aus Oxaion gelesen und die seit Anzeige erwartete Gesamtmenge verglichen. Die Buchung verwendet eine `LF -> LE`-Position und gilt erst nach exakter Bewegungspaar-Verifikation als erfolgreich.
 
 Bei vorhandenen Oxaion-Sachmerkmalen koennen `EFA01` und `EFA02` als Erkennungsfarben angezeigt werden. Dieselbe Farbdarstellung wird in Maschinentank- und Pulverlagerkarten verwendet. Ein am 02.10.2026 in PRODUCTION nachgewiesener Tankkarten-CSS-Fehler wurde behoben; `RP.00024` liefert `FF0000 / 833C0C` (Rot/Braun) und muss in Tank- und Lagerkarte identisch erscheinen. Artikel ohne gepflegte gueltige EFA-Werte, z. B. der bestaetigte Gegenfall `RP.00026`, zeigen bewusst kein Farbfeld. Die Farben sind nur eine visuelle Bedienhilfe und keine Buchungsfreigabe.
 
@@ -272,6 +272,7 @@ Wichtige Endpunkte:
 - `/api/health/oxaion` - Oxaion-Erreichbarkeit
 - `/api/machines` - aktuell dynamisch ermittelte Tanklagerorte
 - `/api/inventory/overview` - Lageruebersicht
+- `/api/charge-origin` - read-only Oxaion-Chargenherkunft und gefilterte Grundchargen
 
 Die PWA zeigt den Verbindungszustand in der Kopfzeile. Ein gruener Zustand ist nur ein Erreichbarkeitshinweis; die eigentliche Buchungsfreigabe erfolgt immer durch die serverseitige Revalidierung.
 
@@ -282,3 +283,48 @@ Diese Systemdokumentation ist Teil des verbindlichen Projektstands.
 Bei jeder Aenderung an Architektur, Hosting, Schnittstellen, Datenquellen, Sicherheitsregeln, Umgebungskonfiguration oder Benutzerprozessen muss im selben Arbeitsschritt geprueft werden, ob diese Datei sowie `ADMIN_GUIDE.md` und `OPERATOR_GUIDE.md` angepasst werden muessen.
 
 Die Dokumentation darf nicht erst nachtraeglich oder nur im Chat aktualisiert werden. Dauerhaft relevante Aenderungen gehoeren ins Repository.
+
+## Chargenherkunft
+
+Ab Version `0.1.10` ist ein eigener read-only Backend-Leseweg fuer die Oxaion-Chargenherkunft enthalten.
+
+- Endpoint: `GET /api/charge-origin?article=<Artikel>&batch=<Charge>&objectId=<optional>`
+- Oxaion-Fachlogik: `US17490J` mit Usage `CH`, danach `US17476R`.
+- Unterbaeume werden ausschliesslich ueber die von Oxaion gelieferten `PESSID`-/`PEMPOS`-Schluessel und `SUBTREES=TRUE` rekursiv gelesen.
+- Die WebApp bildet keine eigene Chargenherkunft aus Oxaion-SQL-Tabellen nach.
+- Ausgegeben werden eindeutige Grundchargen; Zwischen-/Mixchargen mit vorhandenem Unterbaum werden ausgefiltert.
+- Ein fehlender Oxaion-`STOP`-Marker oder ueberschrittene Sicherheitsgrenzen fuehren zu einem Fehler statt zu einer vermeintlich vollstaendigen Teilantwort.
+- `POOBID/FIOBID` wird nur verwendet, wenn eine bestaetigte interne Objekt-ID vorhanden ist. Die Ermittlung dieser ID allein aus Artikel+Charge ist noch per STAGING-Livetest beziehungsweise weiterem bestaetigten Oxaion-Leseweg zu klaeren.
+
+Details siehe `docs/CHARGE_ORIGIN.md`.
+
+## Kundenbeistellpulver PB.*
+
+Ab dem nach `0.1.10` vorbereiteten Folgestand erkennt die WebApp neben `RP.*` auch `PB.*`-Pulverartikel (Kundenbeistellung, z. B. `PB.00001` / `AlSi10Mg`).
+
+- Die allgemeine Oxaion-SQL-Lageransicht bleibt rein lesend und filtert beide Artikelgruppen.
+- Die Lageruebersicht kennzeichnet PB-Positionen explizit als `Kundenbeistellung`.
+- Die Scanner-/Bedienlogik erkennt beide Artikelpraefixe; ein PB-Artikel wird niemals wegen gleicher Bezeichnung als RP-Artikel behandelt.
+- Die vorhandene Oxaion-HTTP-Revalidierung, Buchungsschluessel und Idempotenz werden nicht geaendert.
+- Neuer Informationsendpoint `/api/inventory/powder-stock`; alter `/api/inventory/rp-stock` bleibt als Kompatibilitaetsalias.
+- Verbindliche Kunden-/Auftragsbindung der beigestellten Charge ist **nicht** durch die Artikelgruppe technisch bewiesen und muss vor produktiver PB-Verwendung fachlich geklaert werden.
+
+Details in `docs/PROJECT_CONTEXT.md`, `docs/INVENTORY_VIEW.md` und `docs/OPEN_POINTS.md`.
+
+## Version 0.1.11 – PB-Kundenbeistellung und Chargenherkunft-UI
+
+Die seit `0.1.10` vorhandene read-only API `GET /api/charge-origin` wurde vom Bediener fuer einen realen Herkunftstest als funktionierend gemeldet. Mit `0.1.11` folgen:
+
+- eigener Vorgang `Chargenherkunft anzeigen` mit Kamera-QR `Artikel+++Charge` oder manueller Artikel-/Chargeneingabe;
+- derselbe Auskunftsaufruf direkt aus den Details der Pulverlagercharge und einem eindeutig belegten Maschinentank;
+- eindeutige Grundchargen inklusive optionaler von Oxaion gelieferter Herkunftsdaten; keine Materialbuchung;
+- Aufnahme des PB.*-Kundenbeistellpulvers in Lager-SQL, Scanner-/Artikelerkennung, Lagerdarstellung und die bisherige genau validierte Lagerplatz-Umlagerung;
+- PWA-Shell-Cachegeneration `fam-pulver-v52-charge-origin-pb-20261008`.
+
+Die Kunden-/Auftragsbindung von PB-Beistellchargen bleibt vor produktiven PB-Materialbuchungen fachlich offen. Android-/STAGING-Praxistests der neuen UI und PB-Artikelgruppe stehen aus. MSI-Version `0.1.11` wird separat von der bereits bereitgestellten `0.1.10` gebaut.
+
+## Version 0.1.12 – Chargenherkunft Bedienkorrektur
+
+Nach dem Android-STAGING-Test von `0.1.11` wurde die spaete Erzeugung des eigenstaendigen Chargenherkunft-Panels als Ursache fuer die funktionslosen Scan-/Abfragebuttons und die unformatierte Herkunft gefunden. `0.1.12` bindet beide Buttons idempotent nach Erzeugung der dynamischen Felder, injiziert das einheitliche Herkunfts-CSS bereits bei Script-Ladung und zeigt die Grundchargen in getrennten Karten.
+
+Der als `productionOrder` gelieferte Fertigungsauftrag wird in der sichtbaren Herkunft aus Sicherheitsgruenden ausgeblendet, da er auch der verbrauchende Fertigungsauftrag sein kann. Nicht vorhandene Bestellung/Wareneingang bleiben unbefuellt; es werden keine Werte abgeleitet. Dialoge haben eigene rote `Schliessen`-Buttons sowie bei Herkunft aus Bestandsdetails getrennt `Zurueck zu Details`. Backend und PB-Artikelkreis bleiben gegenueber 0.1.11 unveraendert. PWA-Cache: `fam-pulver-v53-charge-origin-ui-fix-20261008`. MSI: `FAM-Pulverentnahme-Setup-0.1.12-x64.msi`.

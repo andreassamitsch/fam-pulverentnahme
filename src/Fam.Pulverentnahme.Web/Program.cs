@@ -34,6 +34,7 @@ builder.Services.AddSingleton<PersonnelService>();
 builder.Services.AddSingleton<RfidPersonnelService>();
 builder.Services.AddPersonnelAuthentication(builder.Configuration);
 builder.Services.AddSingleton<MixBookingService>();
+builder.Services.AddSingleton<ChargeOriginService>();
 builder.Services.AddSeparateProcessFeatures();
 
 var app = builder.Build();
@@ -185,6 +186,7 @@ app.MapGet("/api/personnel/search", async (string q, PersonnelService service, C
 
 app.MapPersonnelAuthentication();
 app.MapSeparateProcessEndpoints();
+app.MapChargeOriginEndpoints();
 
 // Preferred worker login: the RFID assignment is read from Syncos and the resulting personnel
 // identity is revalidated exactly in Oxaion. Only after both checks succeed is the same backend

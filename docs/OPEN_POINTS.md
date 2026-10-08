@@ -270,3 +270,42 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Verhalten bei neuer App-Version und offenen `PENDING_SYNC`-Vorgaengen im Detail festlegen
 - [ ] Browser Background Sync nur als optionale Optimierung pruefen; Zuverlaessigkeit darf nicht davon abhaengen
 - [ ] Installations-/Rollout-Konzept fuer verwaltete Android-Geraete festlegen
+
+## Chargenherkunft 08.10.2026
+
+- [x] Reale Oxaion-Transaktionsmitschnitte fuer `Chargenherkunft ermitteln (CH)` ausgewertet: Einstieg ueber `US17490J`, Herkunftsanzeige `US17476R`, Baumauflistung `*FIRSTLIST`.
+- [x] Baumrekursion technisch bestaetigt: `ROW SUBTREES="TRUE"` wird mit erneutem `US17476R *FIRSTLIST` ueber `PESSID + PEMPOS` und `NoHeader=true` aufgeloest.
+- [x] Backend-`ChargeOriginService` und `GET /api/charge-origin` fuer `0.1.10` umgesetzt; keine SQL-Rekonstruktion der Herkunft.
+- [x] Grundchargenfilter umgesetzt: Artikel-/Chargen-Kombinationen mit mindestens einem `SUBTREES=TRUE`-Knoten gelten als Zwischen-/Mixcharge; terminale Dubletten werden zusammengefasst.
+- [x] Fail-closed-Vollstaendigkeits- und Sicherheitsgrenzen umgesetzt: `STOP` erforderlich, maximale Tiefe/Knoten/Zeilen, keine doppelte Expansion desselben `PESSID/PEMPOS`.
+- [ ] STAGING-Livetest von `0.1.10` mit einer bekannten Mixcharge durchfuehren und Ergebnis gegen die Oxaion-Oberflaeche vergleichen.
+- [ ] Im STAGING-Test klaeren, ob `US17490J` den Einstieg nur mit Artikel+Charge ohne `POOBID/FIOBID` akzeptiert. Falls nein, den bestaetigten Oxaion-Leseweg zur internen UPOST-Objekt-ID ermitteln; keine Objekt-ID erfinden.
+
+## PB Kundenbeistellpulver 08.10.2026
+
+- [x] `PB.*` als neuen Pulverartikelkreis dokumentiert: Kundenbeistellung, z. B. `PB.00001` / `AlSi10Mg`.
+- [x] Lager-SQL und Mapper sowie Umlagerungsartikelpruefung und betroffene Frontend-Erkennungsroutinen neben `RP.*` auch um `PB.*` erweitert.
+- [x] `PB.*`-Bestand in der Lageruebersicht als `Kundenbeistellung` markiert.
+- [x] Exakte Oxaion-Artikelidentitaet wird weiter geprueft; gleiche Pulverbezeichnung fuehrt nicht zur Gleichsetzung von `RP.*` und `PB.*`.
+- [ ] Oxaion-Fachregel fuer die eindeutige Kunden-/Auftragsbindung von PB-Beistellchargen und die zulaessigen Verbrauchs- und Tankvorgaenge verbindlich klaeren und in der Backend-Revalidierung nachweisen. Bis dahin PB nicht allein aufgrund Artikelgruppe/gleicher Bezeichnung als kundenuebergreifend frei verfuegbar behandeln.
+- [ ] Realen STAGING-Test mit `PB.00001` oder anderer PB-Charge: Lager-/Tankdarstellung, Scan, Entnahmeort-/Bestandsleseweg, Materialtransfer und ggf. FA-Verbrauch anhand nachgewiesener Kunden-/Auftragszuordnung pruefen.
+
+## Chargenherkunft UI und PB-Kombirelease 0.1.11
+
+- [x] API `GET /api/charge-origin` in `0.1.10` vom Bediener erfolgreich getestet (08.10.2026).
+- [x] Eigener Vorgang `Chargenherkunft anzeigen` mit bestehendem Kamera-Scanner und manueller Eingabe fuer Artikel und Charge implementiert.
+- [x] `Chargenherkunft anzeigen` direkt aus den Details der Pulverlagercharge und einem eindeutig gefuellten Maschinentank implementiert.
+- [x] UI-Ergebnisliste fuer eindeutige Grundchargen und die vorhandenen Metadaten aus Oxaion implementiert; Online-only, read-only, kein Offline-Herkunftscache.
+- [x] Vorbereitete RP.*-/PB.*-Artikelkreis-Erweiterung in denselben Release-Branch `release/0.1.11` aufgenommen, ohne `0.1.10` rueckwirkend zu veraendern.
+- [ ] Gemeinsamen Android-/APP-01-STAGING-Praxistest des UI-Einstiegs (Tankdetails, Lagerdetails, QR-Scan, manuelle Eingabe, Oxaion-Ausfall) durchfuehren.
+- [ ] Kunden-/Auftragszuordnung und erlaubte Verwendungszwecke fuer PB.* fachlich bestaetigen, bevor PB-Material produktiv gebucht wird.
+
+## Android-STAGING-Fix Chargenherkunft 0.1.12
+
+- [x] 08.10.2026: Fehler in 0.1.11 reproduziert: eigener Vorgang `Chargenherkunft anzeigen` reagiert weder auf `Chargenetikett scannen` noch auf `Chargenherkunft ermitteln` (Handler vor der dynamischen Form-Erzeugung gebunden).
+- [x] 0.1.12: idempotente Handler-Bindung unmittelbar nach `process-mode/ensureUi` implementiert; Herkunft-CSS wird unabhaengig von der Form-Erzeugung geladen.
+- [x] Grundchargen in separaten, lesbaren Karten; verbrauchende Fertigungsauftraege werden nicht als Herkunft angezeigt, fehlende Beschaffungsfelder bleiben ausgeblendet.
+- [x] Rote `Schliessen`-Buttons in Bestandsdetails und Herkunftsfenster; `Zurueck zu Details` im Herkunftsfenster bleibt separat.
+- [x] Node-Laufzeittest fuer spaete Handler-Bindung, QR-Scan, manuelle RP-/PB-Suche und keine Anzeige eines verbrauchenden FA angelegt.
+- [ ] 0.1.12 auf Android/APP-01 in STAGING testen: Scanner, manuelle Suche, Kartenlayout, Zurueck/Schliessen und reiner Online-Oxaion-Zugriff.
+- [ ] Fachliche Kunden-/Auftragsbindung fuer `PB.*` bleibt offen und muss vor produktivem Beistellpulververbrauch geklaert werden.

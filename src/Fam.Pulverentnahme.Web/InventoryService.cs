@@ -51,7 +51,7 @@ FROM
  AND P.POPONR = B.LPPONR
  WHERE B.LPFIRM = @firm
  AND B.LPPONR <> N''
- AND B.LPIDNR LIKE N'RP.%'
+ AND (B.LPIDNR LIKE N'RP.%' OR B.LPIDNR LIKE N'PB.%')
  AND B.LPLABE <> 0
 
  UNION ALL
@@ -77,7 +77,7 @@ FROM
  AND P.POPONR = LA.LAPONR
  WHERE LA.LAFIRM = @firm
  AND LA.LAPONR <> N''
- AND LA.LAIDNR LIKE N'RP.%'
+ AND (LA.LAIDNR LIKE N'RP.%' OR LA.LAIDNR LIKE N'PB.%')
  AND LA.LALABE <> 0
  AND LA.LAGRKZ <> N'J'
  AND NOT EXISTS
@@ -100,7 +100,7 @@ ORDER BY
  TRIM(X.Charge);
 """;
 
-    public async Task<IReadOnlyList<InventoryPosition>> ReadRpStockAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<InventoryPosition>> ReadPowderStockAsync(CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_sql.ConnectionString))
             throw new InvalidOperationException(
@@ -125,7 +125,7 @@ ORDER BY
             var article = Text(reader, "Artikel");
             var warehouse = Text(reader, "Lagerort");
             var batch = Text(reader, "Charge");
-            if (!article.StartsWith("RP.", StringComparison.OrdinalIgnoreCase)
+            if (!PowderArticleRules.IsPowderArticle(article)
                 || string.IsNullOrWhiteSpace(warehouse)
                 || string.IsNullOrWhiteSpace(batch))
                 continue;

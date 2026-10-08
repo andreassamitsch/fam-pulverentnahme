@@ -65,12 +65,16 @@ public static class SeparateProcessFeatureExtensions
             catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
         });
 
-        endpoints.MapGet("/api/inventory/rp-stock", async (HttpContext http, InventoryService service, CancellationToken ct) =>
+        // Canonical powder-stock endpoint; retain the old RP-named route for existing clients.
+        foreach (var route in new[] { "/api/inventory/powder-stock", "/api/inventory/rp-stock" })
         {
-            if (!SessionAuthenticated(http, out var auth)) return auth!;
-            try { return Results.Ok(await service.ReadRpStockAsync(ct)); }
-            catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
-        });
+            endpoints.MapGet(route, async (HttpContext http, InventoryService service, CancellationToken ct) =>
+            {
+                if (!SessionAuthenticated(http, out var auth)) return auth!;
+                try { return Results.Ok(await service.ReadPowderStockAsync(ct)); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { return Results.Problem(ex.Message, statusCode:503); }
+            });
+        }
 
         endpoints.MapGet("/api/inventory/overview", async (HttpContext http, InventoryOverviewService service, CancellationToken ct) =>
         {

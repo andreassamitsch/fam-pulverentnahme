@@ -25,8 +25,8 @@ public sealed class InventoryServiceTests
         Assert.Contains("CAST(X.Artikel as nvarchar(12))", sql);
         Assert.Contains("CAST(X.Artikelbezeichnung as nvarchar(20))", sql);
         Assert.Contains("TRIM(X.Charge)", sql);
-        Assert.Contains("B.LPIDNR LIKE N'RP.%'", sql);
-        Assert.Contains("LA.LAIDNR LIKE N'RP.%'", sql);
+        Assert.Contains("(B.LPIDNR LIKE N'RP.%' OR B.LPIDNR LIKE N'PB.%')", sql);
+        Assert.Contains("(LA.LAIDNR LIKE N'RP.%' OR LA.LAIDNR LIKE N'PB.%')", sql);
         Assert.Contains("B.LPLABE <> 0", sql);
         Assert.Contains("LA.LALABE <> 0", sql);
         Assert.Contains("B.LPFIRM = @firm", sql);

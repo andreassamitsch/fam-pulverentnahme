@@ -148,7 +148,7 @@
     }
   }
 
-  function fillArticle(){return (el('fillArticlePanel')?.textContent||'').match(/RP\.[A-Z0-9._-]+/i)?.[0]||''}
+  function fillArticle(){return (el('fillArticlePanel')?.textContent||'').match(/(?:RP|PB)\.[A-Z0-9._-]+/i)?.[0]||''}
   function sourceBatch(card){
     const text=card?.querySelector('b')?.textContent||'';
     return text.replace(/^\s*Charge\s+\d+\s*:\s*/i,'').trim();
@@ -213,7 +213,7 @@
     if(!input||!data||data.classList.contains('hidden'))return;
     const required=num(lastKgText(detailValue('Soll laut Stückliste'))||detailValue('Soll laut Stückliste'));
     const already=num(lastKgText(detailValue('Bereits tatsächlich gebucht'))||detailValue('Bereits tatsächlich gebucht'));
-    // Important: faTankData begins with an RP article number. The last value explicitly followed
+    // Important: faTankData begins with an RP or PB article number. The last value explicitly followed
     // by "kg" is the actual Oxaion tank quantity; parsing the first number reproduced the 10 kg bug.
     const tankQty=num(lastKgText(el('faTankData')?.textContent||''));
     if(!Number.isFinite(required)||!Number.isFinite(already)||!Number.isFinite(tankQty))return;

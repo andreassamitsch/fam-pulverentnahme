@@ -94,6 +94,8 @@ Beispiel:
 
 `RP.00010+++87911`
 
+Bei Kundenbeistellpulver entsprechend beispielsweise `PB.00001+++<Charge>`.
+
 Die App prueft Artikel, Charge, Lagerort/Lagerplatz und aktuellen Bestand gegen Oxaion.
 
 ### Fertigungsauftrag-QR
@@ -377,3 +379,36 @@ Passwoerter oder andere Zugangsdaten niemals in Screenshots, Chats oder Fehlerme
 Dieses Bedienerhandbuch beschreibt den aktuellen Bedienstand der App.
 
 Wenn sich Prozessreihenfolge, sichtbare Felder, Scannerablauf, Meldungen, Anmeldeverfahren oder Bedienregeln aendern, muss dieses Dokument im selben Entwicklungsschritt aktualisiert werden.
+
+## Kundenbeistellpulver PB.*
+
+Neben den bisherigen `RP.*`-Pulverartikeln kann die PWA auch `PB.*`-Artikel verarbeiten. `PB.*` kennzeichnet Pulver, das ein Kunde fuer seine Auftraege beistellt, beispielsweise `PB.00001` / `AlSi10Mg`.
+
+- Die Lagerliste fuehrt PB-Artikel separat und kennzeichnet sie als `Kundenbeistellung`.
+- Beim Scannen gelten dieselben Artikel-/Chargenregeln wie bei RP; insbesondere muss der **exakte Oxaion-Artikel** uebereinstimmen.
+- Ein PB-Artikel darf niemals allein wegen gleicher Pulverbezeichnung durch einen RP-Artikel ersetzt werden.
+- Kundenbeistellung bedeutet nicht, dass das Pulver fuer alle Auftraege freigegeben ist. Die verbindliche Kunden-/Auftragszuordnung ist vor dem produktiven Einsatz organisatorisch/fachlich zu klaeren.
+
+## Chargenherkunft anzeigen (ab 0.1.11)
+
+Dieser Vorgang ist eine **reine Online-Auskunft**. Es wird weder Material bewegt noch eine Buchung vorbereitet.
+
+**Ohne vorhandene Bestandsposition:** `Vorgang auswaehlen` -> `Chargenherkunft anzeigen`.
+
+1. `Chargenetikett scannen` antippen; die Kamera oeffnet sich. Mit Zoom ausrichten und erst danach `Scannen` antippen.
+2. Ein QR-Code muss exakt `Artikel+++Charge` enthalten, z. B. `RP.00010+++84671` oder `PB.00001+++KUNDENCHARGE`.
+3. Alternativ `Artikelnummer` und `Chargennummer` von Hand eintragen und `Chargenherkunft ermitteln` antippen.
+4. Das System fragt die Oxaion-Herkunft online ab und zeigt die eindeutigen Grundchargen an. Sofern geliefert, stehen darunter Lieferant, Bestellung, Lieferschein, Wareneingang und Fertigungsauftrag.
+5. Bei keiner Grundcharge oder einem Fehler die eingebenen Werte bzw. die Oxaion-Verbindung pruefen. Es ist keine Materialbuchung erfolgt.
+
+**Aus Bestaenden:** `Bestaende anzeigen` -> belegten Maschinentank oder Pulverlagerposition antippen -> `Chargenherkunft anzeigen`. Artikel und Charge werden direkt aus der angezeigten Position verwendet; keine neue Eingabe und kein Scan erforderlich. `Zurueck zu Details` fuehrt wieder ins jeweilige Detailfenster.
+
+Bei PB.* handelt es sich um Kundenbeistellpulver. Die reine Herkunftsanzeige bestaetigt **nicht**, dass diese Charge fuer einen beliebigen Auftrag verwendet werden darf.
+
+## Chargenherkunft ab 0.1.12 – Bedienung
+
+**Eigener Vorgang:** `Chargenherkunft anzeigen` oeffnen. Entweder `Chargenetikett scannen` antippen, Kamera ausrichten und bewusst `Scannen` starten oder Artikel und Charge von Hand eingeben und `Chargenherkunft ermitteln` waehlen.
+
+**Aus der Bestandsansicht:** Tank oder Lagerposition antippen, dann `Chargenherkunft anzeigen`. Das Herkunftsfenster bietet `Zurueck zu Details` (zurueck ins Lagerplatz-/Tankdetail) und einen roten `Schliessen`-Button (Dialog vollstaendig schliessen). In den Bestandsdetails ist `Schliessen` ebenfalls rot.
+
+Die Grundchargen werden als einzelne, klar voneinander getrennte Karten mit Artikel/Charge und den vorhandenen Angaben zu Lieferant, Bestellung, Lieferschein und Wareneingang angezeigt. Ohne diese Felder bleibt die Karte leerer; ein **verbrauchender Fertigungsauftrag wird nicht als Herkunft ausgegeben**. Ist Oxaion nicht erreichbar, erscheint eine Fehlermeldung statt eines vermeintlich aktuellen Offline-Ergebnisses.

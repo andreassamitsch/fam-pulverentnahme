@@ -113,6 +113,7 @@
   }
 
   function clearProcessDisplay(clearLegacy=false){
+    window.FamChargeOriginUi?.reset?.();
     for(const id of ['outWarehouse','outStorageBin','outWarehouseLookup','outStorageBinLookup','faConsumptionAmount','abortActualAmount'])if(el(id))el(id).value='';
     for(const id of ['outTankData','fillTankData','fillArticlePanel','faTankData','faOrderData','abortOrderData']){
       const node=el(id);if(node){node.innerHTML='';node.classList.add('hidden')}
@@ -152,7 +153,7 @@
     const panel=el('fillArticlePanel');
     if(!panel||panel.classList.contains('hidden'))return '';
     const text=panel.querySelector('b')?.textContent||panel.textContent||'';
-    return text.match(/RP\.[A-Z0-9._-]+/i)?.[0]||'';
+    return text.match(/(?:RP|PB)\.[A-Z0-9._-]+/i)?.[0]||'';
   }
 
   function fillTankWarehouse(){

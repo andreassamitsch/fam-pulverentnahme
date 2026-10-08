@@ -76,6 +76,10 @@ Beim Android-Test von `0.1.6` zeigte sich, dass die geladene Tankantwort vor der
 
 Version `0.1.8` erweitert `process-mode.js` um den bewusst gestarteten Umlagerungsvorgang aus der Pulverlagerliste und die vereinfachten, fuer Produktionspersonal abgestimmten Vorgangsbezeichnungen. Die Ressource wird final als `/process-mode.js?v=20261007-stock-relocation-menu-2` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v49-stock-relocation-menu-20261007`. Die eigentliche Umlagerung ist trotz gecachter UI online-only und wird nie aus dem Service-Worker-Cache als fachlich bestaetigt abgeleitet.
 
+### PB-Pulverartikel-Cachegeneration 08.10.2026
+
+Fuer den Folgestand nach `0.1.10` werden `process-mode.js`, `process-shell.js` und `process-ux-optimizations.js` wegen der neuen `PB.*`-Erkennung mit `?v=20261008-pb-powder-1` versehen. Die App-Shell-Generation wird auf `fam-pulver-v51-pb-powder-20261008` angehoben. Caches der vorherigen `fam-pulver-*`-Generationen werden beim Aktivieren entfernt. API-Daten und Buchungsstatus werden weiterhin nie aus dem Service-Worker-Cache als Oxaion-Wahrheit verwendet.
+
 ### Lagerplatzdetails-Cachegeneration 07.10.2026
 
 Version `0.1.9` aendert nur den Bedien-Einstieg in der Pulverlagerliste: die komplette Lagerzeile ist antippbar und oeffnet zuerst `Lagerplatzdetails`; `Umlagern` erscheint erst dort. `process-mode.js` wird als `/process-mode.js?v=20261007-inventory-details-1` ausgeliefert; die App-Shell-Generation lautet `fam-pulver-v50-inventory-details-20261007`. Buchungsendpunkte, `LF -> LE`-Logik und Servervalidierungen bleiben unveraendert.
@@ -310,3 +314,15 @@ Die konkreten offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. F
 - Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb;
 - genaue Frontend-/API-Versionierung und Kompatibilitaetsregeln;
 - technisches Installations-/Rollout-Konzept fuer verwaltete Android-Geraete.
+
+### Chargenherkunft und PB-Kombirelease 0.1.11
+
+`process-mode.js`, `charge-origin-ui.js` und `ui-diagnostics.js` werden in `index.html` und `sw.js` mit `?v=20261008-charge-origin-1` geladen. Die App-Shell ist `fam-pulver-v52-charge-origin-pb-20261008`. Die unveraenderten PB-Artikel-Erkennungsskripte behalten ihre bereits vorbereitete eigene Asset-Version. Beim Aktivieren werden alte `fam-pulver-*`-Cachegenerationen wie bisher entfernt.
+
+Die neue Chargenherkunft-UI ist lediglich eine gecachte App-Shell: Die eigentlichen Herkunftsdaten duerfen nie aus dem Service-Worker-Cache, IndexedDB oder einer Offline-Outbox als aktuell/bestaetigt ausgegeben werden. Der neue GET-Leseaufruf bleibt vom API-Caching ausgeschlossen. Bei fehlender Verbindung muss eine klare Fehlermeldung erscheinen.
+
+### Chargenherkunft-UI-Fix 0.1.12 (08.10.2026)
+
+Die neuen versionierten URLs fuer `process-mode.js` und `charge-origin-ui.js` lauten `?v=20261008-origin-ui-fix-2`. Sie stehen identisch in `index.html` und `sw.js`. Die neue Service-Worker-Cachegeneration heisst `fam-pulver-v53-charge-origin-ui-fix-20261008`. Nach dem Update werden die veralteten `fam-pulver-*`-Caches beim Worker-Aktivieren entfernt, ohne IndexedDB-/Outbox-Daten anzutasten.
+
+Die Herkunftsdaten bleiben ausschliesslich online ueber das Backend/Oxaion verfuegbar. Das Nachladen von JavaScript oder CSS aus dem App-Shell-Cache ist keine fachliche Offline-Freigabe. Die Handler-Bindung des spaet angelegten eigenen Auskunftsvorgangs wird zusaetzlich in einem Node-Laufzeittest geprueft.

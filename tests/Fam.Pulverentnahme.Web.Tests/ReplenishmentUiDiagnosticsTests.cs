@@ -10,7 +10,7 @@ public sealed class ReplenishmentUiDiagnosticsTests
         var webRoot = WebRoot();
         var index = File.ReadAllText(Path.Combine(webRoot, "index.html"));
 
-        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", index);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", index);
         Assert.True(index.IndexOf("/process-mode.js", StringComparison.Ordinal) <
                     index.IndexOf("/replenish-router-guard.js", StringComparison.Ordinal));
@@ -107,13 +107,13 @@ public sealed class ReplenishmentUiDiagnosticsTests
     }
 
     [Fact]
-    public void ServiceWorkerV50RefreshesStaticAssetsInsteadOfReusingHttpCache()
+    public void ServiceWorkerV52RefreshesStaticAssetsInsteadOfReusingHttpCache()
     {
         var source = File.ReadAllText(Path.Combine(WebRoot(), "sw.js"));
 
-        Assert.Contains("fam-pulver-v50-inventory-details-20261007", source);
+        Assert.Contains("fam-pulver-v53-charge-origin-ui-fix-20261008", source);
         Assert.Contains("new Request(url,{cache:'reload'})", source);
-        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", source);
+        Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", source);
         Assert.Contains("FAM_DIAG_VERSION_REQUEST", source);
         Assert.Contains("FAM_DIAG_VERSION", source);
         Assert.Contains("/replenish-router-guard.js?v=20260909-replenish-guard-1", source);

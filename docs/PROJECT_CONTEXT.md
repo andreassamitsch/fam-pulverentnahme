@@ -39,7 +39,7 @@ Fuer Materialbuchungen soll nach Moeglichkeit die vorhandene Oxaion BDE-/PPS-Log
 
 ### Rein lesende Oxaion-SQL-Lagerbestandsansicht
 
-Fuer die allgemeine Informationsansicht der RP.*-Chargenbestaende ist ab 08.09.2026 ein direkter **rein lesender** SQL-Zugriff des Backends auf die Oxaion-Datenbank freigegeben. Diese Ausnahme gilt nur fuer die in `docs/INVENTORY_VIEW.md` dokumentierte Bestandsabfrage und ist keine Freigabe fuer ERP-Buchungen per SQL.
+Fuer die allgemeine Informationsansicht der RP.*- und PB.*-Chargenbestaende ist ab 08.09.2026 ein direkter **rein lesender** SQL-Zugriff des Backends auf die Oxaion-Datenbank freigegeben. Diese Ausnahme gilt nur fuer die in `docs/INVENTORY_VIEW.md` dokumentierte Bestandsabfrage und ist keine Freigabe fuer ERP-Buchungen per SQL.
 
 Verbindlich ab 02.10.2026:
 
@@ -510,3 +510,43 @@ Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Ins
 ### STAGING-SQL-Verbindungen dauerhaft speichern
 
 Ab 29.09.2026 werden die beiden serverseitigen STAGING-SQL-Verbindungen (`Syncos__ConnectionString` und `OxaionSql__ConnectionString`) beim ersten Start weiterhin verdeckt eingegeben, danach aber verschluesselt fuer denselben Windows-Benutzer auf demselben Rechner gespeichert. Die Speicherung erfolgt ausserhalb des Repositorys unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` mit Windows-DPAPI. Umgebungsvariablen haben weiterhin Vorrang. Mit `-ResetStoredSqlConnections` kann die lokale Speicherung bewusst geloescht und neu erfasst werden. Oxaion-HTTP-Benutzer/Passwort bleiben davon getrennt und werden weiterhin beim Start abgefragt.
+
+## Chargenherkunft ueber Oxaion HTTP
+
+Verbindliche Entscheidung ab 08.10.2026:
+
+- Die Grundchargen einer Mixcharge werden nicht durch eine eigene SQL-Rekonstruktion der Oxaion-Tabellen ermittelt.
+- Das Backend verwendet die in realen Transaktionsmitschnitten bestaetigte Oxaion-Fachlogik `US17490J` / `US17476R` ueber den vorhandenen HTTP-App-Tunnel.
+- `US17476R *FIRSTLIST` liefert den Herkunftsbaum. Zeilen mit `SUBTREES=TRUE` werden ueber die von Oxaion gelieferten Schluessel `PESSID` und `PEMPOS` rekursiv aufgeloest.
+- Erst nach vollstaendiger Oxaion-Aufloesung filtert das Backend auf eindeutige Grundchargen. Eine Artikel-/Chargen-Kombination, die irgendwo `SUBTREES=TRUE` besitzt, ist eine Zwischen-/Mixcharge und wird nicht als Grundcharge ausgegeben.
+- Der Leseweg ist rein read-only und fuehrt keine ERP-Buchung aus.
+- Die beim Oxaion-UI-Einstieg sichtbare interne `POOBID/FIOBID` wird niemals erfunden. Ihr technischer Ermittlungspfad aus Artikel+Charge ist noch nicht im Mitschnitt enthalten und bleibt bis zum STAGING-Test offen.
+- Details: `docs/CHARGE_ORIGIN.md`.
+
+## Pulverartikelkreise RP.* und PB.* (08.10.2026)
+
+Neue verbindliche fachliche Information:
+
+- `RP.*`: bisheriger Pulverartikelkreis.
+- `PB.*`: vom Kunden beigestelltes Pulver. Beispiel `PB.00001` mit Artikelbezeichnung `AlSi10Mg`.
+- Beide Artikelkreise muessen in FAM-Lageranzeige, QR-/Artikelnummernerkennung und bestehenden Pulverprozessen grundsaetzlich als Pulverartikel erkannt werden.
+- Die Artikelidentitaet bleibt dabei strikt: `PB.00001` ist trotz gleicher Pulverbezeichnung kein Synonym fuer einen `RP.*`-Artikel. Der bestehende exakte Artikelvergleich bei Scans, Materialquellen und Fertigungsauftraegen darf nicht aufgeweicht werden.
+- `PB.*` wird in der Lageransicht als `Kundenbeistellung` gekennzeichnet. Diese Kennzeichnung allein bestaetigt keine Entnahmeberechtigung.
+- Buchungsprogramme, Buchungsschluessel und Oxaion-Revalidierung bleiben unveraendert; keine Buchungen per SQL.
+- Noch offen: Wie die Kunden-/Auftragsbindung der Beistellcharge technisch aus Oxaion geprueft wird, um eine unerlaubte Verwendung fuer einen anderen Kunden oder Auftrag zu verhindern. Keine Kundenzuordnung anhand der Artikelbezeichnung oder der Artikelgruppe erfinden. Vor produktivem PB-Einsatz ist diese fachliche Freigabe zu klaeren.
+
+## Chargenherkunft in der FAM-Bedienoberflaeche (08.10.2026)
+
+Ab Version `0.1.11` wird die bereits ueber Oxaion HTTP implementierte reine Chargenherkunft-Auskunft in der PWA angeboten: einerseits direkt in den Details einer konkreten Pulverlagercharge bzw. eines eindeutig gefuellten Maschinentanks, andererseits als eigenstaendiger Vorgang `Chargenherkunft anzeigen` mit Scanner fuer `Artikel+++Charge` oder manueller Artikel-/Chargeneingabe.
+
+- Die Herkunft bleibt read-only, online-only und basiert ausschliesslich auf `/api/charge-origin` und der bestehenden Oxaion-Fachlogik `US17490J` / `US17476R`.
+- Die PWA zeigt eindeutige Grundchargen und deren vorhandene Herkunftsangaben; die vollstaendige technische Rekursion verbleibt im Backend.
+- RP.* und PB.* sind als getrennte Pulverartikelkreise akzeptiert. Eine gleiche Werkstoffbezeichnung erlaubt keine Vermischung der Artikel oder kundenuebergreifende PB-Verwendung.
+- Die Kunden-/Auftragsbindung von PB-Kundenbeistellung ist fachlich weiterhin offen und wird nicht durch die Chargenherkunft-Anzeige freigegeben.
+- Das neue UI wird gemeinsam mit der PB-Artikelkreis-Erweiterung in `0.1.11` getestet. Die bereitgestellte `0.1.10` MSI bleibt unveraendert.
+
+## Chargenherkunft UI-Korrektur 0.1.12 (08.10.2026)
+
+Im Android-STAGING-Test der 0.1.11 funktionierte die Herkunft in den Bestandsdetails, nicht aber die Scanner-/Suchbedienung im eigenen Vorgang. Ursache: Der Chargenherkunft-Handler wurde bereits bei DOMContentLoaded registriert, waehrend das dynamische Prozess-Panel erst danach durch `ensureUi()` eingefuegt wurde. `0.1.12` verbindet die Controls explizit nach Panel-Erzeugung, idempotent, und laedt die Herkunfts-Stile unabhaengig von der Panel-Existenz. Eine neue JavaScript-Laufzeitpruefung sichert diesen Ablauf ab.
+
+Anzeigeentscheidung: Grundchargen als lesbare getrennte Karten. Artikel, Charge und gesicherte beschaffungsbezogene Zusatzdaten (Lieferant, Bestellung, Lieferschein, Wareneingang) anzeigen, soweit von Oxaion geliefert. `productionOrder` aus den Herkunftszeilen wird **nicht als Ursprung angezeigt**, da ein dort enthaltener Fertigungsauftrag auch ein verbrauchender FA sein kann. Wenn keine Bestellung/kein Wareneingang vorhanden ist, bleiben diese Detailfelder leer/ausgeblendet. In Bestandsdetails und im Herkunftsdialog gibt es rote `Schliessen`-Buttons; im Herkunftsdialog bleibt daneben `Zurueck zu Details`.

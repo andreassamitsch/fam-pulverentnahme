@@ -264,3 +264,42 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 Nach erfolgreicher Materialauslagerung wird der optionale Lageretikettendruck als eigene Backend-Operation ausgeführt. Das Backend prüft dazu die eindeutige LE-Zielbewegung des bereits gebuchten Lagerbelegs und verwendet anschließend ausschließlich die im JET-Mitschnitt vom 29.09.2026 bestätigten Oxaion-Druckprogramme. Materialbuchung und Druckstatus bleiben getrennt; die aktuelle Druckerwarteschlange wird aus Oxaion gelesen und nicht fest im Frontend oder Backend hinterlegt.
 
 Für spätere Nachdrucke liefert ein authentifizierter read-only Endpoint die aus dem WebApp-Transaktionsspeicher abgeleiteten erfolgreichen Tank-Out-Kandidaten samt Druckhistorien-Summe und Sperrstatus. Der Nachdruck selbst verwendet denselben schreibenden Druckservice wie der unmittelbare Druck. Ein priorer `UNCERTAIN`-/`MANUAL_REVIEW_REQUIRED`-Druck derselben Tank-Out-ID wird serverseitig als Sperre behandelt. Materialbewegungen werden dabei nicht wiederholt.
+
+### Chargenherkunft
+
+Die Chargenherkunft ist eine rein lesende Oxaion-HTTP-Funktion. Das Backend rekonstruiert die Herkunft nicht selbst per SQL.
+
+Datenfluss:
+
+```text
+PWA / API
+  -> ChargeOriginService
+  -> Oxaion App-Tunnel
+  -> US17490J *LOADUSGI / *USGPARAMS (TX_USAGE=CH)
+  -> US17476R *GETHDR
+  -> US17476R *FIRSTLIST
+  -> rekursives Aufklappen von SUBTREES ueber PESSID + PEMPOS
+  -> Backend-Filter auf eindeutige Grundchargen
+```
+
+Der Endpoint lautet `GET /api/charge-origin`. Der Dienst verwirft Ergebnisse ohne den im Mitschnitt bestaetigten `STOP`-Marker und begrenzt Tiefe, Knotenzahl und Gesamtzeilen fail-closed. Die interne UPOST-`POOBID/FIOBID` ist optional und wird nur weitergegeben, wenn sie bekannt ist; es wird kein Ersatzwert erzeugt. Details siehe `docs/CHARGE_ORIGIN.md`.
+
+### Pulverartikel RP und PB
+
+Die FAM-Pulverartikelkreise `RP.*` (bisheriges Pulver) und `PB.*` (kundenseitig beigestelltes Pulver) werden an der technischen Artikelkreisgrenze gemeinsam erkannt. Die allgemeine, read-only Lager-SQL-Abfrage umfasst beide Praefixe (jeweils fuer `LLPWEP` und `LLAWEP`); die Backend-Verarbeitung validiert beide mit `PowderArticleRules`.
+
+Der bisherige reine Lagerlese-Endpunkt `/api/inventory/rp-stock` bleibt aus Kompatibilitaetsgruenden erhalten. Neuer neutraler Name: `/api/inventory/powder-stock`. Beide liefern dieselbe RP/PB-Pulverauswahl; `/api/inventory/overview` nutzt die gemeinsame Lesequelle.
+
+Artikelvergleich und vorhandene Oxaion-HTTP-Revalidierung bleiben exakt und unveraendert. Eine PB-Kundenbindung ist fachlich offen und kann nicht allein durch Artikelgruppe oder gleicher Pulverbezeichnung ersetzt werden.
+
+### Chargenherkunft PWA-Einstiege (0.1.11)
+
+Die Frontend-Prozessnavigation (`process-mode.js`) stellt die reine Auskunft `charge-origin` mit eigenem Panel bereit und bietet denselben Einstieg in Lagerplatz- und Maschinentankdetails. Ein gemeinsames `charge-origin-ui.js` verarbeitet entweder den bestaetigten QR-Code `Artikel+++Charge` ueber den vorhandenen `scanQrCode`-Dialog oder manuelle Eingabe und ruft nur `GET /api/charge-origin` auf.
+
+Artikel und Charge aus Bestandsdetails werden unveraendert uebernommen, ohne frei editierbare Buchungsmaske. Eine Versions-/Request-Kennung verhindert die Anzeige einer spaet eintreffenden Antwort nach Moduswechsel. Herkunftsergebnisse werden nicht im Service-Worker oder in IndexedDB zwischengespeichert. Die Oxaion-API wurde in `0.1.10` bereits unabhaengig davon realisiert; `0.1.11` fuegt Oberflaeche und PB-Artikelkreis hinzu.
+
+### Chargenherkunft-UI Initialisierung (0.1.12)
+
+Die PWA erzeugt die Vorgangspanels dynamisch. `DOMContentLoaded` bedeutet daher nicht, dass `chargeOriginProcess` bereits existiert. `process-mode.js/ensureUi()` ruft nach Erstellen der Felder explizit `FamChargeOriginUi.bind()` auf. Der Bindevorgang ist ueber `dataset.originBound` idempotent, die von Dialog und Formular gemeinsam benoetigten Stile werden schon bei Modulladung einmal angelegt. Ein Node-Laufzeittest im CI simuliert die Reihenfolge DOMContentLoaded -> Panel erst spaeter -> Binden -> Scan/Suche.
+
+Im UI werden die Oxaion-Felder Lieferant/Bestellung/Lieferschein/Wareneingang optional angezeigt. Der Backendwert `productionOrder` wird bewusst nicht visualisiert, solange aus dem Herkunftsbaum nicht nachgewiesen ist, ob er erzeugend oder verbrauchend ist. Der Lese-Endpunkt bleibt unveraendert und ist nicht gecacht.

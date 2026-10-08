@@ -205,3 +205,12 @@ Die folgenden Szenarien beschreiben den fachlichen Sollablauf. Konkrete Oxaion-P
 - **Personal:** der aktuell angemeldete Mitarbeiter darf vom ursprünglichen Auslagerungsmitarbeiter abweichen; der Nachdruck protokolliert den aktuell handelnden Mitarbeiter.
 - **Sperre:** existiert ein Druckvorgang derselben Auslagerung mit `UNCERTAIN` oder `MANUAL_REVIEW_REQUIRED`, wird kein neuer Druckauftrag gestartet.
 - **Wiederholter Erfolg:** ein früherer `SUCCESS` darf bewusst durch einen neuen Nachdruck ergänzt werden; jeder Auftrag bleibt als separate Transaktion nachvollziehbar.
+
+## Kundenbeistellpulver PB.* (08.10.2026)
+
+`PB.*` kennzeichnet kundenseitig beigestellte Pulverartikel (z. B. `PB.00001` / `AlSi10Mg`). In bestehenden Pulverprozessen soll diese Artikelgruppe prinzipiell ebenso erkannt werden wie `RP.*`. Die vorhandene artikel- und chargengenaue Revalidierung gegen Oxaion sowie die bestaetigten Buchungsprogramme und Buchungsschluessel bleiben unveraendert.
+
+**Keine Gleichsetzung bei gleicher Materialbezeichnung:** `PB.00001` ist ein anderer ERP-Artikel als `RP.00010`, auch wenn beide dieselbe Werkstoffbezeichnung tragen. Der automatische Mix-/FA-Verbrauch darf keine Artikelnummer ersetzen oder ueber die Bezeichnung zusammenlegen.
+
+**Noch offen vor produktiver PB-Freigabe:** Wie die Zuordnung einer PB-Charge zum liefernden Kunden und zu den erlaubten Fertigungsauftraegen geprueft wird; ob und unter welchen Bedingungen eine PB-Mixcharge zwischen Auftraegen desselben oder unterschiedlicher Kunden uebertragen werden darf. Hierzu keine unbekannten Oxaion-Buchungsprogramme oder Kundenschluessel annehmen. Der STAGING-Praxistest und eine verbindliche Fachentscheidung sind erforderlich.
+

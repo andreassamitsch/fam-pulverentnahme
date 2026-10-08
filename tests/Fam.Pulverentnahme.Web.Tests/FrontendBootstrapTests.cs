@@ -26,10 +26,10 @@ public sealed class FrontendBootstrapTests
         var serviceWorker = File.ReadAllText(Path.Combine(webRoot, "sw.js"));
         var processMode = File.ReadAllText(Path.Combine(webRoot, "process-mode.js"));
 
-        const string processModeUrl = "/process-mode.js?v=20261007-inventory-details-1";
+        const string processModeUrl = "/process-mode.js?v=20261008-origin-ui-fix-2";
         Assert.Contains(processModeUrl, index);
         Assert.Contains(processModeUrl, serviceWorker);
-        Assert.Contains("fam-pulver-v50-inventory-details-20261007", serviceWorker);
+        Assert.Contains("fam-pulver-v53-charge-origin-ui-fix-20261008", serviceWorker);
         Assert.Contains("keys.filter(k=>k.startsWith('fam-pulver-')&&k!==CACHE)", serviceWorker);
         Assert.Contains("Etiketten drucken?", processMode);
         Assert.Contains("data-mode=\"label-reprint\"", processMode);
@@ -44,8 +44,8 @@ public sealed class FrontendBootstrapTests
         Assert.Contains("/submit.js?v=20261006-empty-replenish-tank-1", serviceWorker);
         Assert.Contains("/worker-enhancements.js?v=20261006-empty-replenish-tank-1", index);
         Assert.Contains("/worker-enhancements.js?v=20261006-empty-replenish-tank-1", serviceWorker);
-        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", index);
-        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", serviceWorker);
+        Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", serviceWorker);
         Assert.Contains("FAM_DIAG_VERSION_REQUEST", serviceWorker);
         Assert.Contains("FAM_DIAG_VERSION", serviceWorker);
     }
