@@ -50,7 +50,7 @@ public sealed class ChargeOriginUiTests
         Assert.Contains("function ensureStyle()", origin);
         Assert.Contains("dataset.originBound", origin);
         Assert.Contains("function closeOriginModal(returnToDetails=false)", origin);
-        Assert.Contains("id=\\\"chargeOriginClose\\\"", origin);
+        Assert.Contains("id=\"chargeOriginClose\"", origin);
         Assert.Contains("originCloseButton", origin);
         Assert.Contains("window.FamChargeOriginUi?.bind?.()", WebFile("process-mode.js"));
         Assert.Contains("'Lieferant'", origin);
