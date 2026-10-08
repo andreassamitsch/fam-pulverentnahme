@@ -336,3 +336,9 @@ Die bereits mit 0.1.12 freigegebene Chargenherkunft wurde rein lesend erweitert.
 Der Backend-Service ordnet Lieferantenname und Lieferdatum nur einer eindeutig vorhandenen urspruenglichen Wareneingangszeile zu. Eine Lieferantencharge kann auch nur auf FA-Zeilen erscheinen und wird innerhalb derselben Artikel-/Chargenkombination eindeutig zusammengefasst. Fehlende oder widerspruechliche Zusatzinformationen bleiben leer. Bestelldatum wird auf Benutzerentscheidung hin nicht dargestellt oder separat gelesen.
 
 Die Oberflaeche zeigt die Zusatzinformationen in den vorhandenen Grundchargenkarten; PWA-Cache `fam-pulver-v54-origin-metadata-20261008`. Der bestehende read-only Endpoint, der Oxaion-Aufrufablauf, die Scanner- und Buchungslogik bleiben unveraendert. Installer-Version: `FAM-Pulverentnahme-Setup-0.1.13-x64.msi`. Android-/APP-01-Livetest vor Freigabe.
+
+## Freigabe 0.1.13 – betriebliche Sichten-Abhaengigkeit
+
+Die Oxaion-HTTP-Chargenherkunft ist als read-only Integration stabil, aber die drei zusaetzlichen Spalten sind in `US17476R` nur verfuegbar, wenn die Sicht des **fest konfigurierten Oxaion-HTTP-Benutzers** entsprechend eingerichtet ist. Ursache wurde im PROD-Test am 08.10.2026 bestaetigt. Die PWA-Personalanmeldung ist davon unabhaengig.
+
+Die aktuelle benutzerspezifische Sicht wird gemaess ausdruecklicher Anwenderfreigabe fuer die stabile Version `0.1.13` weiterverwendet. Der technische Oxaion-Benutzer soll gleich bleiben. Aenderungen am Benutzer/der Sicht erfordern eine manuelle Pruefung der Spalten und der Herkunftsausgabe. Eine programmatische Spaltenvertrag-/Konfigurationspruefung ist noch nicht enthalten und bleibt optionale Haertung. Code, HTTP-Transaktionen und MSI sind durch diese Dokumentationsentscheidung unveraendert.
