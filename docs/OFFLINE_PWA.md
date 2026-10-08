@@ -314,3 +314,10 @@ Die konkreten offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. F
 - Authentifizierungsverhalten bei abgelaufener Session waehrend Offline-Betrieb;
 - genaue Frontend-/API-Versionierung und Kompatibilitaetsregeln;
 - technisches Installations-/Rollout-Konzept fuer verwaltete Android-Geraete.
+
+### Chargenherkunft und PB-Kombirelease 0.1.11
+
+`process-mode.js`, `charge-origin-ui.js` und `ui-diagnostics.js` werden in `index.html` und `sw.js` mit `?v=20261008-charge-origin-1` geladen. Die App-Shell ist `fam-pulver-v52-charge-origin-pb-20261008`. Die unveraenderten PB-Artikel-Erkennungsskripte behalten ihre bereits vorbereitete eigene Asset-Version. Beim Aktivieren werden alte `fam-pulver-*`-Cachegenerationen wie bisher entfernt.
+
+Die neue Chargenherkunft-UI ist lediglich eine gecachte App-Shell: Die eigentlichen Herkunftsdaten duerfen nie aus dem Service-Worker-Cache, IndexedDB oder einer Offline-Outbox als aktuell/bestaetigt ausgegeben werden. Der neue GET-Leseaufruf bleibt vom API-Caching ausgeschlossen. Bei fehlender Verbindung muss eine klare Fehlermeldung erscheinen.
+
