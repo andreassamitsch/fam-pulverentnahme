@@ -291,3 +291,10 @@ Die FAM-Pulverartikelkreise `RP.*` (bisheriges Pulver) und `PB.*` (kundenseitig 
 Der bisherige reine Lagerlese-Endpunkt `/api/inventory/rp-stock` bleibt aus Kompatibilitaetsgruenden erhalten. Neuer neutraler Name: `/api/inventory/powder-stock`. Beide liefern dieselbe RP/PB-Pulverauswahl; `/api/inventory/overview` nutzt die gemeinsame Lesequelle.
 
 Artikelvergleich und vorhandene Oxaion-HTTP-Revalidierung bleiben exakt und unveraendert. Eine PB-Kundenbindung ist fachlich offen und kann nicht allein durch Artikelgruppe oder gleicher Pulverbezeichnung ersetzt werden.
+
+### Chargenherkunft PWA-Einstiege (0.1.11)
+
+Die Frontend-Prozessnavigation (`process-mode.js`) stellt die reine Auskunft `charge-origin` mit eigenem Panel bereit und bietet denselben Einstieg in Lagerplatz- und Maschinentankdetails. Ein gemeinsames `charge-origin-ui.js` verarbeitet entweder den bestaetigten QR-Code `Artikel+++Charge` ueber den vorhandenen `scanQrCode`-Dialog oder manuelle Eingabe und ruft nur `GET /api/charge-origin` auf.
+
+Artikel und Charge aus Bestandsdetails werden unveraendert uebernommen, ohne frei editierbare Buchungsmaske. Eine Versions-/Request-Kennung verhindert die Anzeige einer spaet eintreffenden Antwort nach Moduswechsel. Herkunftsergebnisse werden nicht im Service-Worker oder in IndexedDB zwischengespeichert. Die Oxaion-API wurde in `0.1.10` bereits unabhaengig davon realisiert; `0.1.11` fuegt Oberflaeche und PB-Artikelkreis hinzu.
+
