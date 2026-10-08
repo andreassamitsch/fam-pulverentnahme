@@ -281,3 +281,11 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] STAGING-Livetest von `0.1.10` mit einer bekannten Mixcharge durchfuehren und Ergebnis gegen die Oxaion-Oberflaeche vergleichen.
 - [ ] Im STAGING-Test klaeren, ob `US17490J` den Einstieg nur mit Artikel+Charge ohne `POOBID/FIOBID` akzeptiert. Falls nein, den bestaetigten Oxaion-Leseweg zur internen UPOST-Objekt-ID ermitteln; keine Objekt-ID erfinden.
 
+## PB Kundenbeistellpulver 08.10.2026
+
+- [x] `PB.*` als neuen Pulverartikelkreis dokumentiert: Kundenbeistellung, z. B. `PB.00001` / `AlSi10Mg`.
+- [x] Lager-SQL und Mapper sowie Umlagerungsartikelpruefung und betroffene Frontend-Erkennungsroutinen neben `RP.*` auch um `PB.*` erweitert.
+- [x] `PB.*`-Bestand in der Lageruebersicht als `Kundenbeistellung` markiert.
+- [x] Exakte Oxaion-Artikelidentitaet wird weiter geprueft; gleiche Pulverbezeichnung fuehrt nicht zur Gleichsetzung von `RP.*` und `PB.*`.
+- [ ] Oxaion-Fachregel fuer die eindeutige Kunden-/Auftragsbindung von PB-Beistellchargen und die zulaessigen Verbrauchs- und Tankvorgaenge verbindlich klaeren und in der Backend-Revalidierung nachweisen. Bis dahin PB nicht allein aufgrund Artikelgruppe/gleicher Bezeichnung als kundenuebergreifend frei verfuegbar behandeln.
+- [ ] Realen STAGING-Test mit `PB.00001` oder anderer PB-Charge: Lager-/Tankdarstellung, Scan, Entnahmeort-/Bestandsleseweg, Materialtransfer und ggf. FA-Verbrauch anhand nachgewiesener Kunden-/Auftragszuordnung pruefen.
