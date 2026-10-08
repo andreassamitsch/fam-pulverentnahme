@@ -30,6 +30,11 @@
     return {article:fields[0],batch:fields[1]};
   }
 
+  function formatDeliveryDate(value){
+    const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value||'').trim());
+    return match?`${match[3]}.${match[2]}.${match[1]}`:String(value||'');
+  }
+
   function resultHtml(data,query){
     if(!data||!Array.isArray(data.baseBatches)){
       throw new Error('Oxaion hat keine gültige Chargenherkunft-Antwort geliefert.');
@@ -39,11 +44,11 @@
     if(!list.length){
       return header+'<div class="status warn">Keine Grundchargen ermittelt. Bitte die Chargenherkunft in Oxaion prüfen. Es wurden keine Materialbuchungen durchgeführt.</div>';
     }
-    const fields=[['supplier','Lieferant'],['purchaseOrder','Bestellung'],['deliveryNote','Lieferschein'],['goodsReceipt','Wareneingang']];
+    const fields=[['supplier','Lieferant'],['supplierName','Lieferantenname'],['externalBatch','Externe Charge'],['purchaseOrder','Bestellung'],['deliveryNote','Lieferschein'],['goodsReceipt','Wareneingang'],['deliveryDate','Lieferdatum']];
     return header+`<h3 class="originResultTitle">${list.length} eindeutige Grundcharge${list.length===1?'':'n'}</h3>`+
       '<div class="originBatchList">'+list.map(item=>{
         const details=fields.filter(([name])=>String(item?.[name]||'').trim())
-          .map(([name,label])=>`<div class="originMetadata"><span>${label}</span><b>${escapeHtml(item[name])}</b></div>`).join('');
+          .map(([name,label])=>`<div class="originMetadata"><span>${label}</span><b>${escapeHtml(name==='deliveryDate'?formatDeliveryDate(item[name]):item[name])}</b></div>`).join('');
         return `<article class="originBatch"><b>${escapeHtml(item?.batch||'—')}</b><span>Artikel ${escapeHtml(item?.article||'—')}</span>${details?`<div class="originMetadataList">${details}</div>`:''}</article>`;
       }).join('')+'</div>';
   }
