@@ -545,3 +545,8 @@ Ab Version `0.1.11` wird die bereits ueber Oxaion HTTP implementierte reine Char
 - Die Kunden-/Auftragsbindung von PB-Kundenbeistellung ist fachlich weiterhin offen und wird nicht durch die Chargenherkunft-Anzeige freigegeben.
 - Das neue UI wird gemeinsam mit der PB-Artikelkreis-Erweiterung in `0.1.11` getestet. Die bereitgestellte `0.1.10` MSI bleibt unveraendert.
 
+## Chargenherkunft UI-Korrektur 0.1.12 (08.10.2026)
+
+Im Android-STAGING-Test der 0.1.11 funktionierte die Herkunft in den Bestandsdetails, nicht aber die Scanner-/Suchbedienung im eigenen Vorgang. Ursache: Der Chargenherkunft-Handler wurde bereits bei DOMContentLoaded registriert, waehrend das dynamische Prozess-Panel erst danach durch `ensureUi()` eingefuegt wurde. `0.1.12` verbindet die Controls explizit nach Panel-Erzeugung, idempotent, und laedt die Herkunfts-Stile unabhaengig von der Panel-Existenz. Eine neue JavaScript-Laufzeitpruefung sichert diesen Ablauf ab.
+
+Anzeigeentscheidung: Grundchargen als lesbare getrennte Karten. Artikel, Charge und gesicherte beschaffungsbezogene Zusatzdaten (Lieferant, Bestellung, Lieferschein, Wareneingang) anzeigen, soweit von Oxaion geliefert. `productionOrder` aus den Herkunftszeilen wird **nicht als Ursprung angezeigt**, da ein dort enthaltener Fertigungsauftrag auch ein verbrauchender FA sein kann. Wenn keine Bestellung/kein Wareneingang vorhanden ist, bleiben diese Detailfelder leer/ausgeblendet. In Bestandsdetails und im Herkunftsdialog gibt es rote `Schliessen`-Buttons; im Herkunftsdialog bleibt daneben `Zurueck zu Details`.
