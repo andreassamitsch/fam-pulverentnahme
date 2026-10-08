@@ -310,3 +310,16 @@ Ab dem nach `0.1.10` vorbereiteten Folgestand erkennt die WebApp neben `RP.*` au
 - Verbindliche Kunden-/Auftragsbindung der beigestellten Charge ist **nicht** durch die Artikelgruppe technisch bewiesen und muss vor produktiver PB-Verwendung fachlich geklaert werden.
 
 Details in `docs/PROJECT_CONTEXT.md`, `docs/INVENTORY_VIEW.md` und `docs/OPEN_POINTS.md`.
+
+## Version 0.1.11 – PB-Kundenbeistellung und Chargenherkunft-UI
+
+Die seit `0.1.10` vorhandene read-only API `GET /api/charge-origin` wurde vom Bediener fuer einen realen Herkunftstest als funktionierend gemeldet. Mit `0.1.11` folgen:
+
+- eigener Vorgang `Chargenherkunft anzeigen` mit Kamera-QR `Artikel+++Charge` oder manueller Artikel-/Chargeneingabe;
+- derselbe Auskunftsaufruf direkt aus den Details der Pulverlagercharge und einem eindeutig belegten Maschinentank;
+- eindeutige Grundchargen inklusive optionaler von Oxaion gelieferter Herkunftsdaten; keine Materialbuchung;
+- Aufnahme des PB.*-Kundenbeistellpulvers in Lager-SQL, Scanner-/Artikelerkennung, Lagerdarstellung und die bisherige genau validierte Lagerplatz-Umlagerung;
+- PWA-Shell-Cachegeneration `fam-pulver-v52-charge-origin-pb-20261008`.
+
+Die Kunden-/Auftragsbindung von PB-Beistellchargen bleibt vor produktiven PB-Materialbuchungen fachlich offen. Android-/STAGING-Praxistests der neuen UI und PB-Artikelgruppe stehen aus. MSI-Version `0.1.11` wird separat von der bereits bereitgestellten `0.1.10` gebaut.
+
