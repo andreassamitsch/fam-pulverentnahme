@@ -143,3 +143,11 @@ Zusammenfuehrung: Die externe Charge wird nur bei eindeutigem Wert fuer dieselbe
 Die Oxaion-Sichtkonfiguration mit den neuen Spalten muss auf der produktiv abgefragten Oxaion-Umgebung verfuegbar sein. Falls sie dort fehlt, funktionieren die Herkunftsdaten weiter, die drei Felder bleiben leer. Das Frontend zeigt ISO-Lieferdaten als `TT.MM.JJJJ` an. Keine weiteren Oxaion-Transaktionen, kein zusaetzlicher SQL-Leseweg.
 
 Automatisierte Tests decken 84671, 87911, 52993, fehlende und kollidierende Felder ab. Der reale Android-/APP-01-Test der `0.1.13` ist vor Merge erforderlich.
+
+## Betrieb/Freigabe 0.1.13: stabile technische Oxaion-Sicht
+
+Am 08.10.2026 wurde im produktiven Test die Ursache fuer fehlende Zusatzfelder identifiziert: `US17476R *FIRSTLIST` liefert die Spalten gemaess der individuellen Oxaion-Sicht des **serverseitig konfigurierten HTTP-Benutzers**. Die drei Felder sind nur in der entsprechenden Sicht dieses Benutzers vorhanden. Der Anwender hat diese benutzerabhaengige Betriebsweise fuer Version `0.1.13` ausdruecklich freigegeben; der technische Benutzer soll unveraendert bleiben. Die getrennte Anmeldung eines PWA-Produktionsmitarbeiters beeinflusst die HTTP-Kennung nicht.
+
+Verbindlicher Betriebscheck bei geplanter/ungeplanter Aenderung der Oxaion-HTTP-Kennung, deren Rechten oder Sicht: Fuer `US17476R` muessen `PONR.POCHNL`, `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` und `UPOVEP.PELFDT` in der tatsaechlich aktiven Ansicht verfuegbar sein. Danach die Herkunft einer bekannten Grundcharge mit einem tatsaechlich vorhandenen Zusatzwert in der FAM-PWA pruefen. Ohne die Spalten gibt das vorhandene Backend weiterhin die Grundchargen zurueck, laesst aber die betreffenden Zusatzwerte leer. Diese bewusst akzeptierte Einschraenkung ist **keine** automatische Laufzeit-Konfigurationspruefung.
+
+Weitere Absicherung durch eine feste Oxaion-Fachauskunft oder eine automatische Pruefung der gelieferten Spalten kann spaeter separat entschieden werden. Am getesteten `0.1.13`-Code und an der bestehenden MSI wird fuer diese Betriebsentscheidung nichts geaendert.
