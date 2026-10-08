@@ -268,3 +268,12 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Verhalten bei neuer App-Version und offenen `PENDING_SYNC`-Vorgaengen im Detail festlegen
 - [ ] Browser Background Sync nur als optionale Optimierung pruefen; Zuverlaessigkeit darf nicht davon abhaengen
 - [ ] Installations-/Rollout-Konzept fuer verwaltete Android-Geraete festlegen
+
+## Chargenherkunft 08.10.2026
+
+- [x] Oxaion-Transaktionsweg fuer `Chargenherkunft ermitteln (CH)` analysiert: `US17490J / *USGPARAMS` startet `US17476R`; Unterbaeume werden durch erneutes `US17476R / *FIRSTLIST` mit `PESSID/PEMPOS` und `NoHeader=true` geladen.
+- [x] Backend-Service und read-only API fuer rekursive Herkunftsauflösung und Deduplizierung auf Grundchargen auf Feature-Branch umgesetzt. Kein SQL-Nachbau der Herkunftslogik.
+- [ ] STAGING-Praxistest: bestaetigen, ob der Einstieg mit Artikel + Charge und `POOBID/FIOBID=0` funktioniert.
+- [ ] Falls Oxaion fuer den Einstieg eine konkrete UPOST-Objekt-ID verlangt: den freigegebenen Oxaion-HTTP-Weg zur Objekt-ID-Ermittlung per Transaktionsmitschnitt bestimmen; keinen SQL-Fallback erfinden.
+- [ ] Erst nach erfolgreichem Backend-Praxistest entscheiden, wo die Grundchargen in der Bedienoberflaeche angezeigt beziehungsweise abgefragt werden.
+
