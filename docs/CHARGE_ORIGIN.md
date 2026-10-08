@@ -113,3 +113,10 @@ Der Scanner oeffnet zuerst die Kamera und aktiviert die Erkennung erst nach bewu
 
 Chargenherkunft ist online-only, erzeugt keine Buchung, keine Outbox und keinen lokalen Herkunfts-Cache. `objectId` wird nicht aus der UI erfunden oder geraten; der Einstieg ohne `objectId` wurde durch den Benutzer am 08.10.2026 fuer den Testfall erfolgreich bestaetigt. Weitere Material- und Artikelkombinationen sind im STAGING zu testen.
 
+## 0.1.12 – Android-Bedienkorrektur und Anzeige
+
+Der 0.1.11-STAGING-Test vom 08.10.2026 zeigte: Aufruf der Herkunft aus einem Pulverlager-/Tankdetail funktioniert, aber Kamera- und Suchbutton im eigenstaendigen Vorgang reagieren nicht. Ursache ist die zeitliche Reihenfolge: `charge-origin-ui.js` bindete am `DOMContentLoaded`-Event, jedoch erzeugt `process-mode.js` sein Panel erst spaeter in `ensureUi()`. Das fuehrte zugleich dazu, dass das CSS fuer die Herkunftskarten im Detaildialog fehlte.
+
+Ab `0.1.12` wird `FamChargeOriginUi.bind()` direkt nach `ensureUi()` aufgerufen, idempotent; die Styles werden unabhaengig davon einmal bei Modulladung registriert. Ein neuer JavaScript-Laufzeittest bildet genau die vorher fehlerhafte asynchrone DOM-Reihenfolge nach und prueft sowohl Kamera-Scan als auch manuelle Abfrage.
+
+UI-Aenderungen: eigenstaendige, deutlich abgegrenzte Grundchargenkarten mit lesbaren Beschriftungen, flexibler Darstellung auf Android und optionalen Beschaffungsdaten. Der mit `ChargeOriginBaseBatch.ProductionOrder` vom Oxaion-Read-Service gelieferte FA wird **in der UI nicht angezeigt**, weil der Datensatz einen verbrauchenden statt den Ursprungs-FA enthalten kann. Ohne beschaffungsbezogene Felder wird kein Ersatzwert erdacht. `Zurueck zu Details` stellt das jeweilige Tank-/Lagerdetail wieder her; der neue rote `Schliessen`-Button schliesst die Herkunft vollstaendig. In den Bestandsdetails ist der bestehende `Schliessen`-Button ebenfalls rot. Es wurden keine Backend-/Buchungsaufrufe geaendert.
