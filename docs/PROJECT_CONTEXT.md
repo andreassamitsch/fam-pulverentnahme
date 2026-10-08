@@ -510,3 +510,16 @@ Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Ins
 ### STAGING-SQL-Verbindungen dauerhaft speichern
 
 Ab 29.09.2026 werden die beiden serverseitigen STAGING-SQL-Verbindungen (`Syncos__ConnectionString` und `OxaionSql__ConnectionString`) beim ersten Start weiterhin verdeckt eingegeben, danach aber verschluesselt fuer denselben Windows-Benutzer auf demselben Rechner gespeichert. Die Speicherung erfolgt ausserhalb des Repositorys unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` mit Windows-DPAPI. Umgebungsvariablen haben weiterhin Vorrang. Mit `-ResetStoredSqlConnections` kann die lokale Speicherung bewusst geloescht und neu erfasst werden. Oxaion-HTTP-Benutzer/Passwort bleiben davon getrennt und werden weiterhin beim Start abgefragt.
+
+## Chargenherkunft ueber Oxaion HTTP
+
+Verbindliche Entscheidung ab 08.10.2026:
+
+- Die Grundchargen einer Mixcharge werden nicht durch eine eigene SQL-Rekonstruktion der Oxaion-Tabellen ermittelt.
+- Das Backend verwendet die in realen Transaktionsmitschnitten bestaetigte Oxaion-Fachlogik `US17490J` / `US17476R` ueber den vorhandenen HTTP-App-Tunnel.
+- `US17476R *FIRSTLIST` liefert den Herkunftsbaum. Zeilen mit `SUBTREES=TRUE` werden ueber die von Oxaion gelieferten Schluessel `PESSID` und `PEMPOS` rekursiv aufgeloest.
+- Erst nach vollstaendiger Oxaion-Aufloesung filtert das Backend auf eindeutige Grundchargen. Eine Artikel-/Chargen-Kombination, die irgendwo `SUBTREES=TRUE` besitzt, ist eine Zwischen-/Mixcharge und wird nicht als Grundcharge ausgegeben.
+- Der Leseweg ist rein read-only und fuehrt keine ERP-Buchung aus.
+- Die beim Oxaion-UI-Einstieg sichtbare interne `POOBID/FIOBID` wird niemals erfunden. Ihr technischer Ermittlungspfad aus Artikel+Charge ist noch nicht im Mitschnitt enthalten und bleibt bis zum STAGING-Test offen.
+- Details: `docs/CHARGE_ORIGIN.md`.
+
