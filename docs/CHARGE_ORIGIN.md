@@ -120,3 +120,21 @@ Der 0.1.11-STAGING-Test vom 08.10.2026 zeigte: Aufruf der Herkunft aus einem Pul
 Ab `0.1.12` wird `FamChargeOriginUi.bind()` direkt nach `ensureUi()` aufgerufen, idempotent; die Styles werden unabhaengig davon einmal bei Modulladung registriert. Ein neuer JavaScript-Laufzeittest bildet genau die vorher fehlerhafte asynchrone DOM-Reihenfolge nach und prueft sowohl Kamera-Scan als auch manuelle Abfrage.
 
 UI-Aenderungen: eigenstaendige, deutlich abgegrenzte Grundchargenkarten mit lesbaren Beschriftungen, flexibler Darstellung auf Android und optionalen Beschaffungsdaten. Der mit `ChargeOriginBaseBatch.ProductionOrder` vom Oxaion-Read-Service gelieferte FA wird **in der UI nicht angezeigt**, weil der Datensatz einen verbrauchenden statt den Ursprungs-FA enthalten kann. Ohne beschaffungsbezogene Felder wird kein Ersatzwert erdacht. `Zurueck zu Details` stellt das jeweilige Tank-/Lagerdetail wieder her; der neue rote `Schliessen`-Button schliesst die Herkunft vollstaendig. In den Bestandsdetails ist der bestehende `Schliessen`-Button ebenfalls rot. Es wurden keine Backend-/Buchungsaufrufe geaendert.
+
+## Angefragte Herkunfts-Zusatzdaten (08.10.2026)
+
+Nach erfolgreichem Android-STAGING-Test der Version `0.1.12` wurde eine Erweiterung der Grundchargenkarte um folgende optionale Felder angefragt:
+
+1. **Externe Chargennummer:** Die von Lieferant/Kunde vorgegebene Charge, soweit diese fuer genau dieselbe interne Artikel-/Chargen-Kombination nachweislich in Oxaion hinterlegt ist.
+2. **Wareneingangsdatum:** Das belegte Datum des urspruenglichen Wareneingangs, nicht das Lieferdatum oder das Buchungsdatum einer spaeteren Umlagerung.
+3. **Bestelldatum:** Das Datum der zugehoerigen Einkaufsbestellung, nicht das Datum eines Fertigungsauftrags.
+
+**Nachgewiesener aktueller Stand:** Die bestaetigte Oxaion-Herkunft `US17476R *FIRSTLIST` liefert als Referenzen `UPOVEP.PEWEGN` (Wareneingangsnummer) und `UPOVEP.PEBENR` (Bestellnummer). In beiden bislang vorhandenen Original-Transaktionsmitschnitten finden sich **keine** Felder fuer externe Chargennummer, Wareneingangsdatum oder Bestelldatum. Der bestehende `ChargeOriginService` und die API `/api/charge-origin` koennen diese Angaben deshalb noch nicht ausgeben.
+
+**Externe Fachreferenz, kein bestaetigter FAM-HTTP-Call:** Die oxaion-Dokumentation fuer `EK30404` beschreibt explizit das Feld `Externe Charge`, fuer das die Chargennummer des Lieferanten erfasst wird (https://docs.oxaion.de/spaces/open51/pages/187840124/EK30404). Die Standarddokumentation zur Wareneingangsbearbeitung beschreibt Eingangsdatum und Chargen auf Wareneingangspositionen (https://docs.oxaion.de/spaces/open/pages/156893390/Wareneingang). `EK20100` dokumentiert das Bestelldatum (https://docs.oxaion.de/spaces/open/pages/3514284/EK20100). Aus diesen Fachtexten koennen keine gueltigen App-Tunnel-Aktionen/Parameter oder Join-Schluessel fuer unsere installierte Oxaion-Version abgeleitet werden.
+
+**Vorgesehener sicherer Datenfluss:** Nach vollstaendiger Aufloesung der Grundchargen die eindeutige Ursprungsbestellung/Wareneingangsposition per bestaetigten read-only Oxaion-Detailaufrufen lesen und exakt auf Artikel, Charge, Beleg und ggf. Position abgleichen. Zusatzfelder nur bei eindeutigem Nachweis ausgeben; sonst Feld **leer lassen**. Keine direkten ERP-Schreib-SQL, keine erfundenen Parameter, keine Zuordnung anhand einer bloessen Belegnummer, wenn mehrere Positionen/Chargen moeglich sind. Die bisher funktionierende Herkunftsabfrage darf nicht durch optional fehlende Zusatzdaten komplett ausfallen.
+
+**Zum technischen Nachweis benoetigt:** Ein Oxaion-Transaktionsmitschnitt, in dem die Detailansicht einer realen Grundcharge samt externer Charge geoeffnet wird; danach die Detailansicht des dazugehoerigen Wareneingangs (z. B. `FA24WE00027`) und die Bestelldetails (z. B. `FA24BE00022`) inklusive Datumsfeldern. Wichtig ist, dass die im Dialog gezeigte Artikel-/Chargennummer und ggf. die Belegposition zum Datensatz passen. Reine GUI-Feldbezeichnungen ohne die zugehoerigen HTTP-Transaktionen reichen nicht zur Implementierung.
+
+**Versionshinweis:** `0.1.12` wurde nach Android-Test als stabile Version nach `main` uebernommen. Die Zusatzdaten sind ein offener Entwicklungswunsch fuer eine **neue** MSI-Version; `0.1.12` bleibt unveraendert.
