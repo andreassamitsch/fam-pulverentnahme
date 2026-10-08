@@ -310,13 +310,14 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] 0.1.12 auf Android/APP-01 in STAGING testen: Scanner, manuelle Suche, Kartenlayout, Zurueck/Schliessen und reiner Online-Oxaion-Zugriff.
 - [ ] Fachliche Kunden-/Auftragsbindung fuer `PB.*` bleibt offen und muss vor produktivem Beistellpulververbrauch geklaert werden.
 
-## Zusatzdaten Chargenherkunft – externe Charge und Datumsfelder (08.10.2026)
+## Zusatzdaten Chargenherkunft – externe Charge, Datumsfelder und Lieferantenname (08.10.2026)
 
 - [x] Android-STAGING-Test `0.1.12`: Chargenherkunft-Oberflaeche funktionsfaehig und lesbar; freigegeben und in `main` uebernommen (PR #25).
-- [x] Originale `US17476R *FIRSTLIST`-Mitschnitte auf externe Chargennummer, Wareneingangsdatum und Bestelldatum geprueft: keine dieser Informationen enthalten.
+- [x] Originale `US17476R *FIRSTLIST`-Mitschnitte auf externe Chargennummer, Wareneingangsdatum, Bestelldatum und Lieferantenname geprueft: keine dieser Informationen enthalten; Lieferantenkennung (`UPOVEP.PELINR`) liegt bereits vor.
 - [x] Fachliche Oxaion-Dokumentation bestaetigt `Externe Charge` auf Wareneingangspositionen, Datum im Wareneingang und Bestelldatum in Einkaufsbelegen. Dies ist noch kein bestaetigter HTTP-Detailaufruf.
 - [ ] Exakte Oxaion-HTTP-Transaktionen fuer die Zusatzfelder durch Mitschnitt von konkreter Grundcharge/Wareneingangsposition und zugehoeriger Einkaufsbestellung ermitteln, inklusive Artikel-/Chargen-/Belegpositions-Abgleich.
-- [ ] Backend-Enrichment fuer **Externe Chargennummer**, **Wareneingangsdatum** und **Bestelldatum** nur auf Basis bestaetigter read-only Oxaion-Daten implementieren. Bei fehlender/mehrdeutiger Referenz optionale Werte leer lassen.
+- [ ] Bestaetigten Oxaion-Leseweg fuer den **Lieferantennamen** zur bereits gelieferten Lieferantenkennung (Test: `3001399 000`) ermitteln; Firmenbezeichnung nur bei eindeutig zugeordnetem Lieferantenstammsatz anzeigen, Kennung beibehalten.
+- [ ] Backend-Enrichment fuer **Externe Chargennummer**, **Wareneingangsdatum**, **Bestelldatum** und **Lieferantenname** nur auf Basis bestaetigter read-only Oxaion-Daten implementieren. Bei fehlender/mehrdeutiger Referenz optionale Werte leer lassen.
 - [ ] Keine Verwechslung von Eingangsdatum, Lieferdatum oder spaeterem Materialbewegungsdatum; keine Verwechslung von Einkaufsbestelldatum und Fertigungsauftragsdatum.
 - [ ] Nach Implementierung UI-Karten aktualisieren, Testfaelle fuer Grundchargen ohne WE/Bestellung bzw. mehrfachen WE/Bestellpositionen anlegen, PWA-Cache aktualisieren und fuer die neue MSI-Version einen realen APP-01-/Oxaion-Test absolvieren.
 
