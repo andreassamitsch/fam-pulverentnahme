@@ -94,6 +94,8 @@ Beispiel:
 
 `RP.00010+++87911`
 
+Bei Kundenbeistellpulver entsprechend beispielsweise `PB.00001+++<Charge>`.
+
 Die App prueft Artikel, Charge, Lagerort/Lagerplatz und aktuellen Bestand gegen Oxaion.
 
 ### Fertigungsauftrag-QR
@@ -377,3 +379,12 @@ Passwoerter oder andere Zugangsdaten niemals in Screenshots, Chats oder Fehlerme
 Dieses Bedienerhandbuch beschreibt den aktuellen Bedienstand der App.
 
 Wenn sich Prozessreihenfolge, sichtbare Felder, Scannerablauf, Meldungen, Anmeldeverfahren oder Bedienregeln aendern, muss dieses Dokument im selben Entwicklungsschritt aktualisiert werden.
+
+## Kundenbeistellpulver PB.*
+
+Neben den bisherigen `RP.*`-Pulverartikeln kann die PWA auch `PB.*`-Artikel verarbeiten. `PB.*` kennzeichnet Pulver, das ein Kunde fuer seine Auftraege beistellt, beispielsweise `PB.00001` / `AlSi10Mg`.
+
+- Die Lagerliste fuehrt PB-Artikel separat und kennzeichnet sie als `Kundenbeistellung`.
+- Beim Scannen gelten dieselben Artikel-/Chargenregeln wie bei RP; insbesondere muss der **exakte Oxaion-Artikel** uebereinstimmen.
+- Ein PB-Artikel darf niemals allein wegen gleicher Pulverbezeichnung durch einen RP-Artikel ersetzt werden.
+- Kundenbeistellung bedeutet nicht, dass das Pulver fuer alle Auftraege freigegeben ist. Die verbindliche Kunden-/Auftragszuordnung ist vor dem produktiven Einsatz organisatorisch/fachlich zu klaeren.
