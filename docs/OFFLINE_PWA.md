@@ -321,3 +321,8 @@ Die konkreten offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. F
 
 Die neue Chargenherkunft-UI ist lediglich eine gecachte App-Shell: Die eigentlichen Herkunftsdaten duerfen nie aus dem Service-Worker-Cache, IndexedDB oder einer Offline-Outbox als aktuell/bestaetigt ausgegeben werden. Der neue GET-Leseaufruf bleibt vom API-Caching ausgeschlossen. Bei fehlender Verbindung muss eine klare Fehlermeldung erscheinen.
 
+### Chargenherkunft-UI-Fix 0.1.12 (08.10.2026)
+
+Die neuen versionierten URLs fuer `process-mode.js` und `charge-origin-ui.js` lauten `?v=20261008-origin-ui-fix-2`. Sie stehen identisch in `index.html` und `sw.js`. Die neue Service-Worker-Cachegeneration heisst `fam-pulver-v53-charge-origin-ui-fix-20261008`. Nach dem Update werden die veralteten `fam-pulver-*`-Caches beim Worker-Aktivieren entfernt, ohne IndexedDB-/Outbox-Daten anzutasten.
+
+Die Herkunftsdaten bleiben ausschliesslich online ueber das Backend/Oxaion verfuegbar. Das Nachladen von JavaScript oder CSS aus dem App-Shell-Cache ist keine fachliche Offline-Freigabe. Die Handler-Bindung des spaet angelegten eigenen Auskunftsvorgangs wird zusaetzlich in einem Node-Laufzeittest geprueft.
