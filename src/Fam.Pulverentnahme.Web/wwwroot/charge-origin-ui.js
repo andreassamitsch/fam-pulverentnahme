@@ -39,7 +39,7 @@
     if(!list.length){
       return header+'<div class="status warn">Keine Grundchargen ermittelt. Bitte die Chargenherkunft in Oxaion prüfen. Es wurden keine Materialbuchungen durchgeführt.</div>';
     }
-    const fields=[['supplier','Lieferant'],['purchaseOrder','Bestellung'],['deliveryNote','Lieferschein'],['goodsReceipt','Wareneingang'],['productionOrder','Fertigungsauftrag']];
+    const fields=[['supplier','Lieferant'],['purchaseOrder','Bestellung'],['deliveryNote','Lieferschein'],['goodsReceipt','Wareneingang']];
     return header+`<h3 class="originResultTitle">${list.length} eindeutige Grundcharge${list.length===1?'':'n'}</h3>`+
       '<div class="originBatchList">'+list.map(item=>{
         const details=fields.filter(([name])=>String(item?.[name]||'').trim())
@@ -114,13 +114,13 @@
     body.innerHTML=`<div class="status ${kind==='loading'?'neutral':kind}" role="status">${escapeHtml(status)}</div>`+content;
   }
 
-  function closeOriginModal(){
+  function closeOriginModal(returnToDetails=false){
     ++requestVersion;
     const previous=modalBack;
     modalBack=null;
     el('processModal')?.classList.add('hidden');
     document.body.classList.remove('scanModalOpen');
-    if(typeof previous==='function'&&!el('inventoryProcess')?.classList.contains('hidden'))previous();
+    if(returnToDetails&&typeof previous==='function'&&!el('inventoryProcess')?.classList.contains('hidden'))previous();
   }
 
   function show(article,batch,onBack=null){
@@ -135,8 +135,9 @@
     if(!modal)return;
     el('processModalTitle').textContent='Chargenherkunft';
     el('processModalBody').innerHTML='';
-    el('processModalActions').innerHTML='<button id="chargeOriginClose" class="primary" type="button">Zurück zu Details</button>';
-    el('chargeOriginClose').onclick=closeOriginModal;
+    el('processModalActions').innerHTML='<button id="chargeOriginBack" class="secondary" type="button">Zurück zu Details</button><button id="chargeOriginClose" class="originCloseButton" type="button">Schließen</button>';
+    el('chargeOriginBack').onclick=()=>closeOriginModal(true);
+    el('chargeOriginClose').onclick=()=>closeOriginModal(false);
     modal.classList.remove('hidden');
     document.body.classList.add('scanModalOpen');
     if(!query){
@@ -146,21 +147,52 @@
     loadOrigin(query.article,query.batch,modalRender).catch(()=>{});
   }
 
+  function ensureStyle(){
+    if(el('famChargeOriginStyles'))return;
+    const style=document.createElement('style');
+    style.id='famChargeOriginStyles';
+    style.textContent=`
+      .originHeading{display:grid;gap:4px;padding:13px 14px;border:1px solid #c7d6df;border-radius:12px;margin:12px 0 18px;background:#edf4f8}
+      .originHeading b{display:block;font-size:18px;line-height:1.25;overflow-wrap:anywhere}
+      .originHeading span{display:block;color:#465e6e;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+      .originResultTitle{font-size:19px;margin:16px 0 11px;line-height:1.3}
+      .originBatchList{display:grid;gap:12px;margin:10px 0 16px}
+      .originBatch{display:block;border:1px solid #cbd9e1;border-left:5px solid #2376a7;border-radius:12px;padding:13px 14px;background:#fff;overflow-wrap:anywhere}
+      .originBatch>b{display:block;font-size:21px;line-height:1.2;color:#182b38}
+      .originBatch>span{display:block;color:#526a79;margin-top:5px;font-size:14px;line-height:1.3}
+      .originMetadataList{border-top:1px solid #dbe6eb;margin-top:11px;padding-top:9px;display:grid;gap:9px}
+      .originMetadata{display:grid;grid-template-columns:minmax(90px,35%) minmax(0,1fr);gap:9px;align-items:start;font-size:15px;line-height:1.35}
+      .originMetadata span{display:block;color:#526a79}
+      .originMetadata b{display:block;font-weight:700;overflow-wrap:anywhere}
+      #processModalActions:has(.originCloseButton){display:flex;gap:10px;flex-wrap:wrap}
+      .originCloseButton{background:#bc3029!important;border-color:#bc3029!important;color:#fff!important;font-weight:750;cursor:pointer}
+      .originCloseButton:focus-visible{outline:3px solid #f1a7a2;outline-offset:2px}
+      .originCloseButton:active{background:#92221c!important}
+      @media(max-width:620px){.originBatch{padding:12px}.originMetadata{grid-template-columns:minmax(80px,38%) minmax(0,1fr);font-size:14px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  // process-mode creates the form asynchronously after DOMContentLoaded. Binding at
+  // DOMContentLoaded alone silently missed both buttons in the first 0.1.11 build.
+  // process-mode explicitly invokes bind() after ensureUi() creates the panel.
+  // Safe to call repeatedly after navigation, and styles are loaded independently.
   function bind(){
-    if(!el('chargeOriginSearch'))return;
-    el('chargeOriginSearch').onclick=search;
-    el('chargeOriginScan').onclick=()=>scan().catch(()=>{});
+    ensureStyle();
+    const searchButton=el('chargeOriginSearch'),scanButton=el('chargeOriginScan');
+    if(!searchButton||!scanButton||searchButton.dataset.originBound==='true')return;
+    searchButton.dataset.originBound='true';
+    searchButton.onclick=search;
+    scanButton.onclick=()=>scan().catch(()=>{});
     for(const id of ['chargeOriginArticle','chargeOriginBatch']){
       el(id).addEventListener('keydown',event=>{
         if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();search()}
       });
     }
-    const style=document.createElement('style');
-    style.textContent='.originHeading{padding:12px;border:1px solid #cbd9e1;border-radius:11px;margin:12px 0;background:#edf4f8}.originHeading b,.originHeading span{display:block;overflow-wrap:anywhere}.originHeading span{margin-top:3px;color:#465e6e}.originResultTitle{font-size:19px;margin:15px 0 10px}.originBatchList{display:grid;gap:10px;margin-top:10px}.originBatch{border:1px solid #cbd9e1;border-radius:12px;padding:13px;background:white;overflow-wrap:anywhere}.originBatch>b{display:block;font-size:18px}.originBatch>span{display:block;color:#4d6574;margin-top:2px}.originMetadataList{border-top:1px solid #dbe6eb;margin-top:10px;padding-top:7px;display:grid;gap:5px}.originMetadata{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px}.originMetadata span{color:#526a79}.originMetadata b{font-weight:700}';
-    document.head.appendChild(style);
   }
 
-  window.FamChargeOriginUi={show,reset};
+  window.FamChargeOriginUi={show,reset,bind};
+  ensureStyle();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
   else bind();
 })();
