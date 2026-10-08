@@ -44,8 +44,8 @@ public sealed class FrontendBootstrapTests
         Assert.Contains("/submit.js?v=20261006-empty-replenish-tank-1", serviceWorker);
         Assert.Contains("/worker-enhancements.js?v=20261006-empty-replenish-tank-1", index);
         Assert.Contains("/worker-enhancements.js?v=20261006-empty-replenish-tank-1", serviceWorker);
-        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", index);
-        Assert.Contains("/ui-diagnostics.js?v=20261006-tank-runtime-diag-1", serviceWorker);
+        Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", index);
+        Assert.Contains("/ui-diagnostics.js?v=20261008-charge-origin-1", serviceWorker);
         Assert.Contains("FAM_DIAG_VERSION_REQUEST", serviceWorker);
         Assert.Contains("FAM_DIAG_VERSION", serviceWorker);
     }
