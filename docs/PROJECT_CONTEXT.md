@@ -510,3 +510,14 @@ Die aktuell offenen Punkte werden zentral in `docs/OPEN_POINTS.md` gepflegt. Ins
 ### STAGING-SQL-Verbindungen dauerhaft speichern
 
 Ab 29.09.2026 werden die beiden serverseitigen STAGING-SQL-Verbindungen (`Syncos__ConnectionString` und `OxaionSql__ConnectionString`) beim ersten Start weiterhin verdeckt eingegeben, danach aber verschluesselt fuer denselben Windows-Benutzer auf demselben Rechner gespeichert. Die Speicherung erfolgt ausserhalb des Repositorys unter `%LOCALAPPDATA%\FAM-Pulverentnahme\staging-sql-secrets.clixml` mit Windows-DPAPI. Umgebungsvariablen haben weiterhin Vorrang. Mit `-ResetStoredSqlConnections` kann die lokale Speicherung bewusst geloescht und neu erfasst werden. Oxaion-HTTP-Benutzer/Passwort bleiben davon getrennt und werden weiterhin beim Start abgefragt.
+
+## Chargenherkunft ueber Oxaion HTTP ab 08.10.2026
+
+- Die Chargenherkunft wird nicht als eigene SQL-Verknuepfungslogik nachgebaut.
+- Das Backend verwendet die im Transaktionsmitschnitt bestaetigte Oxaion-Fachlogik `US17490J / *USGPARAMS` mit `TX_USAGE=CH` und den daraus gestarteten Herkunftsbaum `US17476R`.
+- Aufklappbare Herkunftsknoten werden ueber `US17476R / *FIRSTLIST` mit `PESSID/PEMPOS` rekursiv gelesen.
+- Die FAM-Ausgabe verdichtet die von Oxaion gelieferten Daten auf eindeutige Grundchargen. Eine Charge, die irgendwo als `SUBTREES=TRUE` vorkommt, ist keine terminale Grundcharge.
+- Diese Funktion ist rein lesend und fuehrt keine ERP-Buchung aus.
+- Der Einstieg ohne die in der Oxaion-Oberflaeche mitgefuehrte UPOST-Objekt-ID ist noch im STAGING-Praxistest zu bestaetigen. Bis dahin bleibt dieser Punkt offen; es gibt keinen SQL-Fallback fuer die Herkunftslogik.
+- Details: `docs/CHARGE_ORIGIN.md`.
+

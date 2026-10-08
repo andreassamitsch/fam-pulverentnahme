@@ -264,3 +264,21 @@ Details stehen in `docs/OFFLINE_PWA.md`.
 Nach erfolgreicher Materialauslagerung wird der optionale Lageretikettendruck als eigene Backend-Operation ausgeführt. Das Backend prüft dazu die eindeutige LE-Zielbewegung des bereits gebuchten Lagerbelegs und verwendet anschließend ausschließlich die im JET-Mitschnitt vom 29.09.2026 bestätigten Oxaion-Druckprogramme. Materialbuchung und Druckstatus bleiben getrennt; die aktuelle Druckerwarteschlange wird aus Oxaion gelesen und nicht fest im Frontend oder Backend hinterlegt.
 
 Für spätere Nachdrucke liefert ein authentifizierter read-only Endpoint die aus dem WebApp-Transaktionsspeicher abgeleiteten erfolgreichen Tank-Out-Kandidaten samt Druckhistorien-Summe und Sperrstatus. Der Nachdruck selbst verwendet denselben schreibenden Druckservice wie der unmittelbare Druck. Ein priorer `UNCERTAIN`-/`MANUAL_REVIEW_REQUIRED`-Druck derselben Tank-Out-ID wird serverseitig als Sperre behandelt. Materialbewegungen werden dabei nicht wiederholt.
+
+## Read-only Chargenherkunft
+
+Die Chargenherkunft ist ein eigener rein lesender Oxaion-HTTP-Weg im Backend.
+
+```text
+PWA / Backend-Client
+  -> GET /api/charge-origin/base-batches
+  -> ChargeOriginService
+  -> OxaionClient / app-tunnel
+  -> US17490J TX_USAGE=CH
+  -> US17476R Herkunftsbaum
+  -> rekursive PESSID/PEMPOS-Aufloesung
+  -> deduplizierte Grundchargen
+```
+
+Es wird keine direkte SQL-Rekonstruktion der Oxaion-Chargenbeziehungen verwendet. Das Backend akzeptiert nur vollstaendige, mit dem bestaetigten `STOP`-Marker abgeschlossene Baumantworten. Details und der noch offene STAGING-Einstiegstest stehen in `docs/CHARGE_ORIGIN.md`.
+
