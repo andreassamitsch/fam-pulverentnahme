@@ -270,3 +270,14 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Verhalten bei neuer App-Version und offenen `PENDING_SYNC`-Vorgaengen im Detail festlegen
 - [ ] Browser Background Sync nur als optionale Optimierung pruefen; Zuverlaessigkeit darf nicht davon abhaengen
 - [ ] Installations-/Rollout-Konzept fuer verwaltete Android-Geraete festlegen
+
+## Chargenherkunft 08.10.2026
+
+- [x] Reale Oxaion-Transaktionsmitschnitte fuer `Chargenherkunft ermitteln (CH)` ausgewertet: Einstieg ueber `US17490J`, Herkunftsanzeige `US17476R`, Baumauflistung `*FIRSTLIST`.
+- [x] Baumrekursion technisch bestaetigt: `ROW SUBTREES="TRUE"` wird mit erneutem `US17476R *FIRSTLIST` ueber `PESSID + PEMPOS` und `NoHeader=true` aufgeloest.
+- [x] Backend-`ChargeOriginService` und `GET /api/charge-origin` fuer `0.1.10` umgesetzt; keine SQL-Rekonstruktion der Herkunft.
+- [x] Grundchargenfilter umgesetzt: Artikel-/Chargen-Kombinationen mit mindestens einem `SUBTREES=TRUE`-Knoten gelten als Zwischen-/Mixcharge; terminale Dubletten werden zusammengefasst.
+- [x] Fail-closed-Vollstaendigkeits- und Sicherheitsgrenzen umgesetzt: `STOP` erforderlich, maximale Tiefe/Knoten/Zeilen, keine doppelte Expansion desselben `PESSID/PEMPOS`.
+- [ ] STAGING-Livetest von `0.1.10` mit einer bekannten Mixcharge durchfuehren und Ergebnis gegen die Oxaion-Oberflaeche vergleichen.
+- [ ] Im STAGING-Test klaeren, ob `US17490J` den Einstieg nur mit Artikel+Charge ohne `POOBID/FIOBID` akzeptiert. Falls nein, den bestaetigten Oxaion-Leseweg zur internen UPOST-Objekt-ID ermitteln; keine Objekt-ID erfinden.
+
