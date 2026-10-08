@@ -47,8 +47,8 @@ public sealed class PowderArticleRulesTests
 
         foreach (var file in new[] { "process-shell.js", "process-ux-optimizations.js", "process-mode.js" })
         {
-            Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261008-charge-origin-1" : "20261008-pb-powder-1"), html);
-            Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261008-charge-origin-1" : "20261008-pb-powder-1"), worker);
+            Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261008-origin-ui-fix-2" : "20261008-pb-powder-1"), html);
+            Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261008-origin-ui-fix-2" : "20261008-pb-powder-1"), worker);
         }
         Assert.Contains("fam-pulver-v53-charge-origin-ui-fix-20261008", worker);
     }
