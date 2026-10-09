@@ -418,3 +418,9 @@ Die Grundchargen werden als einzelne, klar voneinander getrennte Karten mit Arti
 Im Vorgang `Chargenherkunft anzeigen` oder im Detailfenster einer Lager-/Tankcharge werden die eindeutigen Grundchargen angezeigt. Zu jeder Grundcharge werden zusaetzlich (falls von der aktiven Oxaion-Sicht geliefert) der **Lieferantenname**, die **Externe Charge / Charge Lieferant** und das **Lieferdatum** im Format `TT.MM.JJJJ` dargestellt. Die bisherige Lieferantennummer, Bestellnummer und Wareneingangsnummer bleiben erhalten. Ein **Bestelldatum** gibt es bewusst nicht.
 
 Fehlen die Daten fuer eine Grundcharge oder sind sie nicht eindeutig, werden die betreffenden Felder weggelassen. Die Anzeige ist eine reine Online-Auskunft ohne Buchung; das Datum darf nicht ohne Beleg als Lieferdatum angenommen werden. Falls eine Oxaion-Umgebung die neuen Felder nicht liefert, prueft die IT die Sichtkonfiguration und Oxaion-Verbindung.
+
+## Bedienoptimierung 0.1.14
+
+**Chargenherkunft:** Eine Grundchargenkarte zeigt unter `Lieferant` nur noch den Lieferantennamen an; die Lieferantennummer und das Feld `Bestellung` werden ausgeblendet. Externe Charge, Lieferschein, Wareneingang und Lieferdatum bleiben sichtbar, sofern vorhanden. Fehlt der Name in Oxaion, wird das Lieferantenfeld nicht angezeigt.
+
+**Bestand anzeigen:** Im Pulverlager stehen ab dieser Version die regulaeren Pulverartikel `RP.*` zuerst. Die seltener benoetigten Kundenbeistellungen `PB.*` folgen danach, jeweils nach Artikelnummer sortiert. Maschinentanks, Mengen, Chargen und Lagerplatzdetails bleiben ansonsten unveraendert.
