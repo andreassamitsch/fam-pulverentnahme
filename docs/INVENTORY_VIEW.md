@@ -128,3 +128,7 @@ Auch die aus der Lageruebersicht gestartete Umlagerung ist technisch ein separat
 Die PWA kennzeichnet PB-Bestaende als `Kundenbeistellung`. Diese Kennzeichnung ist keine Eigentums-/Verwendungsfreigabe. Die konkrete Verknuepfung der Charge zum Kunden/Fertigungsauftrag und ggf. Einschraenkungen fuer Maschinen/Tank und Umlagerungen bleiben vor PB-Produktiveinsatz zu bestaetigen; siehe `docs/OPEN_POINTS.md`.
 
 Technische neue API-Bezeichnung: `/api/inventory/powder-stock`. Der bestehende `/api/inventory/rp-stock`-Endpoint bleibt aus Kompatibilitaetsgruenden zunaechst bestehen und liefert ebenfalls beide Artikelgruppen. Die `/api/inventory/overview`-Antwort verwendet die gemeinsame Quelle.
+
+## 0.1.14 – Anzeigeprioritaet regulaerer Pulverartikel
+
+Die Pulverlagerliste ist fuer den haeufigsten Anwendungsfall priorisiert: Alle `RP.*`-Artikel erscheinen zuerst, **danach** alle `PB.*`-Kundenbeistellungen. Innerhalb jeder Artikelgruppe gilt weiterhin die bisherige aufsteigende Artikelnummernreihenfolge; Lagerort/Lagerplatz/Charge bleiben je Artikel wie bisher aufsteigend. Die Maschinentankdarstellung oberhalb der Pulverlagerartikel wird nicht umsortiert. Es wird ausschliesslich die Gruppensortierung im Frontend (`process-mode.js`) geaendert – nicht die read-only SQL-Abfrage, nicht der Bestand und nicht der Index einer antippbaren Lagerposition. Der vorhandene `Kundenbeistellung`-Hinweis bleibt erhalten.
