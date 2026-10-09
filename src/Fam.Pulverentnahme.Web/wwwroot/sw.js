@@ -1,4 +1,4 @@
-const CACHE='fam-pulver-v54-origin-metadata-20261008';
+const CACHE='fam-pulver-v55-origin-compact-rp-first-20261009';
 const ASSETS=[
   '/',
   '/index.html',
@@ -16,8 +16,8 @@ const ASSETS=[
   '/submit.js?v=20261006-empty-replenish-tank-1',
   '/worker-ui.js?v=20261001-operator-ui-1',
   '/worker-enhancements.js?v=20261006-empty-replenish-tank-1',
-  '/process-mode.js?v=20261008-origin-ui-fix-2',
-  '/charge-origin-ui.js?v=20261008-supplier-lot-date-1',
+  '/process-mode.js?v=20261009-rp-first-1',
+  '/charge-origin-ui.js?v=20261009-origin-compact-1',
   '/process-mode-focus-fix.js?v=20261001-operator-ui-1',
   '/replenish-router-guard.js?v=20260909-replenish-guard-1',
   '/target-location.js?v=20260909-pcl-targets-1',

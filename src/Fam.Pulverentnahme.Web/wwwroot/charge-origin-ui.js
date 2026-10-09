@@ -44,7 +44,7 @@
     if(!list.length){
       return header+'<div class="status warn">Keine Grundchargen ermittelt. Bitte die Chargenherkunft in Oxaion prüfen. Es wurden keine Materialbuchungen durchgeführt.</div>';
     }
-    const fields=[['supplier','Lieferant'],['supplierName','Lieferantenname'],['externalBatch','Externe Charge'],['purchaseOrder','Bestellung'],['deliveryNote','Lieferschein'],['goodsReceipt','Wareneingang'],['deliveryDate','Lieferdatum']];
+    const fields=[['supplierName','Lieferant'],['externalBatch','Externe Charge'],['deliveryNote','Lieferschein'],['goodsReceipt','Wareneingang'],['deliveryDate','Lieferdatum']];
     return header+`<h3 class="originResultTitle">${list.length} eindeutige Grundcharge${list.length===1?'':'n'}</h3>`+
       '<div class="originBatchList">'+list.map(item=>{
         const details=fields.filter(([name])=>String(item?.[name]||'').trim())
