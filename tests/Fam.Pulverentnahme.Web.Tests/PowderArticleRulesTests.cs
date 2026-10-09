@@ -47,10 +47,10 @@ public sealed class PowderArticleRulesTests
 
         foreach (var file in new[] { "process-shell.js", "process-ux-optimizations.js", "process-mode.js" })
         {
-            Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261008-origin-ui-fix-2" : "20261008-pb-powder-1"), html);
+            Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261009-rp-first-1" : "20261008-pb-powder-1"), html);
             Assert.Contains("/" + file + "?v=" + (file == "process-mode.js" ? "20261008-origin-ui-fix-2" : "20261008-pb-powder-1"), worker);
         }
-        Assert.Contains("fam-pulver-v54-origin-metadata-20261008", worker);
+        Assert.Contains("fam-pulver-v55-origin-compact-rp-first-20261009", worker);
     }
 
     private static string FindRepositoryRoot()
