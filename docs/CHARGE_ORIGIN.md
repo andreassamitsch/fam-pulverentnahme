@@ -151,3 +151,9 @@ Am 08.10.2026 wurde im produktiven Test die Ursache fuer fehlende Zusatzfelder i
 Verbindlicher Betriebscheck bei geplanter/ungeplanter Aenderung der Oxaion-HTTP-Kennung, deren Rechten oder Sicht: Fuer `US17476R` muessen `PONR.POCHNL`, `T_TEXT_PELINR_UPOVEP.T_TEXT_PELINR_UPOVEP_TX_PKOAZL1` und `UPOVEP.PELFDT` in der tatsaechlich aktiven Ansicht verfuegbar sein. Danach die Herkunft einer bekannten Grundcharge mit einem tatsaechlich vorhandenen Zusatzwert in der FAM-PWA pruefen. Ohne die Spalten gibt das vorhandene Backend weiterhin die Grundchargen zurueck, laesst aber die betreffenden Zusatzwerte leer. Diese bewusst akzeptierte Einschraenkung ist **keine** automatische Laufzeit-Konfigurationspruefung.
 
 Weitere Absicherung durch eine feste Oxaion-Fachauskunft oder eine automatische Pruefung der gelieferten Spalten kann spaeter separat entschieden werden. Am getesteten `0.1.13`-Code und an der bestehenden MSI wird fuer diese Betriebsentscheidung nichts geaendert.
+
+## 0.1.14 – reduzierte Lieferanten-/Beleganzeige
+
+Nach dem Android-Praxistest der Vorversion zeigt jede Grundchargenkarte nur noch den **Lieferantennamen** mit dem Label **Lieferant**; die numerische Lieferantenkennung und die **Bestellung** werden in der Benutzeroberflaeche bewusst nicht mehr gezeigt. Die intern weiterhin vorhandenen API-Eigenschaften `supplier` und `purchaseOrder` und die Oxaion-`US17476R`-Abfragen bleiben unveraendert. Angezeigt bleiben Externe Charge, Lieferschein, Wareneingang und Lieferdatum, wenn Oxaion diese liefert. Bei fehlendem `supplierName` wird keine Kennung als angeblicher Name ausgegeben, sondern die Lieferant-Zeile weggelassen. Die von Oxaion gelieferte Benutzersicht bleibt unveraendert erforderlich.
+
+Release `0.1.14` umfasst ausschliesslich diese Bedienoptimierung und die RP-vor-PB-Sortierung im Pulverlager; beide sind ohne ERP-Schreiboperationen.

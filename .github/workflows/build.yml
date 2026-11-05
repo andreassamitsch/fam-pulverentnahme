@@ -63,6 +63,9 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
+      - name: Test RP before PB inventory order
+        run: node .\tests\frontend\inventory-article-order.test.cjs
+
       - name: Test charge origin UI lifecycle
         run: node .\\tests\\frontend\\charge-origin-ui.test.cjs
 

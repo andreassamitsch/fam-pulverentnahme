@@ -330,3 +330,7 @@ Die Herkunftsdaten bleiben ausschliesslich online ueber das Backend/Oxaion verfu
 ### PWA-Cache 0.1.13 – Grundchargen-Lieferanteninformationen
 
 `charge-origin-ui.js` wird nach der UI-Erweiterung in `index.html` und `sw.js` mit `?v=20261008-supplier-lot-date-1` geladen. Die neue Cachegeneration ist `fam-pulver-v54-origin-metadata-20261008`; die vorherigen `fam-pulver-*`-Generationen werden wie bisher auf Aktivierung entfernt. Alle eigentlichen Herkunftsdaten kommen unveraendert ausschliesslich online per `GET /api/charge-origin`; kein Cache, keine Outbox und keine Offline-Buchungsfreigabe.
+
+### Cachegeneration 0.1.14 – Bestandssortierung und Herkunftsdetails
+
+`process-mode.js` und `charge-origin-ui.js` sind im `index.html` und der `sw.js`-Assetliste mit `?v=20261009-rp-first-1` beziehungsweise `?v=20261009-origin-compact-1` versioniert. Die neue Cachegeneration lautet `fam-pulver-v55-origin-compact-rp-first-20261009`. Die Service-Worker-Aktualisierung ersetzt nur die App-Shell; Oxaion-API-Daten, Materialbestandsfreigaben und Buchungsinformationen bleiben weiterhin online-only, ohne neue Caches/Outbox.

@@ -342,3 +342,9 @@ Die Oberflaeche zeigt die Zusatzinformationen in den vorhandenen Grundchargenkar
 Die Oxaion-HTTP-Chargenherkunft ist als read-only Integration stabil, aber die drei zusaetzlichen Spalten sind in `US17476R` nur verfuegbar, wenn die Sicht des **fest konfigurierten Oxaion-HTTP-Benutzers** entsprechend eingerichtet ist. Ursache wurde im PROD-Test am 08.10.2026 bestaetigt. Die PWA-Personalanmeldung ist davon unabhaengig.
 
 Die aktuelle benutzerspezifische Sicht wird gemaess ausdruecklicher Anwenderfreigabe fuer die stabile Version `0.1.13` weiterverwendet. Der technische Oxaion-Benutzer soll gleich bleiben. Aenderungen am Benutzer/der Sicht erfordern eine manuelle Pruefung der Spalten und der Herkunftsausgabe. Eine programmatische Spaltenvertrag-/Konfigurationspruefung ist noch nicht enthalten und bleibt optionale Haertung. Code, HTTP-Transaktionen und MSI sind durch diese Dokumentationsentscheidung unveraendert.
+
+## Version 0.1.14 – Anzeigeoptimierung Chargenherkunft und Pulverlager
+
+Die Frontend-Herkunftsansicht wurde nach dem Android-Test gestrafft: `supplierName` wird als `Lieferant` angezeigt; `supplier` (numerische Kennung) und `purchaseOrder` werden in der PWA nicht mehr ausgegeben. Der REST-API-Vertrag und die Oxaion-Datenermittlung bleiben unveraendert; externe Charge, Lieferschein, Wareneingang und Lieferdatum sind weiterhin optional sichtbar.
+
+`process-mode.js` sortiert Lagerartikel explizit nach Artikelkreis `RP.*` vor `PB.*`, innerhalb der Gruppen aufsteigend. Die Sortierung erfolgt nur in der Ansicht. Backend-Bestands-SQL, Lagerposition-IDs/Indices, Transaktionen, Oxaion-Lese-/Buchungslogik und Maschinentanks bleiben unveraendert. Die PWA verwendet Asset-Versionen `20261009-rp-first-1` und `20261009-origin-compact-1` sowie Cache `fam-pulver-v55-origin-compact-rp-first-20261009`. Installierbarer Release Candidate `0.1.14`; APP-01-/Android-Praxistest vor `main`-Merge.

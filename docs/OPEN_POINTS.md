@@ -328,3 +328,12 @@ Die grundsaetzliche Entscheidung fuer PWA, Service Worker, IndexedDB, lokale Out
 - [ ] Bei Aenderung des technischen Oxaion-Benutzers, dessen Berechtigungen oder `US17476R`-Sicht vor Nutzung pruefen, dass Lieferantenname, externe Charge und Lieferdatum weiterhin geliefert werden.
 - [ ] Optional spaeter: automatische Pruefung der Oxaion-Ergebnis-Spalten gegen einen festen Schnittstellenvertrag bzw. von Benutzersichten unabhaengige Oxaion-Auskunft. Fuer 0.1.13 bewusst nicht implementiert.
 - [ ] Weiter offen: fachliche Kunden-/Auftragsbindung fuer PB-Beistellpulver vor produktiver Verwendung absichern.
+
+## Bedienoptimierung Chargenherkunft/Lageransicht 0.1.14 (09.10.2026)
+
+- [x] Anzeigeentscheidung: Unter `Lieferant` nur den ausgeschriebenen Namen; Lieferantennummer und `Bestellung` in Grundchargenkarten ausblenden.
+- [x] Externe Charge, Lieferschein, Wareneingang und Lieferdatum unveraendert optional anzeigen.
+- [x] RP.*-Pulverartikel vor PB.*-Kundenbeistellartikel im Pulverlager anzeigen; Artikelnummern innerhalb der jeweiligen Gruppe weiter aufsteigend.
+- [x] UI-only umgesetzt, Backend-API und Lager-/Buchungslogik unveraendert. Regressionstests fuer Herkunftsmetadata und Artikelkreis-Reihenfolge aufgenommen.
+- [ ] 0.1.14 auf Android/APP-01 testen (Lieferantenanzeige, keine Bestellnummer, RP-vor-PB-Sortierung und korrektes Oeffnen der Lagerplatzdetails); erst danach Release-PR nach `main` uebernehmen.
+- [ ] Kunden-/Auftragsbindung fuer PB-Beistellpulver bleibt fachlich offen.

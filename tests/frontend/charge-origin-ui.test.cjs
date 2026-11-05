@@ -117,7 +117,9 @@ async function tick() {
   assert.match(output.innerHTML, /KUNDE_123/);
   assert.match(output.innerHTML, /Lieferant/);
   assert.match(output.innerHTML, /IMR metal powder technologies GmbH/);
-  assert.match(output.innerHTML, /Lieferantenname/);
+  assert.match(output.innerHTML, /<span>Lieferant<\/span><b>IMR metal powder technologies GmbH<\/b>/);
+  assert.doesNotMatch(output.innerHTML, /Lieferantenname|3001399 000|Bestellung|purchaseOrder/,
+    'Supplier number and purchase order must not appear in origin cards');
   assert.match(output.innerHTML, /Externe Charge/);
   assert.match(output.innerHTML, /WZ_17551102/);
   assert.match(output.innerHTML, /Lieferdatum/);
